@@ -37,3 +37,14 @@ class WorkflowDefinition(BaseModel):
     )
     trigger: Trigger
     actions: List[Action]
+
+
+class UserRequest(BaseModel):
+    text: str
+
+
+class AIResponse(BaseModel):
+    success: bool
+    data: Optional[WorkflowDefinition] = None
+    error: Optional[str] = None
+

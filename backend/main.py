@@ -4,13 +4,12 @@ from pydantic import BaseModel
 import os
 import json
 from dotenv import load_dotenv
-from typing import Optional
 
 from azure.ai.inference import ChatCompletionsClient
 from azure.ai.inference.models import SystemMessage, UserMessage
 from azure.core.credentials import AzureKeyCredential
 
-from schemas import WorkflowDefinition
+from schemas import WorkflowDefinition, UserRequest, AIResponse
 from prompts import SYSTEM_PROMPT
 
 load_dotenv()
@@ -39,18 +38,6 @@ def get_azure_client():
         endpoint=AZURE_ENDPOINT,
         credential=AzureKeyCredential(AZURE_API_KEY),
     )
-
-
-# Pydantic model for the API request
-class UserRequest(BaseModel):
-    text: str
-
-
-# Pydantic model for the API response (can be a success or an error)
-class AIResponse(BaseModel):
-    success: bool
-    data: Optional[WorkflowDefinition] = None
-    error: Optional[str] = None
 
 
 def get_ai_response(user_input: str) -> str:
