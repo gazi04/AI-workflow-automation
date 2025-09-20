@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Literal, Optional
+from typing import List, Optional
 from enum import Enum
 
 
@@ -47,4 +47,3 @@ class AIResponse(BaseModel):
     success: bool
     data: Optional[WorkflowDefinition] = None
     error: Optional[str] = None
-
