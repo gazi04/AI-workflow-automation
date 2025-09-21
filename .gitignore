@@ -1,3 +1,5 @@
 __pycache__/
 
 .env
+backend/client_secret_google.json
+
