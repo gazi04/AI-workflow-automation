@@ -1,3 +1,17 @@
+[project]
+name = "workflow-automation"
+version = "0.1.0"
+description = "A FastAPI project for workflow automation."
+dependencies = [
+  "fastapi",
+  "uvicorn[standard]",
+  "SQLAlchemy",
+  "psycopg2-binary",
+  "pydantic[email]",
+  "azure-ai-inference",
+  "httpx",
+]
+
 [tool.pyright]
 venvPath = "."
 venv = ".venv"

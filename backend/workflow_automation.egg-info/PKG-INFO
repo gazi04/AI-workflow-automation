@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: workflow-automation
+Version: 0.1.0
+Summary: A FastAPI project for workflow automation.
+Requires-Dist: fastapi
+Requires-Dist: uvicorn[standard]
+Requires-Dist: SQLAlchemy
+Requires-Dist: psycopg2-binary
+Requires-Dist: pydantic[email]
+Requires-Dist: azure-ai-inference
+Requires-Dist: httpx
