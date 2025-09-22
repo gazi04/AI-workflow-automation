@@ -5,3 +5,7 @@ psycopg2-binary
 pydantic[email]
 azure-ai-inference
 httpx
+google-api-python-client
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
