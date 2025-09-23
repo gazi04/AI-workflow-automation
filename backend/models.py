@@ -24,7 +24,7 @@ class User(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    password_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     full_name: Mapped[Optional[str]] = mapped_column(String(255))
 
     created_at: Mapped[datetime] = mapped_column(
@@ -58,14 +58,18 @@ class ConnectedAccount(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+
     provider: Mapped[str] = mapped_column(String(50), nullable=False)
     provider_account_id: Mapped[str] = mapped_column(String(255), nullable=False)
+
     access_token: Mapped[str] = mapped_column(Text, nullable=False)
     refresh_token: Mapped[Optional[str]] = mapped_column(Text)
+
     token_expires_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True)
     )
-    scope: Mapped[Optional[str]] = mapped_column(Text)
+
+    scope: Mapped[Optional[List[str]]] = mapped_column(Text)
     metadata_account: Mapped[dict] = mapped_column(JSONB, default={})
 
     created_at: Mapped[datetime] = mapped_column(
