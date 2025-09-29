@@ -2,6 +2,7 @@ Metadata-Version: 2.4
 Name: workflow-automation
 Version: 0.1.0
 Summary: A FastAPI project for workflow automation.
+Requires-Python: >=3.13
 Requires-Dist: fastapi
 Requires-Dist: uvicorn[standard]
 Requires-Dist: SQLAlchemy
@@ -15,3 +16,5 @@ Requires-Dist: google-auth-oauthlib
 Requires-Dist: google-auth-httplib2
 Requires-Dist: python-jose[cryptography]
 Requires-Dist: passlib[bcrypt]
+Provides-Extra: dev
+Requires-Dist: ruff; extra == "dev"
