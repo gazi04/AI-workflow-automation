@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import RedirectResponse
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from database import get_db
 from models import User, ConnectedAccount
@@ -10,6 +11,55 @@ import uuid
 from google_auth_oauthlib.flow import Flow
 from google.oauth2 import id_token
 from google.auth.transport import requests
+
+from utils.security import create_access_token, get_password_hash, verify_password
+from schemas import Token, UserLogin
+
+router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+# Configure a JWT token dependency to protect routes
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
+
+
+@router.post("/register", status_code=201)
+async def register_user(user_data: UserLogin, db: Session = Depends(get_db)):
+    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    hashed_password = get_password_hash(user_data.password)
+
+    new_user = User(
+        id=uuid.uuid4(),
+        email=user_data.email,
+        password_hash=hashed_password,
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return {"message": "User registered successfully"}
+
+
+@router.post("/token", response_model=Token)
+async def login_for_access_token(user_data: UserLogin, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == user_data.email).first()
+    if not user or not user.password_hash:
+        raise HTTPException(
+            status_code=400,
+            detail="Incorrect email or password",
+        )
+
+    if not verify_password(user_data.password, user.password_hash):
+        raise HTTPException(
+            status_code=400,
+            detail="Incorrect email or password",
+        )
+
+    access_token = create_access_token(data={"sub": user.email})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
 # Configure OAuth flow
 def get_google_flow():
     return Flow.from_client_config(

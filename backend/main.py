@@ -3,13 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 
-# Need to load the .env file before importing ai_service
-load_dotenv()
-from ai_service import get_ai_response, health_check, parse_ai_response
 from schemas import UserRequest, AIResponse
+load_dotenv() # Need to load the .env file before importing ai_service
+from ai_service import get_ai_response, health_check, parse_ai_response
+from routes.auth import router as auth_router
 
 
 app = FastAPI(title="AI Workflow Orchestrator API")
+app.include_router(auth_router)
 
 app.add_middleware(
     CORSMiddleware,
