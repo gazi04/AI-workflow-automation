@@ -1,12 +1,14 @@
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 import os
+import uuid
 
 from jose import jwt
 from passlib.context import CryptContext
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+REFRESH_TOKEN_EXPIRE_DAYS = 7 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -26,6 +28,11 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, get_secret_key(), algorithm=ALGORITHM)
     return encoded_jwt
 
+def create_refresh_token(user_id: uuid.UUID) -> tuple[str, datetime]:
+    """Generates a UUID-based token and its expiration time."""
+    refresh_token = str(uuid.uuid4())
+    expires_at = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    return refresh_token, expires_at
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
