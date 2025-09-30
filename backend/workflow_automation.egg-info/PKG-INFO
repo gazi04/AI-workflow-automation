@@ -14,7 +14,7 @@ Requires-Dist: google-api-python-client
 Requires-Dist: google-auth
 Requires-Dist: google-auth-oauthlib
 Requires-Dist: google-auth-httplib2
-Requires-Dist: python-jose[cryptography]
+Requires-Dist: PyJWT
 Requires-Dist: passlib[bcrypt]
 Provides-Extra: dev
 Requires-Dist: ruff; extra == "dev"
