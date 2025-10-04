@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Request, HTTPException, Depends
-from fastapi.responses import RedirectResponse
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from database import get_db
+from dependencies import get_current_user
 from models import RefreshToken, User, ConnectedAccount
 import os
 from datetime import datetime, timezone
@@ -17,15 +17,19 @@ from schemas import RefreshTokenRequest, Token, UserLogin
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-# Configure a JWT token dependency to protect routes
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
 
+# Using the dependency
+@router.get("/protected")
+async def protected_route(user: User = Depends(get_current_user)):
+    # user is automatically validated from JWT
+    return {"message": f"Hello {user.email}"}
 
 @router.post("/register", status_code=201)
+# 🔴 todo: need add validation to email and password
 async def register_user(user_data: UserLogin, db: Session = Depends(get_db)):
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail="Invalid credentials")
 
     hashed_password = get_password_hash(user_data.password)
 
@@ -42,6 +46,8 @@ async def register_user(user_data: UserLogin, db: Session = Depends(get_db)):
 
 
 @router.post("/token", response_model=Token)
+# 🔴 todo: missing input validation & rate limiting
+# doens't provice protection against brute force attacks, too many registration attemps and invalid inputs
 async def login_for_access_token(user_data: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == user_data.email).first()
     if not user or not user.password_hash:
@@ -73,52 +79,49 @@ async def refresh_access_token(
     db: Session = Depends(get_db)
 ):
     """Exchanges a valid refresh token for a new access token."""
-    refresh_token = request.refresh_token
+    try:
+        refresh_token = request.refresh_token
 
-    # 1. Find and validate the refresh token
-    token_record = db.query(RefreshToken).filter(
-        RefreshToken.token == refresh_token
-    ).first()
+        token_record = db.query(RefreshToken).filter(
+            RefreshToken.token == refresh_token
+        ).first()
 
-    if not token_record:
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
+        if not token_record:
+            raise HTTPException(status_code=401, detail="Invalid refresh token")
 
-    if token_record.is_revoked:
-        raise HTTPException(status_code=401, detail="Refresh token has been revoked")
-    
-    if token_record.expires_at < datetime.now(timezone.utc):
-        # Clean up expired token
-        db.delete(token_record)
+        if token_record.is_revoked:
+            raise HTTPException(status_code=401, detail="Refresh token has been revoked")
+        
+        if token_record.expires_at < datetime.now(timezone.utc):
+            db.delete(token_record)
+            db.commit()
+            raise HTTPException(status_code=401, detail="Refresh token has expired")
+
+        token_record.is_revoked = True
+
+        user = db.query(User).filter(User.id == token_record.user_id).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+
+        new_access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
+        new_refresh_token_string, new_expires_at = create_refresh_token(user.id)
+
+        new_refresh_token_record = RefreshToken(
+            user_id=user.id,
+            token=new_refresh_token_string,
+            expires_at=new_expires_at
+        )
+        db.add(new_refresh_token_record)
         db.commit()
-        raise HTTPException(status_code=401, detail="Refresh token has expired")
 
-    # 2. Revoke the old refresh token (Token Rotation for security)
-    token_record.is_revoked = True
-    db.commit()
-
-    # 3. Get User and issue NEW tokens
-    user = db.query(User).filter(User.id == token_record.user_id).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-
-    new_access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
-    new_refresh_token_string, new_expires_at = create_refresh_token(user.id)
-
-    # 4. Save the NEW refresh token
-    new_refresh_token_record = RefreshToken(
-        user_id=user.id,
-        token=new_refresh_token_string,
-        expires_at=new_expires_at
-    )
-    db.add(new_refresh_token_record)
-    db.commit()
-
-    # 5. Return the new token pair
-    return {
-        "access_token": new_access_token, 
-        "refresh_token": new_refresh_token_string,
-        "token_type": "bearer"
-    }
+        return {
+            "access_token": new_access_token, 
+            "refresh_token": new_refresh_token_string,
+            "token_type": "bearer"
+        }
+    except Exception:
+        db.rollback()
+        raise
 
 # Configure OAuth flow
 def get_google_flow():
@@ -157,6 +160,8 @@ async def get_or_create_user(db: Session, email: str) -> User:
     return user
 
 
+# 🔴 todo: this dictionary can cause memory leakage
+# suggestion: use database
 user_sessions = {}
 
 
@@ -216,12 +221,12 @@ async def callback_google(
                 credentials.refresh_token or existing_account.refresh_token
             )
             existing_account.token_expires_at = (
-                datetime.utcfromtimestamp(credentials.expiry.timestamp())
+                datetime.fromtimestamp(credentials.expiry.timestamp(), tz=timezone.utc)
                 if credentials.expiry
                 else None
             )
             existing_account.scope = credentials.scopes
-            existing_account.updated_at = datetime.utcnow()
+            existing_account.updated_at = datetime.now(timezone.utc)
         else:
             connected_account = ConnectedAccount(
                 user_id=user.id,
@@ -229,9 +234,7 @@ async def callback_google(
                 provider_account_id=provider_account_id,
                 access_token=credentials.token,
                 refresh_token=credentials.refresh_token,
-                token_expires_at=datetime.utcfromtimestamp(
-                    credentials.expiry.timestamp()
-                )
+                token_expires_at=datetime.fromtimestamp(credentials.expiry.timestamp(), tz=timezone.utc)
                 if credentials.expiry
                 else None,
                 scope=credentials.scopes,
@@ -242,12 +245,28 @@ async def callback_google(
             )
             db.add(connected_account)
 
-        db.commit()
+        db.commit() 
 
+        access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
+        refresh_token_string, expires_at = create_refresh_token(user.id)
+
+        new_refresh_token = RefreshToken(
+            user_id=user.id,
+            token=refresh_token_string,
+            expires_at=expires_at
+        )
+        db.add(new_refresh_token)
+        db.commit()
+        
         if state in user_sessions:
             del user_sessions[state]
 
-        return RedirectResponse(url="http://localhost:5173/connections?status=success")
+        return JSONResponse(content={
+            "access_token": access_token,
+            "refresh_token": refresh_token_string,
+            "token_type": "bearer",
+            "message": "User successfully logged in with Google"
+        })
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Authentication failed: {str(e)}")
