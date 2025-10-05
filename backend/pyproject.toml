@@ -17,6 +17,7 @@ dependencies = [
   "google-auth-httplib2",
   "PyJWT",
   "passlib[bcrypt]",
+  "pydantic-settings>=2.11.0",
 ]
 
 [tool.pyright]
@@ -27,3 +28,7 @@ venv = ".venv"
 dev = [
     "ruff>=0.13.2",
 ]
+
+[tool.setuptools]
+packages = ["ai", "auth", "core", "user", "workflow"]
+
