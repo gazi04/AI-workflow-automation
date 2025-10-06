@@ -1,4 +1,5 @@
 [project]
+requires-python = ">=3.13"
 name = "workflow-automation"
 version = "0.1.0"
 description = "A FastAPI project for workflow automation."
@@ -14,10 +15,20 @@ dependencies = [
   "google-auth",
   "google-auth-oauthlib",
   "google-auth-httplib2",
-  "python-jose[cryptography]",
+  "PyJWT",
   "passlib[bcrypt]",
+  "pydantic-settings>=2.11.0",
 ]
 
 [tool.pyright]
 venvPath = "."
 venv = ".venv"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.13.2",
+]
+
+[tool.setuptools]
+packages = ["ai", "auth", "core", "user", "workflow"]
+

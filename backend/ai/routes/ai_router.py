@@ -1,27 +1,15 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
+from fastapi import APIRouter, HTTPException
 
+from ai.schemas.ai_response import AIResponse
+from ai.services.ai_service import get_ai_response, parse_ai_response, health_check
+from user.schemas.user_request import UserRequest
 
-from schemas import UserRequest, AIResponse
-load_dotenv() # Need to load the .env file before importing ai_service
-from ai_service import get_ai_response, health_check, parse_ai_response
-from routes.auth import router as auth_router
-
-
-app = FastAPI(title="AI Workflow Orchestrator API")
-app.include_router(auth_router)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Vue dev server default
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+ai_router = APIRouter(
+    prefix="/ai",
+    tags=["AI"]
 )
 
-
-@app.post("/interpret", response_model=AIResponse)
+@ai_router.post("/interpret", response_model=AIResponse)
 async def interpret_command(user_request: UserRequest):
     """
     Main endpoint. Receives user's text, sends it to the AI,
@@ -53,7 +41,7 @@ async def interpret_command(user_request: UserRequest):
         )
 
 
-@app.get("/health")
+@ai_router.get("/health")
 async def health():
     """Health check endpoint to verify Azure connection"""
     try:
@@ -63,9 +51,3 @@ async def health():
             status_code=500, detail=f"Azure connection failed: {str(e)}"
         )
 
-
-if __name__ == "__main__":
-    import uvicorn
-
-    # Run the server on http://localhost:8000
-    uvicorn.run(app, host="0.0.0.0", port=8000)

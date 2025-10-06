@@ -1,163 +1,94 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
-from database import get_db
-from dependencies import get_current_user
-from models import RefreshToken, User, ConnectedAccount
-import os
-from datetime import datetime, timezone
-import uuid
-
 from google_auth_oauthlib.flow import Flow
 from google.oauth2 import id_token
 from google.auth.transport import requests
+from sqlalchemy.orm import Session
 
-from utils.security import create_access_token, create_refresh_token, get_password_hash, verify_password
-from schemas import RefreshTokenRequest, Token, UserLogin
+from auth.depedencies import get_current_user
+from auth.models import RefreshToken
+from auth.models import ConnectedAccount
+from auth.schemas import UserLogin, Token, RefreshTokenRequest
+from auth.services.auth_service import AuthService
+from auth.services.token_service import TokenService
+from auth.utils import create_access_token, create_refresh_token, verify_password
+from core.config_loader import settings
+from core.database import get_db
+from user.models.user import User
+from user.services.user_service import UserService
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+auth_router = APIRouter(
+    prefix="/auth",
+    tags=["Auth"]
+)
 
 
-# Using the dependency
-@router.get("/protected")
+@auth_router.get("/protected")
 async def protected_route(user: User = Depends(get_current_user)):
-    # user is automatically validated from JWT
     return {"message": f"Hello {user.email}"}
 
-@router.post("/register", status_code=201)
 # 🔴 todo: need add validation to email and password
+@auth_router.post("/register", status_code=201)
 async def register_user(user_data: UserLogin, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    existing_user = UserService.get_user_by_email(db, user_data.email)
+
     if existing_user:
         raise HTTPException(status_code=400, detail="Invalid credentials")
 
-    hashed_password = get_password_hash(user_data.password)
-
-    new_user = User(
-        id=uuid.uuid4(),
-        email=user_data.email,
-        password_hash=hashed_password,
-    )
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    AuthService.register_user(db, user_data)
 
     return {"message": "User registered successfully"}
 
 
-@router.post("/token", response_model=Token)
+@auth_router.post("/token", response_model=Token)
 # 🔴 todo: missing input validation & rate limiting
 # doens't provice protection against brute force attacks, too many registration attemps and invalid inputs
 async def login_for_access_token(user_data: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == user_data.email).first()
+    user = UserService.get_user_by_email(db, user_data.email)
+
     if not user or not user.password_hash:
         raise HTTPException(status_code=400, detail="Incorrect email or password")
 
     if not verify_password(user_data.password, user.password_hash):
         raise HTTPException(status_code=400, detail="Incorrect email or password")
 
-    access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
-    refresh_token_string, expires_at = create_refresh_token(user.id)
+    tokens = AuthService.create_token_pair(db, user)
 
-    new_refresh_token = RefreshToken(
-        user_id=user.id,
-        token=refresh_token_string,
-        expires_at=expires_at
-    )
-    db.add(new_refresh_token)
-    db.commit()
+    return {**tokens, "token_type": "bearer"}
 
-    return {
-        "access_token": access_token, 
-        "refresh_token": refresh_token_string,
-        "token_type": "bearer"
-    }
+@auth_router.post("/refresh", response_model=Token)
+async def refresh_access_token(request: RefreshTokenRequest, db: Session = Depends(get_db)):
+    new_tokens = TokenService.refresh_token(db, request.refresh_token)
+    if not new_tokens:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+    
+    return {**new_tokens, "token_type": "bearer"}
 
-@router.post("/refresh", response_model=Token)
-async def refresh_access_token(
-    request: RefreshTokenRequest,
-    db: Session = Depends(get_db)
-):
-    """Exchanges a valid refresh token for a new access token."""
-    try:
-        refresh_token = request.refresh_token
-
-        token_record = db.query(RefreshToken).filter(
-            RefreshToken.token == refresh_token
-        ).first()
-
-        if not token_record:
-            raise HTTPException(status_code=401, detail="Invalid refresh token")
-
-        if token_record.is_revoked:
-            raise HTTPException(status_code=401, detail="Refresh token has been revoked")
-        
-        if token_record.expires_at < datetime.now(timezone.utc):
-            db.delete(token_record)
-            db.commit()
-            raise HTTPException(status_code=401, detail="Refresh token has expired")
-
-        token_record.is_revoked = True
-
-        user = db.query(User).filter(User.id == token_record.user_id).first()
-        if not user:
-            raise HTTPException(status_code=401, detail="User not found")
-
-        new_access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
-        new_refresh_token_string, new_expires_at = create_refresh_token(user.id)
-
-        new_refresh_token_record = RefreshToken(
-            user_id=user.id,
-            token=new_refresh_token_string,
-            expires_at=new_expires_at
-        )
-        db.add(new_refresh_token_record)
-        db.commit()
-
-        return {
-            "access_token": new_access_token, 
-            "refresh_token": new_refresh_token_string,
-            "token_type": "bearer"
-        }
-    except Exception:
-        db.rollback()
-        raise
-
+# ==================================================
 # Configure OAuth flow
+# ==================================================
 def get_google_flow():
     return Flow.from_client_config(
         {
             "web": {
-                "client_id": os.getenv("GOOGLE_OAUTH_CLIENT_ID"),
-                "client_secret": os.getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
+                "client_id": settings.google_oauth_client_id,
+                "client_secret": settings.google_oauth_client_secret,
                 "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                 "token_uri": "https://oauth2.googleapis.com/token",
             }
         },
-        scopes=[
+        scopes = [
             "https://www.googleapis.com/auth/gmail.readonly",
             "https://www.googleapis.com/auth/gmail.send",
             "https://www.googleapis.com/auth/userinfo.profile",
             "https://www.googleapis.com/auth/userinfo.email",
             "openid",  # This scope is to get the user's ID
         ],
-        redirect_uri=os.getenv("GOOGLE_OAUTH_REDIRECT_URI"),
+        redirect_uri = settings.google_oauth_redirect_uri,
     )
 
 
-async def get_or_create_user(db: Session, email: str) -> User:
-    user = db.query(User).filter(User.email == email).first()
-
-    if not user:
-        user = User(
-            id=uuid.uuid4(),
-            email=email,
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-
-    return user
 
 
 # 🔴 todo: this dictionary can cause memory leakage
@@ -165,7 +96,7 @@ async def get_or_create_user(db: Session, email: str) -> User:
 user_sessions = {}
 
 
-@router.get("/connect/google")
+@auth_router.get("/connect/google")
 async def connect_google(request: Request):
     flow = get_google_flow()
     auth_url, state = flow.authorization_url(
@@ -177,7 +108,7 @@ async def connect_google(request: Request):
     return {"auth_url": auth_url}
 
 # must apply the same update (returning both access_token and refresh_token)
-@router.get("/callback/google")
+@auth_router.get("/callback/google")
 async def callback_google(
     code: str,
     state: str,
@@ -196,14 +127,14 @@ async def callback_google(
             user_info = id_token.verify_oauth2_token(
                 credentials.id_token,
                 requests.Request(),
-                os.getenv("GOOGLE_OAUTH_CLIENT_ID"),
+                settings.google_oauth_client_id,
             )
             provider_account_id = user_info["sub"]
             provider_account_email = user_info["email"]
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Invalid ID token: {e}")
 
-        user = await get_or_create_user(db, provider_account_email)
+        user = UserService.get_or_create_user(db, provider_account_email)
 
         existing_account = (
             db.query(ConnectedAccount)
