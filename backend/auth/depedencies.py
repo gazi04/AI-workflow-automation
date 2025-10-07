@@ -4,9 +4,9 @@ from fastapi.security import OAuth2PasswordBearer
 from jwt import PyJWTError
 from sqlalchemy.orm import Session
 
+from user.services.user_service import UserService
 from utils.security import decode_access_token
 from core.database import get_db
-from user.models.user import User
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
@@ -40,7 +40,7 @@ async def get_current_user(
     except PyJWTError:
         raise credentials_exception
 
-    user = db.query(User).filter(User.id == user_id).first()
+    user = UserService.get_user_by_id(db, user_id)
     
     if user is None:
         raise credentials_exception
