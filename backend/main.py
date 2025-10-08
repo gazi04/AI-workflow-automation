@@ -1,67 +1,28 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
+from auth.routes.auth_router import auth_router
+from ai.routes.ai_router import ai_router
 
-
-from schemas import UserRequest, AIResponse
-load_dotenv() # Need to load the .env file before importing ai_service
-from ai_service import get_ai_response, health_check, parse_ai_response
-from routes.auth import router as auth_router
+# The models are imported as a top level to resolve some issues
+# first is the circular dependecies that the models import eachother 
+# and the other issue has to do with the SQLAchemy string resolution 
+# in the mapper of defining relantionships
+import auth.models # noqa: F401
+import user.models # noqa: F401
+import workflow.models # noqa: F401
 
 
 app = FastAPI(title="AI Workflow Orchestrator API")
-app.include_router(auth_router)
+app.include_router(auth_router, prefix="/api")
+app.include_router(ai_router, prefix="/api")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Vue dev server default
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.post("/interpret", response_model=AIResponse)
-async def interpret_command(user_request: UserRequest):
-    """
-    Main endpoint. Receives user's text, sends it to the AI,
-    and returns a structured workflow definition or an error.
-    """
-    print(f"📨 Received request: {user_request.text}")
-
-    try:
-        # 1. Get the raw response from Azure AI
-        raw_ai_response = get_ai_response(user_request.text)
-        print(f"🤖 Raw AI response: {raw_ai_response}")
-
-        # 2. Parse the response into our structured schema
-        workflow_definition = parse_ai_response(raw_ai_response)
-
-        # 3. Return the successful result
-        return AIResponse(success=True, data=workflow_definition)
-
-    except ValueError as e:
-        # This handles parsing errors and AI-generated errors
-        return AIResponse(success=False, error=str(e))
-    except HTTPException as he:
-        # Re-raise HTTP exceptions from get_ai_response
-        raise he
-    except Exception as e:
-        # Catch any other unexpected errors
-        return AIResponse(
-            success=False, error=f"An unexpected error occurred: {str(e)}"
-        )
-
-
-@app.get("/health")
-async def health():
-    """Health check endpoint to verify Azure connection"""
-    try:
-        return health_check()
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Azure connection failed: {str(e)}"
-        )
 
 
 if __name__ == "__main__":
