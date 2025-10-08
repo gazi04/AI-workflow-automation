@@ -1,6 +1,5 @@
-from typing import Optional
+from database import Base
 from datetime import datetime, timezone
-
 from sqlalchemy import (
     String,
     Boolean,
@@ -8,11 +7,14 @@ from sqlalchemy import (
     ForeignKey,
     Text,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
-from database import Base
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import Optional, TYPE_CHECKING
 
 import uuid
+
+if TYPE_CHECKING: 
+    from user.models.user import User
 
 class WorkflowTemplate(Base):
     __tablename__ = "workflow_templates"
@@ -39,4 +41,4 @@ class WorkflowTemplate(Base):
         onupdate=lambda: datetime.now(timezone.utc)
     )
 
-    created_by_user: Mapped["User"] = relationship(back_populates="workflow_templates")
+    created_by_user: Mapped["User"] = relationship("user.models.user.User", back_populates="workflow_templates")

@@ -1,6 +1,5 @@
-from typing import List, Optional
+from database import Base
 from datetime import datetime, timezone
-
 from sqlalchemy import (
     String,
     Integer,
@@ -9,10 +8,14 @@ from sqlalchemy import (
     Text,
     CheckConstraint,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
-from database import Base
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import List, Optional, TYPE_CHECKING
 
+if TYPE_CHECKING: 
+    from user.models.user import User
+    from workflow.models.workflow_run import WorkflowRun
+    
 import uuid
 
 class Workflow(Base):
@@ -43,8 +46,9 @@ class Workflow(Base):
         DateTime(timezone=True)
     )
 
-    user: Mapped["User"] = relationship(back_populates="workflows")
+    user: Mapped["User"] = relationship("user.models.user.User", back_populates="workflows")
     runs: Mapped[List["WorkflowRun"]] = relationship(
+        "workflow.models.workflow_run.WorkflowRun",
         back_populates="workflow", cascade="all, delete-orphan"
     )
 

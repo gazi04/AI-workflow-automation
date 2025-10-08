@@ -1,6 +1,5 @@
-from typing import List, Optional
+from database import Base
 from datetime import datetime, timezone
-
 from sqlalchemy import (
     String,
     Integer,
@@ -9,11 +8,15 @@ from sqlalchemy import (
     Text,
     CheckConstraint,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
-from database import Base
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import List, Optional, TYPE_CHECKING
 
 import uuid
+
+if TYPE_CHECKING:
+    from workflow.models.workflow import Workflow
+    from workflow.models.workflow_log import WorkflowLog
 
 class WorkflowRun(Base):
     __tablename__ = "workflow_runs"
@@ -35,8 +38,9 @@ class WorkflowRun(Base):
     error_message: Mapped[Optional[str]] = mapped_column(Text)
     context_data: Mapped[dict] = mapped_column(JSONB)
 
-    workflow: Mapped["Workflow"] = relationship(back_populates="runs")
+    workflow: Mapped["Workflow"] = relationship("workflow.models.workflow.Workflow", back_populates="runs")
     logs: Mapped[List["WorkflowLog"]] = relationship(
+        "workflow.models.workflow_log.WorkflowLog",
         back_populates="run", cascade="all, delete-orphan"
     )
 

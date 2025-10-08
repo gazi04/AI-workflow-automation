@@ -1,16 +1,19 @@
+from database import Base
 from datetime import datetime, timezone
-
 from sqlalchemy import (
     String,
-    Boolean,
     DateTime,
     ForeignKey,
+    Boolean,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
-from database import Base
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import TYPE_CHECKING
 
 import uuid
+
+if TYPE_CHECKING:
+    from user.models.user import User
 
 class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
@@ -29,4 +32,4 @@ class RefreshToken(Base):
         default=lambda: datetime.now(timezone.utc)
     )
 
-    user: Mapped["User"] = relationship(back_populates="refresh_tokens")
+    user: Mapped["User"] = relationship("user.models.user.User", back_populates="refresh_tokens")

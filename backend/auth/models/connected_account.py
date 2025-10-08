@@ -1,15 +1,17 @@
-from typing import List, Optional
+from database import Base
 from datetime import datetime, timezone
-
 from sqlalchemy import (
     String,
     DateTime,
     ForeignKey,
     Text,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
-from database import Base
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING: 
+    from user.models.user import User
 
 import uuid
 
@@ -47,4 +49,4 @@ class ConnectedAccount(Base):
         onupdate=lambda: datetime.now(timezone.utc)
     )
 
-    user: Mapped["User"] = relationship(back_populates="connected_accounts")
+    user: Mapped["User"] = relationship("user.models.user.User", back_populates="connected_accounts")
