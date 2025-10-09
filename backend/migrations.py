@@ -2,17 +2,10 @@
 Imported models are not used, in a traditional way, either way for SqlAlchemy they need to be imported to create the corresponding tables foreach model, for suppresing the lint error in ruff is used 'noqa'
 """
 
-from database import Base, engine
-from models import (
-    User,  # noqa: F401
-    UserSettings,  # noqa: F401
-    Workflow,  # noqa: F401
-    WorkflowRun,  # noqa: F401
-    WorkflowLog,  # noqa: F401
-    WorkflowTemplate,  # noqa: F401
-    ConnectedAccount,  # noqa: F401
-)
-
+from core.database import Base, engine
+from auth.models import ConnectedAccount, RefreshToken
+from user.models import User, UserSettings
+from workflow.models import Workflow, WorkflowRun, WorkflowLog, WorkflowTemplate
 
 def create_tables():
     print("Creating database tables...")
