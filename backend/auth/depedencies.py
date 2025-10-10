@@ -4,6 +4,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jwt import PyJWTError
 from sqlalchemy.orm import Session
 
+from user.models.user import User
 from user.services.user_service import UserService
 from utils.security import decode_access_token
 from core.database import get_db
@@ -14,7 +15,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
-):
+) -> User:
     """
     Dependency function to retrieve and validate the current authenticated user 
     based on the access token provided in the Authorization header.
