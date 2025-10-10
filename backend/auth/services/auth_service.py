@@ -1,20 +1,27 @@
 from fastapi import HTTPException
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
 from sqlalchemy.orm import Session
-import uuid
 
 from auth.models.refresh_token import RefreshToken
 from auth.services.account_service import AccountService
 from auth.schemas.user_login import UserLogin
-from auth.utils import create_access_token, create_refresh_token, get_password_hash, verify_password
+from auth.utils import (
+    create_access_token,
+    create_refresh_token,
+    get_password_hash,
+    verify_password,
+)
 from core.config_loader import settings
 from user.models.user import User
 from user.services.user_service import UserService
-from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request
+
+import uuid
 
 
+# 🔴 todo: Core-Security risk Client-Side Identity Spoofing
+# 🔴 todo: Core-Security risk XSS attacks, hint CSRF
 class AuthService:
-
     # 🔴 todo: need to handle exceptions
     @staticmethod
     def register_user(db: Session, user_data: UserLogin) -> User:

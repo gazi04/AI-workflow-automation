@@ -1,7 +1,8 @@
-from typing import Any
-from auth.models.connected_account import ConnectedAccount
 from sqlalchemy.orm import Session
+from typing import Any
 from uuid import UUID
+
+from auth.models.connected_account import ConnectedAccount
 
 
 class AccountService:

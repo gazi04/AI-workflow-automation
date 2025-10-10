@@ -1,8 +1,9 @@
-from core.config_loader import settings
 from datetime import datetime, timedelta, timezone
+from jwt import PyJWTError
 from passlib.context import CryptContext
 from typing import Optional
-from jwt import PyJWTError
+
+from core.config_loader import settings
 
 import uuid
 import jwt

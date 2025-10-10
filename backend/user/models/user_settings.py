@@ -1,4 +1,3 @@
-from core.database import Base
 from datetime import datetime, timezone
 from sqlalchemy import (
     String,
@@ -9,10 +8,13 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from user.models.user import User
+from core.database import Base
 
 import uuid
+
+
+if TYPE_CHECKING:
+    from user.models.user import User
 
 class UserSettings(Base):
     __tablename__ = "user_settings"

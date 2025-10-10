@@ -1,13 +1,14 @@
-import uuid
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt import PyJWTError
 from sqlalchemy.orm import Session
 
+from core.database import get_db
 from user.models.user import User
 from user.services.user_service import UserService
 from utils.security import decode_access_token
-from core.database import get_db
+
+import uuid
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")

@@ -1,4 +1,3 @@
-from core.database import Base
 from datetime import datetime, timezone
 from sqlalchemy import (
     String,
@@ -12,11 +11,14 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import List, Optional, TYPE_CHECKING
 
+from core.database import Base
+    
+import uuid
+
+
 if TYPE_CHECKING: 
     from user.models.user import User
     from workflow.models.workflow_run import WorkflowRun
-    
-import uuid
 
 class Workflow(Base):
     __tablename__ = "workflows"

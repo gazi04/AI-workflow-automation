@@ -1,10 +1,12 @@
-import uuid
 from sqlalchemy.orm import Session
-from user.models.user import User
 from uuid import UUID
 
-class UserService:
+from user.models.user import User
 
+import uuid
+
+
+class UserService:
     # 🔴 todo: need to handle exceptions
     @staticmethod
     def create_user(db: Session, email: str, hashed_password: str) -> User:
