@@ -9,15 +9,16 @@ from sqlalchemy.orm import Session
 from auth.depedencies import get_current_user
 from auth.models import RefreshToken
 from auth.models import ConnectedAccount
-from auth.schemas import UserLogin, Token, RefreshTokenRequest
-from auth.services.auth_service import AuthService
+from auth.schemas import Token, RefreshTokenRequest
+from auth.services.account_service import AccountService
 from auth.services.token_service import TokenService
-from auth.utils import create_access_token, create_refresh_token, verify_password
+from auth.utils import create_access_token, create_refresh_token
 from core.config_loader import settings
 from core.database import get_db
 from user.models.user import User
 from user.services.user_service import UserService
 
+import logging
 auth_router = APIRouter(
     prefix="/auth",
     tags=["Auth"]
@@ -28,42 +29,16 @@ auth_router = APIRouter(
 async def protected_route(user: User = Depends(get_current_user)):
     return {"message": f"Hello {user.email}"}
 
-# 🔴 todo: need add validation to email and password
-@auth_router.post("/register", status_code=201)
-async def register_user(user_data: UserLogin, db: Session = Depends(get_db)):
-    existing_user = UserService.get_user_by_email(db, user_data.email)
-
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Invalid credentials")
-
-    AuthService.register_user(db, user_data)
-
-    return {"message": "User registered successfully"}
-
-
-@auth_router.post("/token", response_model=Token)
-# 🔴 todo: missing input validation & rate limiting
-# doens't provice protection against brute force attacks, too many registration attemps and invalid inputs
-async def login_for_access_token(user_data: UserLogin, db: Session = Depends(get_db)):
-    user = UserService.get_user_by_email(db, user_data.email)
-
-    if not user or not user.password_hash:
-        raise HTTPException(status_code=400, detail="Incorrect email or password")
-
-    if not verify_password(user_data.password, user.password_hash):
-        raise HTTPException(status_code=400, detail="Incorrect email or password")
-
-    tokens = AuthService.create_token_pair(db, user)
-
-    return {**tokens, "token_type": "bearer"}
 
 @auth_router.post("/refresh", response_model=Token)
 async def refresh_access_token(request: RefreshTokenRequest, db: Session = Depends(get_db)):
+    """Refreshes the Access Token using a valid Refresh Token."""
     new_tokens = TokenService.refresh_token(db, request.refresh_token)
     if not new_tokens:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
     
     return {**new_tokens, "token_type": "bearer"}
+
 
 # ==================================================
 # Configure OAuth flow
@@ -89,8 +64,6 @@ def get_google_flow():
     )
 
 
-
-
 # 🔴 todo: this dictionary can cause memory leakage
 # suggestion: use database
 user_sessions = {}
@@ -103,9 +76,11 @@ async def connect_google(request: Request):
         access_type="offline", include_granted_scopes="true", prompt="consent"
     )
 
+    # Stores state for CSRF protection
     user_sessions[state] = {"state": state}
 
     return {"auth_url": auth_url}
+
 
 # must apply the same update (returning both access_token and refresh_token)
 @auth_router.get("/callback/google")
@@ -134,17 +109,11 @@ async def callback_google(
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Invalid ID token: {e}")
 
-        user = UserService.get_or_create_user(db, provider_account_email)
+        logging.debug(user_info)
 
-        existing_account = (
-            db.query(ConnectedAccount)
-            .filter(
-                ConnectedAccount.user_id == user.id,
-                ConnectedAccount.provider == "google",
-                ConnectedAccount.provider_account_id == provider_account_id,
-            )
-            .first()
-        )
+        user = await UserService.get_or_create_user(db, provider_account_email)
+
+        existing_account = await AccountService.get_account(db, user.id, "google", provider_account_id)
 
         if existing_account:
             existing_account.access_token = credentials.token

@@ -24,15 +24,10 @@ import uuid
 class AuthService:
     # 🔴 todo: need to handle exceptions
     @staticmethod
-    def register_user(db: Session, user_data: UserLogin) -> User:
+    async def register_user(db: Session, user_data: UserLogin) -> User:
         hashed_password = get_password_hash(user_data.password)
 
-        return UserService.create_user(
-            db,
-            user_data.email,
-            hashed_password
-        )
-
+        return await UserService.create_user(db, user_data.email, hashed_password)
 
     @staticmethod
     def authenticate_user(db: Session, email: str, password: str) -> User:
@@ -41,22 +36,18 @@ class AuthService:
 
     @staticmethod
     def create_token_pair(db: Session, user: User) -> dict:
-
-        access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
+        access_token = create_access_token(
+            data={"sub": str(user.id), "email": user.email}
+        )
         refresh_token_string, expires_at = create_refresh_token(user.id)
 
         new_refresh_token = RefreshToken(
-            user_id=user.id,
-            token=refresh_token_string,
-            expires_at=expires_at
+            user_id=user.id, token=refresh_token_string, expires_at=expires_at
         )
         db.add(new_refresh_token)
         db.commit()
 
-        return {
-            "access_token": access_token,
-            "refresh_token": refresh_token_string
-        }
+        return {"access_token": access_token, "refresh_token": refresh_token_string}
 
     @staticmethod
     def refresh_tokens(db: Session, refresh_token: str) -> dict:
@@ -69,8 +60,12 @@ class AuthService:
         pass
 
     @staticmethod
-    def get_google_flow(db: Session, user_id: uuid.UUID, provider: str, scopes: list) -> Credentials:
-        connected_account = AccountService.get_account_by_id_and_provider(db, user_id, provider) # 🔴 todo: make a provider emun for cleaner code
+    def get_google_flow(
+        db: Session, user_id: uuid.UUID, provider: str, scopes: list
+    ) -> Credentials:
+        connected_account = AccountService.get_account_by_id_and_provider(
+            db, user_id, provider
+        )  # 🔴 todo: make a provider emun for cleaner code
         creds = Credentials(
             token=connected_account.access_token,
             refresh_token=connected_account.refresh_token,
@@ -82,7 +77,7 @@ class AuthService:
             # The expiry check is automatically handled by the library
             # but we provide the expiry time from the DB
             # The library expects a 'datetime' object for `token_expiry`
-            expiry=connected_account.token_expires_at, 
+            expiry=connected_account.token_expires_at,
         )
 
         if creds.expired and creds.refresh_token:
@@ -93,11 +88,12 @@ class AuthService:
                     account=connected_account,
                     token=creds.token,
                     refresh_token=creds.refresh_token,
-                    expiry=creds.expiry
+                    expiry=creds.expiry,
                 )
             except Exception as e:
-                raise HTTPException(status_code=401, detail=f"Google token refresh failed {e}")
-
+                raise HTTPException(
+                    status_code=401, detail=f"Google token refresh failed {e}"
+                )
 
         return creds
 

@@ -47,3 +47,17 @@ class AccountService:
             account.refresh_token = refresh_token
 
         db.commit()
+
+    @staticmethod
+    async def get_account(db: Session, user_id: UUID, provider: str, provider_account_id: str):
+        return (
+            db.query(ConnectedAccount)
+            .filter(
+                ConnectedAccount.user_id == user_id,
+                ConnectedAccount.provider == provider,
+                ConnectedAccount.provider_account_id == provider_account_id,
+            )
+
+            .first()
+        )
+

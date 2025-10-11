@@ -1,5 +1,5 @@
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import PyJWTError
 from sqlalchemy.orm import Session
 
@@ -11,10 +11,10 @@ from utils.security import decode_access_token
 import uuid
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
+bearer_scheme = HTTPBearer()
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    token: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: Session = Depends(get_db)
 ) -> User:
     """
@@ -28,7 +28,7 @@ async def get_current_user(
     )
     
     try:
-        payload = decode_access_token(token)
+        payload = decode_access_token(token.credentials)
         
         user_id_str = payload.get("sub")
         if user_id_str is None:
@@ -42,7 +42,7 @@ async def get_current_user(
     except PyJWTError:
         raise credentials_exception
 
-    user = UserService.get_user_by_id(db, user_id)
+    user = await UserService.get_user_by_id(db, user_id)
     
     if user is None:
         raise credentials_exception
