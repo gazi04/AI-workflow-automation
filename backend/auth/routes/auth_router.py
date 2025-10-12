@@ -56,6 +56,7 @@ def get_google_flow():
         scopes = [
             "https://www.googleapis.com/auth/gmail.readonly",
             "https://www.googleapis.com/auth/gmail.send",
+            "https://www.googleapis.com/auth/gmail.compose",
             "https://www.googleapis.com/auth/userinfo.profile",
             "https://www.googleapis.com/auth/userinfo.email",
             "openid",  # This scope is to get the user's ID
@@ -83,6 +84,7 @@ async def connect_google(request: Request):
 
 
 # must apply the same update (returning both access_token and refresh_token)
+# 🔴 todo: need to refactor this bold endpoint IT'S TO BIGG
 @auth_router.get("/callback/google")
 async def callback_google(
     code: str,

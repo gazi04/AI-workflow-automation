@@ -1,3 +1,4 @@
+from datetime import timezone
 from fastapi import HTTPException
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
@@ -10,7 +11,6 @@ from auth.utils import (
     create_access_token,
     create_refresh_token,
     get_password_hash,
-    verify_password,
 )
 from core.config_loader import settings
 from user.models.user import User
@@ -60,12 +60,27 @@ class AuthService:
         pass
 
     @staticmethod
-    def get_google_flow(
+    def get_google_credentials(
         db: Session, user_id: uuid.UUID, provider: str, scopes: list
     ) -> Credentials:
         connected_account = AccountService.get_account_by_id_and_provider(
             db, user_id, provider
         )  # 🔴 todo: make a provider emun for cleaner code
+
+        expiry_time = connected_account.token_expires_at
+        
+        if expiry_time: 
+            # Need to convert the datetime object into a naive datatime object, 
+            # because without causes TypeError: can't compare offset-naive and offset-aware datetimes
+            # on line 96 creds.token_state
+            if expiry_time.tzinfo is None:
+                expiry_time_normalized = expiry_time.replace(tzinfo=timezone.utc)
+            else:
+                expiry_time_normalized = expiry_time.astimezone(timezone.utc)
+            expiry_time_naive_utc = expiry_time_normalized.replace(tzinfo=None)
+        else:
+            raise HTTPException(status_code=500, detail="Token expiry time is missing.")
+
         creds = Credentials(
             token=connected_account.access_token,
             refresh_token=connected_account.refresh_token,
@@ -73,14 +88,10 @@ class AuthService:
             client_id=settings.google_oauth_client_id,
             client_secret=settings.google_oauth_client_secret,
             scopes=scopes,
-            # scopes=["https://www.googleapis.com/auth/gmail.compose"], # MUST include the correct scope
-            # The expiry check is automatically handled by the library
-            # but we provide the expiry time from the DB
-            # The library expects a 'datetime' object for `token_expiry`
-            expiry=connected_account.token_expires_at,
+            expiry=expiry_time_naive_utc,
         )
 
-        if creds.expired and creds.refresh_token:
+        if creds.token_state and creds.refresh_token:
             try:
                 creds.refresh(Request())
                 AccountService.refresh_tokens(
