@@ -1,17 +1,17 @@
 from email.message import EmailMessage
-from fastapi import Depends
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from uuid import UUID
 from sqlalchemy.orm import Session
 
 from auth.services.auth_service import AuthService
+from core.config_loader import settings
 
 import base64
 
 class GmailService:
     @staticmethod
-    def create_draft(db: Session, user_id: UUID):
+    async def create_draft(db: Session, user_id: UUID):
         """Create and insert a draft email.
             Print the returned draft's message and id.
             Returns: Draft object, including draft id and message meta data.
@@ -41,6 +41,7 @@ class GmailService:
             encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
             create_message = {"message": {"raw": encoded_message}}
+
             # pylint: disable=E1101
             draft = (
                 service.users()
@@ -57,7 +58,7 @@ class GmailService:
         return draft
 
     @staticmethod
-    def send_message(db: Session, user_id: UUID):
+    async def send_message(db: Session, user_id: UUID):
         """Create and send an email message
         Print the returned  message id
         Returns: Message object, including message id
@@ -98,3 +99,42 @@ class GmailService:
 
         return send_message
 
+    @staticmethod
+    async def watch_mailbox_for_updates(db: Session, user_id: UUID, label_ids: list = ["INBOX"]):
+        provider = "google"
+        scopes = [
+            "https://www.googleapis.com/auth/gmail.modify", 
+        ]
+
+        try:
+            creds = AuthService.get_google_credentials(db, user_id, provider, scopes)
+        except Exception as e:
+            print(f"Error retrieving credentials: {e}")
+            return None
+
+        try:
+            service = build("gmail", "v1", credentials=creds)
+
+            watch_request_body = {
+                'topicName': settings.google_cloud_email_topic,
+                'labelIds': label_ids,
+                # Setting behavior to INCLUDE means a notification is generated 
+                # if the email has one of the labels in label_ids (e.g., INBOX).
+                'labelFilterBehavior': 'INCLUDE' 
+            }
+
+            watch_response = (
+                service.users()
+                .watch(userId='me', body=watch_request_body)
+                .execute()
+            )
+
+            print(f"Watch successful for user {user_id}.")
+            print(f"Current History ID: {watch_response.get('historyId')}")
+            print(f"Expiration: {watch_response.get('expiration')}")
+            
+            return watch_response
+
+        except HttpError as error:
+            print(f"An error occurred during users.watch: {error}")
+            return None

@@ -14,8 +14,8 @@ action_router = APIRouter(
 
 @action_router.get("/create_draft")
 async def create_draft_with_gmail(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    return GmailService.create_draft(db, user.id)
+    return await GmailService.create_draft(db, user.id)
 
 @action_router.get("/send_email")
 async def send_mail_in_gmail(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    return GmailService.send_message(db, user.id)
+    return await GmailService.send_message(db, user.id)
