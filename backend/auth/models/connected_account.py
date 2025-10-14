@@ -29,6 +29,8 @@ class ConnectedAccount(Base):
     provider: Mapped[str] = mapped_column(String(50), nullable=False)
     provider_account_id: Mapped[str] = mapped_column(String(255), nullable=False)
 
+    last_synced_history_id: Mapped[Optional[str]] = mapped_column(Text)
+
     access_token: Mapped[str] = mapped_column(Text, nullable=False)
     refresh_token: Mapped[Optional[str]] = mapped_column(Text)
 
