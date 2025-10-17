@@ -26,7 +26,7 @@ class AccountService:
         user_id: UUID | None = None,
         provider: str | None = None,
         refresh_token: None | Any = None,
-    ):
+    ) -> ConnectedAccount:
         """
         Refreshes the tokens of a account, first reason to implement was the mainly for
         google api calls to validate the credentials.
@@ -47,17 +47,23 @@ class AccountService:
             account.refresh_token = refresh_token
 
         db.commit()
+        db.refresh(account)
+        return account
 
     @staticmethod
-    async def get_account(db: Session, user_id: UUID, provider: str, provider_account_id: str):
+    async def get_account(db: Session, user_id: UUID, provider: str) -> ConnectedAccount:
         return (
             db.query(ConnectedAccount)
             .filter(
                 ConnectedAccount.user_id == user_id,
                 ConnectedAccount.provider == provider,
-                ConnectedAccount.provider_account_id == provider_account_id,
             )
-
             .first()
         )
 
+    @staticmethod
+    async def update_history_id(db: Session, account: ConnectedAccount, new_history_id: str) -> ConnectedAccount:
+        account.last_synced_history_id = new_history_id
+        db.commit()
+        db.refresh(account)
+        return account

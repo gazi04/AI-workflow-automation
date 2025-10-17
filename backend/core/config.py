@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     google_oauth_client_secret: str
     google_oauth_redirect_uri: str
 
+    google_cloud_email_topic: str
     system_prompt: str = """
 You are an expert workflow automation engineer. Your sole purpose is to analyze a user's request and convert it into a precise, executable workflow definition.
 
