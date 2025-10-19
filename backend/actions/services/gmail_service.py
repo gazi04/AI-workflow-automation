@@ -1,5 +1,4 @@
 from email.message import EmailMessage
-import logging
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from uuid import UUID
@@ -8,10 +7,10 @@ from sqlalchemy.orm import Session
 from auth.services.account_service import AccountService
 from auth.services.auth_service import AuthService
 from core.config_loader import settings
+from user.services.user_service import UserService
 
 import base64
-
-from user.services.user_service import UserService
+import logging
 
 class GmailService:
     @staticmethod
@@ -54,7 +53,7 @@ class GmailService:
                 .execute()
             )
 
-            print(f'Draft id: {draft["id"]}\nDraft message: {draft["message"]}')
+            print(f"Draft id: {draft["id"]}\nDraft message: {draft["message"]}")
         except HttpError as error:
             print(f"An error occurred: {error}")
             draft = None
@@ -96,7 +95,7 @@ class GmailService:
                 .send(userId="me", body=create_message)
                 .execute()
             )
-            print(f'Message Id: {send_message["id"]}')
+            print(f"Message Id: {send_message["id"]}")
         except HttpError as error:
             print(f"An error occurred: {error}")
             send_message = None
@@ -120,22 +119,22 @@ class GmailService:
             service = build("gmail", "v1", credentials=creds)
 
             watch_request_body = {
-                'topicName': settings.google_cloud_email_topic,
-                'labelIds': label_ids,
+                "topicName": settings.google_cloud_email_topic,
+                "labelIds": label_ids,
                 # Setting behavior to INCLUDE means a notification is generated 
                 # if the email has one of the labels in label_ids (e.g., INBOX).
-                'labelFilterBehavior': 'INCLUDE' 
+                "labelFilterBehavior": "INCLUDE" 
             }
 
             watch_response = (
                 service.users()
-                .watch(userId='me', body=watch_request_body)
+                .watch(userId="me", body=watch_request_body)
                 .execute()
             )
 
             print(f"Watch successful for user {user_id}.")
-            print(f"Current History ID: {watch_response.get('historyId')}")
-            print(f"Expiration: {watch_response.get('expiration')}")
+            print(f"Current History ID: {watch_response.get("historyId")}")
+            print(f"Expiration: {watch_response.get("expiration")}")
             
             return watch_response
 
@@ -148,51 +147,46 @@ class GmailService:
         """
         Runs in the background. Fetches changes since the last sync and triggers actions.
         """
-        # 1. Retrieve the user's last processed history ID from your database
-        #    (Assumes you have a helper to get the last ID and the user's UUID)
         user = await UserService.get_user_by_email(db, email_address)
         if not user:
             logging.error(f"User not found for email: {email_address}")
             return
 
-        # Assuming the last history ID is stored on the ConnectedAccount model
         connected_account = await AccountService.get_account(db, user.id, "google")
         last_synced_history_id = connected_account.last_synced_history_id 
 
-        # 2. Get the necessary credentials
-        # Use only the scope needed for reading history
         scopes = ["https://www.googleapis.com/auth/gmail.readonly"]
         creds = AuthService.get_google_credentials(db, user.id, "google", scopes)
 
         try:
             service = build("gmail", "v1", credentials=creds)
 
-            # 3. Use the History API to find out *what* changed
+            # Using the History API to find out *what* changed
             # Start searching from the LAST successful sync ID (or the one from watch() if first time)
             history_response = service.users().history().list(
-                userId='me', 
+                userId="me", 
                 startHistoryId=last_synced_history_id
             ).execute()
 
-            # 4. Process new messages and trigger actions
-            for history_record in history_response.get('history', []):
-                if 'messagesAdded' in history_record:
-                    for message_item in history_record['messagesAdded']:
-                        message_id = message_item['message']['id']
+            for history_record in history_response.get("history", []):
+                if "messagesAdded" in history_record:
+                    for message_item in history_record["messagesAdded"]:
+                        message_id = message_item["message"]["id"]
                         
                         # Fetch the full message content
                         full_message = service.users().messages().get(
-                            userId='me', 
+                            userId="me", 
                             id=message_id
                         ).execute()
                         
-                        # 💥 The Trigger Point 💥
-                        # Call your core business logic function here
-                        print(f"New Message ID: {message_id}. Triggering custom action...")
-                        # trigger_custom_function(db, user.id, full_message)
+                        print("--------------------------------------------------")
+                        print(full_message)
+                        print("--------------------------------------------------")
+                        # todo: ✨ implement the feature later on that based workflow will 
+                        # be decided what should be triggered
+                        # note: 📔 the workflow should pass the trigger function to 
+                        # this handle_fmail_update() function
                         
-            # 5. Update the stored history ID
-            # Only update the DB if processing was successful
             await AccountService.update_history_id(db, connected_account, new_history_id)
             
         except HttpError as error:
