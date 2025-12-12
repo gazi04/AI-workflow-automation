@@ -48,6 +48,7 @@ services:
       - ./front:/app
       - /app/node_modules
     restart: unless-stopped
+    command: npm run dev -- --host 0.0.0.0
 
 volumes:
   postgres_data:

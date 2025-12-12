@@ -1,48 +1,27 @@
-# Use Node.js 20 Alpine image
-FROM node:20-alpine AS base
+# -----------------------------------------------------------------------------
+# Development Environment Dockerfile
+# -----------------------------------------------------------------------------
 
-# Set working directory
+# Use a standard Node.js image with a stable LTS version for the base
+FROM node:lts-slim
+
+# Set the working directory inside the container
 WORKDIR /app
 
-# Install dependencies only when needed
-FROM base AS deps
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
-
-# Copy package files
+# Copy package.json and package-lock.json (or yarn.lock/pnpm-lock.yaml)
+# We copy this first to leverage Docker's build cache: if dependencies haven't 
+# changed, this step (and the install step) won't run again, speeding up rebuilds.
+# NOTE: Assuming your frontend project uses 'package.json' for dependency management.
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+# Using 'npm ci' for clean installs when a lock file is present
+RUN npm install
 
-# Rebuild the source code only when needed
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-
-# Build the application
-RUN npm run build
-
-# Production image, copy all the files and run the app
-FROM base AS runner
-WORKDIR /app
-
-# Create a non-root user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-# Copy built application
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/package*.json ./
-
-# Change ownership to nextjs user
-RUN chown -R nextjs:nodejs /app
-USER nextjs
-
-# Expose port
+# Expose the port Vite is configured to run on (as specified in docker-compose.yml)
 EXPOSE 5173
 
-# Command to run the application
-CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "5173"]
+# Define the command to run the development server.
+# Using --host 0.0.0.0 is crucial so the server is accessible from the host network.
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# NOTE: This assumes your package.json has a 'dev' script defined for running Vite.
