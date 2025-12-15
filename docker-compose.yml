@@ -1,13 +1,12 @@
 services:
-  # PostgreSQL Database
   postgres:
     image: postgres:latest
     environment:
-      POSTGRES_DB: workflow_automation
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
     ports:
       - "5432:5432"
     healthcheck:
@@ -16,7 +15,20 @@ services:
       timeout: 5s
       retries: 5
 
-  # Backend Service
+  prefect-server:
+    image: prefecthq/prefect:3-latest
+    restart: always
+    ports:
+      - "4200:4200"
+    environment:
+      - PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/prefect
+      - PREFECT_SERVER_API_HOST=0.0.0.0
+      - PREFECT_API_URL=http://127.0.0.1:4200/api 
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-c", "sleep 5 && prefect server start --host 0.0.0.0"]
+
   backend:
     build:
       context: ./backend
@@ -25,15 +37,17 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/workflow_automation
+      - PREFECT_API_URL=http://prefect-server:4200/api
     depends_on:
       postgres:
         condition: service_healthy
+      prefect-server:
+        condition: service_started
     volumes:
       - ./backend:/app
       - /app/__pycache__
     restart: unless-stopped
 
-  # Frontend Service
   frontend:
     build:
       context: ./front
