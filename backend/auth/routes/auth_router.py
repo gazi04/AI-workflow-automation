@@ -6,6 +6,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests
 from sqlalchemy.orm import Session
 
+from actions.services.gmail_service import GmailService
 from auth.depedencies import get_current_user
 from auth.models import RefreshToken
 from auth.models import ConnectedAccount
@@ -18,7 +19,6 @@ from core.database import get_db
 from user.models.user import User
 from user.services.user_service import UserService
 
-import logging
 auth_router = APIRouter(
     prefix="/auth",
     tags=["Auth"]
@@ -91,6 +91,8 @@ async def callback_google(
     state: str,
     db: Session = Depends(get_db),
 ):
+    saved_account = None
+
     try:
         if state not in user_sessions:
             raise HTTPException(status_code=400, detail="Invalid state parameter")
@@ -111,11 +113,9 @@ async def callback_google(
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Invalid ID token: {e}")
 
-        logging.debug(user_info)
-
         user = await UserService.get_or_create_user(db, provider_account_email)
 
-        existing_account = await AccountService.get_account(db, user.id, "google", provider_account_id)
+        existing_account = await AccountService.get_account(db, user.id, "google")
 
         if existing_account:
             existing_account.access_token = credentials.token
@@ -129,6 +129,8 @@ async def callback_google(
             )
             existing_account.scope = credentials.scopes
             existing_account.updated_at = datetime.now(timezone.utc)
+
+            saved_account = existing_account
         else:
             connected_account = ConnectedAccount(
                 user_id=user.id,
@@ -147,6 +149,8 @@ async def callback_google(
             )
             db.add(connected_account)
 
+            saved_account = connected_account
+
         db.commit() 
 
         access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
@@ -159,7 +163,16 @@ async def callback_google(
         )
         db.add(new_refresh_token)
         db.commit()
-        
+
+        # After a successfull login with google enable gmail listener for push notifications
+        watch_response = await GmailService.watch_mailbox_for_updates(
+            db=db, 
+            user_id=user.id, 
+        )
+
+        if watch_response and watch_response.get('historyId'):
+             await AccountService.update_history_id(db, saved_account, watch_response["historyId"])
+
         if state in user_sessions:
             del user_sessions[state]
 
