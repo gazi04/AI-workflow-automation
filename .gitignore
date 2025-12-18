@@ -20,3 +20,5 @@ uv.lock
 
 # Google credentials file
 credentials.json
+
+*.log
