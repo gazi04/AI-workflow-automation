@@ -22,7 +22,7 @@ def get_db() -> Iterator[Session]:
         yield db
     except Exception as e:
         db.rollback()
-        setup_logger("core/database.py").error(f"Unhandled error occurred: \n{e}")
+        setup_logger("DB config").error(f"Unhandled error occurred: \n{e}")
         raise e
     finally:
         db.close()
