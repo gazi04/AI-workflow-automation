@@ -1,10 +1,16 @@
+from uuid import UUID
 from prefect import flow
 from typing import Dict, Any, List
 
-# Import other tasks as you build them (e.g., slack_tasks)
+from orchestration.tasks import GmailTasks
+
+# Loading the models ensuring that the SQLAlchemy Base registry is fully populated before any database operation
+import auth.models # noqa: F401
+import user.models # noqa: F401
+import workflow.models # noqa: F401
 
 @flow(name="Master Automation Executor")
-def execute_automation_flow(user_id: str, workflow_data: Dict[str, Any]):
+async def execute_automation_flow(user_id: UUID, workflow_data: Dict[str, Any]):
     """
     This flow is generic. It doesn't know what it does until it receives
     the 'workflow_data' JSON at runtime.
@@ -19,7 +25,7 @@ def execute_automation_flow(user_id: str, workflow_data: Dict[str, Any]):
         
         try:
             if action_type == "send_email":
-                send_gmail_message_task(
+                await GmailTasks.send_message(
                     user_id=user_id,
                     to=config.get("to"),
                     subject=config.get("subject"),
