@@ -39,3 +39,7 @@ class UserService:
     @staticmethod
     async def get_user_by_id(db: Session, id: UUID) -> User:
         return db.query(User).filter(User.id == id).first()
+
+    @staticmethod
+    async def get_user_email(db: Session, id: UUID) -> str:
+        return db.query(User).filter(User.id == id).first().email
