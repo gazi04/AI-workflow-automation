@@ -1,3 +1,4 @@
+from typing import List, Optional
 from uuid import UUID
 from sqlalchemy.orm import Session
 
@@ -25,3 +26,18 @@ class WorkflowService:
         db.commit()
         db.refresh(new_workflow)
         return new_workflow
+
+    @staticmethod
+    async def update_status(db: Session, id: UUID, status: str) -> Workflow:
+        workflow = db.query(Workflow).filter(Workflow.id == id).first()
+
+        if workflow:
+            workflow.status = status
+            db.commit()
+
+        return workflow
+
+    @staticmethod
+    async def get_by_user_id(db: Session, id: UUID) -> List[Workflow]:
+        return db.query(Workflow).filter(Workflow.user_id == id).all()
+
