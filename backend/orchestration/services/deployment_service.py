@@ -4,7 +4,7 @@ from orchestration.flows.master_flow import execute_automation_flow
 
 class DeploymentService:
     @staticmethod
-    async def create_deployment_for_workflow(user_id: UUID, workflow_name: str, workflow_data: dict):
+    async def create_deployment_for_workflow(user_id: UUID, workflow_name: str, workflow_data: dict) -> UUID:
         """
         Dynamically registers a deployment with Prefect.
         """
@@ -38,4 +38,4 @@ class DeploymentService:
         )
 
         print(f"✅ Deployment created: {deployment_name} (ID: {deployment_id})")
-        return str(deployment_id)
+        return deployment_id

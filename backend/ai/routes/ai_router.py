@@ -5,9 +5,13 @@ from ai.schemas.ai_response import AIResponse
 from ai.services.ai_service import AiService
 from auth.depedencies import get_current_user
 from core.database import get_db
+from core.setup_logging import setup_logger
+from orchestration.services.deployment_service import DeploymentService
 from user.models.user import User
 from user.schemas.user_request import UserRequest
 from workflow.services.workflow_service import WorkflowService
+
+logger = setup_logger("AI Router")
 
 ai_router = APIRouter(
     prefix="/ai",
@@ -21,10 +25,8 @@ async def interpret_command(user_request: UserRequest, db: Session = Depends(get
     and returns a structured workflow definition or an error.
     """
     try:
-        # 1. Get the raw response from Azure AI
         raw_ai_response = AiService.get_ai_response(user_request.text)
 
-        # 2. Parse the response into our structured schema
         workflow_definition = AiService.parse_ai_response(raw_ai_response)
 
         ai_generated_definition_dict = {
@@ -32,8 +34,15 @@ async def interpret_command(user_request: UserRequest, db: Session = Depends(get
             "actions": [action.model_dump() for action in workflow_definition.actions]
         }
 
+        deployment_id = await DeploymentService.create_deployment_for_workflow(
+            user.id,
+            workflow_definition.name,
+            ai_generated_definition_dict
+        )
+
         await WorkflowService.create(
             db,
+            deployment_id,
             user.id,
             workflow_definition.name,
             workflow_definition.description,
@@ -44,13 +53,13 @@ async def interpret_command(user_request: UserRequest, db: Session = Depends(get
         return AIResponse(success=True, data=workflow_definition)
 
     except ValueError as e:
-        # This handles parsing errors and AI-generated errors
+        logger.debug(f"Ai router, interpret_command value error: \n{e}")
         return AIResponse(success=False, error=str(e))
-    except HTTPException as he:
-        # Re-raise HTTP exceptions from get_ai_response
-        raise he
+    except HTTPException as e:
+        logger.debug(f"Ai router, interpret_command HTTP exception: \n{e}")
+        raise e
     except Exception as e:
-        # Catch any other unexpected errors
+        logger.debug(f"Ai router, interpret_command exception: \n{e}")
         return AIResponse(
             success=False, error=f"An unexpected error occurred: {str(e)}"
         )
