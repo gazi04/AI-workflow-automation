@@ -42,7 +42,7 @@ async def get_current_user(
     except PyJWTError:
         raise credentials_exception
 
-    user = await UserService.get_user_by_id(db, user_id)
+    user = await UserService.get(db, user_id)
     
     if user is None:
         raise credentials_exception

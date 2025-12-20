@@ -27,7 +27,7 @@ class AuthService:
     async def register_user(db: Session, user_data: UserLogin) -> User:
         hashed_password = get_password_hash(user_data.password)
 
-        return await UserService.create_user(db, user_data.email, hashed_password)
+        return await UserService.create(db, user_data.email, hashed_password)
 
     @staticmethod
     def authenticate_user(db: Session, email: str, password: str) -> User:

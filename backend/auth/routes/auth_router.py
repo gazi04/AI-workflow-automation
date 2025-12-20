@@ -113,7 +113,7 @@ async def callback_google(
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Invalid ID token: {e}")
 
-        user = await UserService.get_or_create_user(db, provider_account_email)
+        user = await UserService.get_or_create(db, provider_account_email)
 
         existing_account = await AccountService.get_account(db, user.id, "google")
 

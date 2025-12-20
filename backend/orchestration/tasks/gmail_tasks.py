@@ -75,7 +75,7 @@ class GmailTasks:
         try:
             with get_db() as db:
                 creds = AuthService.get_google_credentials(db, user_id, provider, scopes)
-                user_email = await UserService.get_user_email(db, user_id)
+                user_email = await UserService.get_email(db, user_id)
 
             service = build("gmail", "v1", credentials=creds)
             message = EmailMessage()
