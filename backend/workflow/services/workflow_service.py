@@ -8,12 +8,14 @@ class WorkflowService:
     @staticmethod
     async def create(
             db: Session,
+            workflow_id: UUID,
             user_id: UUID,
             name: str,
             description: str,
             workflow_definition: dict
     ) -> Workflow:
         new_workflow = Workflow(
+            id = workflow_id,
             user_id = user_id,
             name = name,
             description = description,
