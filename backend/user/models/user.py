@@ -16,7 +16,6 @@ if TYPE_CHECKING:
     from auth.models.refresh_token import RefreshToken
     from user.models.user_settings import UserSettings
     from workflow.models.workflow import Workflow
-    from workflow.models.workflow_template import WorkflowTemplate
 
 
 class User(Base):
@@ -47,10 +46,6 @@ class User(Base):
     workflows: Mapped[List["Workflow"]] = relationship(
         "workflow.models.workflow.Workflow",
         back_populates="user", cascade="all, delete-orphan"
-    )
-    workflow_templates: Mapped[List["WorkflowTemplate"]] = relationship(
-        "workflow.models.workflow_template.WorkflowTemplate",
-        back_populates="created_by_user"
     )
     settings: Mapped[Optional["UserSettings"]] = relationship(
         "user.models.user_settings.UserSettings",

@@ -9,7 +9,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import List, Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 from core.database import Base
     
@@ -18,7 +18,6 @@ import uuid
 
 if TYPE_CHECKING: 
     from user.models.user import User
-    from workflow.models.workflow_run import WorkflowRun
 
 class Workflow(Base):
     __tablename__ = "workflows"
@@ -49,10 +48,6 @@ class Workflow(Base):
     )
 
     user: Mapped["User"] = relationship("user.models.user.User", back_populates="workflows")
-    runs: Mapped[List["WorkflowRun"]] = relationship(
-        "workflow.models.workflow_run.WorkflowRun",
-        back_populates="workflow", cascade="all, delete-orphan"
-    )
 
     __table_args__ = (
         CheckConstraint("status IN ('active', 'inactive', 'paused', 'failed')"),
