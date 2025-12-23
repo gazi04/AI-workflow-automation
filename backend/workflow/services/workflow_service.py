@@ -1,4 +1,4 @@
-from typing import List
+from typing import Dict, List
 from uuid import UUID
 from sqlalchemy.orm import Session
 
@@ -33,6 +33,16 @@ class WorkflowService:
 
         if workflow:
             workflow.status = status
+            db.commit()
+
+        return workflow
+
+    @staticmethod
+    async def update_config(db: Session, id: UUID, config: Dict) -> Workflow:
+        workflow = db.query(Workflow).filter(Workflow.id == id).first()
+
+        if workflow:
+            workflow.config = config
             db.commit()
 
         return workflow
