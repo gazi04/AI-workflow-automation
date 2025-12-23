@@ -33,7 +33,8 @@ class WorkflowService:
 
         if workflow:
             workflow.status = status
-            db.commit()
+            # we use flush because workflow and deployment services are sequantially dependent 
+            db.flush() # in the workflow router the changes are commited
 
         return workflow
 
@@ -43,7 +44,8 @@ class WorkflowService:
 
         if workflow:
             workflow.config = config
-            db.commit()
+            # we use flush because workflow and deployment services are sequantially dependent 
+            db.flush() # in the workflow router the changes are commited
 
         return workflow
 
