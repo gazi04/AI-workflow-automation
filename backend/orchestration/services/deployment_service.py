@@ -1,4 +1,7 @@
+from typing import Dict
 from uuid import UUID
+from prefect import get_client
+from prefect.client.schemas.actions import DeploymentUpdate
 from prefect.client.schemas.schedules import CronSchedule
 from orchestration.flows.master_flow import execute_automation_flow
 
@@ -39,3 +42,33 @@ class DeploymentService:
 
         print(f"✅ Deployment created: {deployment_name} (ID: {deployment_id})")
         return deployment_id
+    
+    @staticmethod
+    async def toggle_workflow(deployment_id: UUID, active: bool) -> Dict:
+        """
+        active=True -> Resume
+        active=False -> Pause
+        """
+        async with get_client() as client:
+            await client.update_deployment(
+                deployment_id=deployment_id, deployment=DeploymentUpdate(paused=active)
+            )
+            return {"status": "success", "is_active": active}
+
+    @staticmethod
+    async def update_workflow_config(deployment_id: UUID, new_params: Dict) -> Dict:
+        """
+        Updates the parameters of the workflow
+        """
+        async with get_client() as client:
+            deployment = await client.read_deployment(deployment_id)
+
+            updated_params = deployment.parameters or {}
+            updated_params.update(new_params)
+
+            await client.update_deployment(
+                deployment_id=deployment_id,
+                deployment=DeploymentUpdate(parameters=updated_params),
+            )
+            return {"status": "updated", "parameters": updated_params}
+
