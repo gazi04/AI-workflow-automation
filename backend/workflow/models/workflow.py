@@ -1,11 +1,11 @@
 from datetime import datetime, timezone
 from sqlalchemy import (
+    Boolean,
     String,
     Integer,
     DateTime,
     ForeignKey,
     Text,
-    CheckConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -30,8 +30,8 @@ class Workflow(Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
-    status: Mapped[str] = mapped_column(String(20), default="inactive")
-    ai_generated_definition: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    status: Mapped[bool] = mapped_column(Boolean, default=True)
+    config: Mapped[dict] = mapped_column(JSONB, nullable=False)
     version: Mapped[int] = mapped_column(Integer, default=1)
 
     created_at: Mapped[datetime] = mapped_column(
@@ -48,7 +48,3 @@ class Workflow(Base):
     )
 
     user: Mapped["User"] = relationship("user.models.user.User", back_populates="workflows")
-
-    __table_args__ = (
-        CheckConstraint("status IN ('active', 'inactive', 'paused', 'failed')"),
-    )

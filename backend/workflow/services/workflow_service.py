@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List
 from uuid import UUID
 from sqlalchemy.orm import Session
 
@@ -20,7 +20,7 @@ class WorkflowService:
             user_id = user_id,
             name = name,
             description = description,
-            ai_generated_definition = workflow_definition
+            config = workflow_definition
         )
         db.add(new_workflow)
         db.commit()
@@ -28,7 +28,7 @@ class WorkflowService:
         return new_workflow
 
     @staticmethod
-    async def update_status(db: Session, id: UUID, status: str) -> Workflow:
+    async def update_status(db: Session, id: UUID, status: bool) -> Workflow:
         workflow = db.query(Workflow).filter(Workflow.id == id).first()
 
         if workflow:
