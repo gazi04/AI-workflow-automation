@@ -5,15 +5,18 @@ from prefect.client.schemas.actions import DeploymentUpdate
 from prefect.client.schemas.schedules import CronSchedule
 from orchestration.flows.master_flow import execute_automation_flow
 
+
 class DeploymentService:
     @staticmethod
-    async def create_deployment_for_workflow(user_id: UUID, workflow_name: str, workflow_data: dict) -> UUID:
+    async def create_deployment_for_workflow(
+        user_id: UUID, workflow_name: str, workflow_data: dict
+    ) -> UUID:
         """
         Dynamically registers a deployment with Prefect.
         """
         trigger_data = workflow_data.get("trigger", {})
         trigger_type = trigger_data.get("type")
-        
+
         schedule = None
         if trigger_type == "schedule":
             cron_expression = trigger_data.get("config", {}).get("cron")
@@ -25,24 +28,21 @@ class DeploymentService:
 
         flow_from_source = await execute_automation_flow.from_source(
             source=".",
-            entrypoint="orchestration/flows/master_flow.py:execute_automation_flow"
+            entrypoint="orchestration/flows/master_flow.py:execute_automation_flow",
         )
 
         deployment_id = await flow_from_source.deploy(
             name=deployment_name,
-            parameters={
-                "user_id": str(user_id),
-                "workflow_data": workflow_data
-            },
+            parameters={"user_id": str(user_id), "workflow_data": workflow_data},
             schedule=schedule,
             tags=["user-generated"],
-            work_pool_name="my-process-pool" ,
-            build=False
+            work_pool_name="my-process-pool",
+            build=False,
         )
 
         print(f"✅ Deployment created: {deployment_name} (ID: {deployment_id})")
         return deployment_id
-    
+
     @staticmethod
     async def toggle_workflow(deployment_id: UUID, active: bool) -> Dict:
         """
@@ -71,4 +71,3 @@ class DeploymentService:
                 deployment=DeploymentUpdate(parameters=updated_params),
             )
             return {"status": "updated", "parameters": updated_params}
-

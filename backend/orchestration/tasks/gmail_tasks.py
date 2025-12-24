@@ -12,12 +12,13 @@ from core.database import get_db
 from core.setup_logging import setup_logger
 from user.services.user_service import UserService
 
+
 class GmailTasks:
     @staticmethod
     async def create_draft(db: Session, user_id: UUID):
         """Create and insert a draft email.
-            Print the returned draft's message and id.
-            Returns: Draft object, including draft id and message meta data.
+        Print the returned draft's message and id.
+        Returns: Draft object, including draft id and message meta data.
         """
 
         provider = "google"
@@ -53,7 +54,7 @@ class GmailTasks:
                 .execute()
             )
 
-            print(f"Draft id: {draft["id"]}\nDraft message: {draft["message"]}")
+            print(f"Draft id: {draft['id']}\nDraft message: {draft['message']}")
         except HttpError as error:
             print(f"An error occurred: {error}")
             draft = None
@@ -74,7 +75,9 @@ class GmailTasks:
 
         try:
             with get_db() as db:
-                creds = AuthService.get_google_credentials(db, user_id, provider, scopes)
+                creds = AuthService.get_google_credentials(
+                    db, user_id, provider, scopes
+                )
                 user_email = await UserService.get_email(db, user_id)
 
             service = build("gmail", "v1", credentials=creds)
@@ -84,26 +87,27 @@ class GmailTasks:
 
             message["To"] = to
             message["From"] = user_email
-            message["Subject"] =subject
+            message["Subject"] = subject
 
             encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
             create_message = {"raw": encoded_message}
-            
+
             send_message = (
                 service.users()
                 .messages()
                 .send(userId="me", body=create_message)
                 .execute()
             )
-            print(f"Message Id: {send_message["id"]}")
+            print(f"Message Id: {send_message['id']}")
         except HttpError as error:
             print(f"An error occurred: {error}")
             setup_logger("Prefect Gmail Task").error(f"Http error occurred: \n {error}")
             send_message = None
         except Exception as error:
-            setup_logger("Prefect Gmail Task").error(f"Unhandled error occurred: \n {error}")
+            setup_logger("Prefect Gmail Task").error(
+                f"Unhandled error occurred: \n {error}"
+            )
             send_message = None
 
         return send_message
-

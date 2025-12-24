@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env")
 
@@ -85,6 +86,3 @@ You are an expert workflow automation engineer. Your sole purpose is to analyze 
   ]
 }
 """
-
-
-

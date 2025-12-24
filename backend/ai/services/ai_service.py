@@ -21,7 +21,6 @@ class AiService:
             credential=AzureKeyCredential(settings.azure_api_key),
         )
 
-
     @staticmethod
     def get_ai_response(user_input: str) -> str:
         """Sends the prompt to Azure AI and returns the raw response."""
@@ -42,7 +41,6 @@ class AiService:
 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"AI API call failed: {str(e)}")
-
 
     @staticmethod
     def parse_ai_response(raw_response: str) -> WorkflowDefinition:
@@ -69,7 +67,6 @@ class AiService:
                 raise ValueError(
                     f"Failed to parse AI response as JSON: {e}\nResponse was: {raw_response}"
                 )
-
 
     @staticmethod
     def health_check() -> dict:

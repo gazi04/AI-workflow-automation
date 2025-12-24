@@ -16,6 +16,7 @@ import uuid
 if TYPE_CHECKING:
     from user.models.user import User
 
+
 class UserSettings(Base):
     __tablename__ = "user_settings"
 
@@ -28,13 +29,14 @@ class UserSettings(Base):
         JSONB, default={"email": True, "slack": False}
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc)
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
-    user: Mapped["User"] = relationship("user.models.user.User", back_populates="settings")
+    user: Mapped["User"] = relationship(
+        "user.models.user.User", back_populates="settings"
+    )

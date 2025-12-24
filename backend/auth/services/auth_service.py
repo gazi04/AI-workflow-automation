@@ -68,9 +68,9 @@ class AuthService:
         )  # 🔴 todo: make a provider emun for cleaner code
 
         expiry_time = connected_account.token_expires_at
-        
-        if expiry_time: 
-            # Need to convert the datetime object into a naive datatime object, 
+
+        if expiry_time:
+            # Need to convert the datetime object into a naive datatime object,
             # because without causes TypeError: can't compare offset-naive and offset-aware datetimes
             # on line 96 creds.token_state
             if expiry_time.tzinfo is None:

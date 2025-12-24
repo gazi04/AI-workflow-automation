@@ -23,7 +23,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
+        expire = datetime.now(timezone.utc) + timedelta(
+            minutes=settings.access_token_expire_minutes
+        )
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, get_secret_key(), algorithm=settings.algorithm)
     return encoded_jwt
@@ -31,7 +33,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 def create_refresh_token(user_id: uuid.UUID) -> tuple[str, datetime]:
     refresh_token = str(uuid.uuid4())
-    expires_at = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
+    expires_at = datetime.now(timezone.utc) + timedelta(
+        days=settings.refresh_token_expire_days
+    )
     return refresh_token, expires_at
 
 
@@ -41,7 +45,7 @@ def decode_access_token(token: str) -> dict:
             token,
             get_secret_key(),
             algorithms=[settings.algorithm],
-            # Options like verify_signature/verify_aud are handled differently 
+            # Options like verify_signature/verify_aud are handled differently
             # or implicitly in PyJWT compared to python-jose.
         )
         return payload

@@ -29,29 +29,33 @@ class User(Base):
     full_name: Mapped[Optional[str]] = mapped_column(String(255))
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc)
+        onupdate=lambda: datetime.now(timezone.utc),
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     connected_accounts: Mapped[List["ConnectedAccount"]] = relationship(
         "auth.models.connected_account.ConnectedAccount",
-        back_populates="user", cascade="all, delete-orphan"
+        back_populates="user",
+        cascade="all, delete-orphan",
     )
     workflows: Mapped[List["Workflow"]] = relationship(
         "workflow.models.workflow.Workflow",
-        back_populates="user", cascade="all, delete-orphan"
+        back_populates="user",
+        cascade="all, delete-orphan",
     )
     settings: Mapped[Optional["UserSettings"]] = relationship(
         "user.models.user_settings.UserSettings",
-        back_populates="user", uselist=False, cascade="all, delete-orphan"
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
     )
     refresh_tokens: Mapped[List["RefreshToken"]] = relationship(
         "auth.models.refresh_token.RefreshToken",
-        back_populates="user", cascade="all, delete-orphan"
+        back_populates="user",
+        cascade="all, delete-orphan",
     )

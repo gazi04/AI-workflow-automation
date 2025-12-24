@@ -15,6 +15,7 @@ import uuid
 if TYPE_CHECKING:
     from user.models.user import User
 
+
 class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
 
@@ -25,11 +26,14 @@ class RefreshToken(Base):
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     token: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     is_revoked: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
 
-    user: Mapped["User"] = relationship("user.models.user.User", back_populates="refresh_tokens")
+    user: Mapped["User"] = relationship(
+        "user.models.user.User", back_populates="refresh_tokens"
+    )

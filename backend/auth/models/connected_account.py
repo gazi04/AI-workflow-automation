@@ -10,7 +10,7 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import List, Optional, TYPE_CHECKING
 
-if TYPE_CHECKING: 
+if TYPE_CHECKING:
     from user.models.user import User
 
 import uuid
@@ -42,13 +42,14 @@ class ConnectedAccount(Base):
     metadata_account: Mapped[dict] = mapped_column(JSONB, default={})
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc)
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
-    user: Mapped["User"] = relationship("user.models.user.User", back_populates="connected_accounts")
+    user: Mapped["User"] = relationship(
+        "user.models.user.User", back_populates="connected_accounts"
+    )

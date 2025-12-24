@@ -51,7 +51,9 @@ class AccountService:
         return account
 
     @staticmethod
-    async def get_account(db: Session, user_id: UUID, provider: str) -> ConnectedAccount:
+    async def get_account(
+        db: Session, user_id: UUID, provider: str
+    ) -> ConnectedAccount:
         return (
             db.query(ConnectedAccount)
             .filter(
@@ -62,7 +64,9 @@ class AccountService:
         )
 
     @staticmethod
-    async def update_history_id(db: Session, account: ConnectedAccount, new_history_id: str) -> ConnectedAccount:
+    async def update_history_id(
+        db: Session, account: ConnectedAccount, new_history_id: str
+    ) -> ConnectedAccount:
         account.last_synced_history_id = new_history_id
         db.commit()
         db.refresh(account)

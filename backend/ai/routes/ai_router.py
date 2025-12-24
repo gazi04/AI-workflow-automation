@@ -13,13 +13,15 @@ from workflow.services.workflow_service import WorkflowService
 
 logger = setup_logger("AI Router")
 
-ai_router = APIRouter(
-    prefix="/ai",
-    tags=["AI"]
-)
+ai_router = APIRouter(prefix="/ai", tags=["AI"])
+
 
 @ai_router.post("/interpret", response_model=AIResponse)
-async def interpret_command(user_request: UserRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+async def interpret_command(
+    user_request: UserRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     """
     Main endpoint. Receives user's text, sends it to the AI,
     and returns a structured workflow definition or an error.
@@ -31,13 +33,11 @@ async def interpret_command(user_request: UserRequest, db: Session = Depends(get
 
         ai_generated_definition_dict = {
             "trigger": workflow_definition.trigger.model_dump(),
-            "actions": [action.model_dump() for action in workflow_definition.actions]
+            "actions": [action.model_dump() for action in workflow_definition.actions],
         }
 
         deployment_id = await DeploymentService.create_deployment_for_workflow(
-            user.id,
-            workflow_definition.name,
-            ai_generated_definition_dict
+            user.id, workflow_definition.name, ai_generated_definition_dict
         )
 
         await WorkflowService.create(
@@ -46,12 +46,10 @@ async def interpret_command(user_request: UserRequest, db: Session = Depends(get
             user.id,
             workflow_definition.name,
             workflow_definition.description,
-            ai_generated_definition_dict
+            ai_generated_definition_dict,
         )
 
-        # 3. Return the successful result
         return AIResponse(success=True, data=workflow_definition)
-
     except ValueError as e:
         logger.debug(f"Ai router, interpret_command value error: \n{e}")
         return AIResponse(success=False, error=str(e))
@@ -74,4 +72,3 @@ async def health():
         raise HTTPException(
             status_code=500, detail=f"Azure connection failed: {str(e)}"
         )
-

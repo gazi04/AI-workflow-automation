@@ -19,10 +19,7 @@ from core.database import get_db
 from user.models.user import User
 from user.services.user_service import UserService
 
-auth_router = APIRouter(
-    prefix="/auth",
-    tags=["Auth"]
-)
+auth_router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
 @auth_router.get("/protected")
@@ -31,12 +28,14 @@ async def protected_route(user: User = Depends(get_current_user)):
 
 
 @auth_router.post("/refresh", response_model=Token)
-async def refresh_access_token(request: RefreshTokenRequest, db: Session = Depends(get_db)):
+async def refresh_access_token(
+    request: RefreshTokenRequest, db: Session = Depends(get_db)
+):
     """Refreshes the Access Token using a valid Refresh Token."""
     new_tokens = TokenService.refresh_token(db, request.refresh_token)
     if not new_tokens:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
-    
+
     return {**new_tokens, "token_type": "bearer"}
 
 
@@ -53,7 +52,7 @@ def get_google_flow():
                 "token_uri": "https://oauth2.googleapis.com/token",
             }
         },
-        scopes = [
+        scopes=[
             "https://www.googleapis.com/auth/gmail.readonly",
             "https://www.googleapis.com/auth/gmail.send",
             "https://www.googleapis.com/auth/gmail.compose",
@@ -61,7 +60,7 @@ def get_google_flow():
             "https://www.googleapis.com/auth/userinfo.email",
             "openid",  # This scope is to get the user's ID
         ],
-        redirect_uri = settings.google_oauth_redirect_uri,
+        redirect_uri=settings.google_oauth_redirect_uri,
     )
 
 
@@ -138,7 +137,9 @@ async def callback_google(
                 provider_account_id=provider_account_id,
                 access_token=credentials.token,
                 refresh_token=credentials.refresh_token,
-                token_expires_at=datetime.fromtimestamp(credentials.expiry.timestamp(), tz=timezone.utc)
+                token_expires_at=datetime.fromtimestamp(
+                    credentials.expiry.timestamp(), tz=timezone.utc
+                )
                 if credentials.expiry
                 else None,
                 scope=credentials.scopes,
@@ -151,37 +152,41 @@ async def callback_google(
 
             saved_account = connected_account
 
-        db.commit() 
+        db.commit()
 
-        access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
+        access_token = create_access_token(
+            data={"sub": str(user.id), "email": user.email}
+        )
         refresh_token_string, expires_at = create_refresh_token(user.id)
 
         new_refresh_token = RefreshToken(
-            user_id=user.id,
-            token=refresh_token_string,
-            expires_at=expires_at
+            user_id=user.id, token=refresh_token_string, expires_at=expires_at
         )
         db.add(new_refresh_token)
         db.commit()
 
         # After a successfull login with google enable gmail listener for push notifications
         watch_response = await GmailService.watch_mailbox_for_updates(
-            db=db, 
-            user_id=user.id, 
+            db=db,
+            user_id=user.id,
         )
 
-        if watch_response and watch_response.get('historyId'):
-             await AccountService.update_history_id(db, saved_account, watch_response["historyId"])
+        if watch_response and watch_response.get("historyId"):
+            await AccountService.update_history_id(
+                db, saved_account, watch_response["historyId"]
+            )
 
         if state in user_sessions:
             del user_sessions[state]
 
-        return JSONResponse(content={
-            "access_token": access_token,
-            "refresh_token": refresh_token_string,
-            "token_type": "bearer",
-            "message": "User successfully logged in with Google"
-        })
+        return JSONResponse(
+            content={
+                "access_token": access_token,
+                "refresh_token": refresh_token_string,
+                "token_type": "bearer",
+                "message": "User successfully logged in with Google",
+            }
+        )
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Authentication failed: {str(e)}")

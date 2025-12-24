@@ -3,9 +3,9 @@ Imported models are not used, in a traditional way, either way for SqlAlchemy th
 """
 
 from core.database import Base, engine
-from auth.models import ConnectedAccount, RefreshToken
-from user.models import User, UserSettings
-from workflow.models import Workflow
+from auth.models import ConnectedAccount, RefreshToken # noqa: F401
+from user.models import User, UserSettings # noqa: F401
+from workflow.models import Workflow # noqa: F401
 
 def create_tables():
     print("Creating database tables...")
