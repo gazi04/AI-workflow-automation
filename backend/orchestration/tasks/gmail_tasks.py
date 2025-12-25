@@ -1,4 +1,3 @@
-from contextlib import contextmanager
 from email.message import EmailMessage
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -9,7 +8,7 @@ from auth.services.auth_service import AuthService
 
 import base64
 
-from core.database import get_db
+from core.database import db_session
 from core.setup_logging import setup_logger
 from user.services.user_service import UserService
 
@@ -75,7 +74,7 @@ class GmailTasks:
         ]
 
         try:
-            with contextmanager(get_db) as db:
+            with db_session() as db:
                 creds = AuthService.get_google_credentials(
                     db, user_id, provider, scopes
                 )
