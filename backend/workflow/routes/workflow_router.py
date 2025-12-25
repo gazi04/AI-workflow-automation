@@ -15,7 +15,7 @@ logger = setup_logger("Workflow Router")
 workflow_router = APIRouter(prefix="/workflow", tags=["Workflow"])
 
 
-@workflow_router.get("get_workflows")
+@workflow_router.get("/get_workflows")
 async def get_workflows(
     db: Session = Depends(get_db), user: User = Depends(get_current_user)
 ):
