@@ -23,7 +23,7 @@ async def get_workflows(
     Get a list of the all the workflows from the current user
     """
     try:
-        return WorkflowService.get_by_user_id(db, user.id)
+        return await WorkflowService.get_by_user_id(db, user.id)
     except Exception as e:
         logger.error(
             f"Unexpected error occurred in the get_workflows endpoint with message: \n{e}"
