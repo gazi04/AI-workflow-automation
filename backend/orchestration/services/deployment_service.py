@@ -1,12 +1,23 @@
-from typing import Dict
+from typing import Any, Dict, Optional
 from uuid import UUID
 from prefect import get_client
+from prefect.deployments import run_deployment
 from prefect.client.schemas.actions import DeploymentUpdate
 from prefect.client.schemas.schedules import CronSchedule
+from core.setup_logging import setup_logger
 from orchestration.flows.master_flow import execute_automation_flow
 
+logger = setup_logger("Deployment Service")
 
 class DeploymentService:
+    @staticmethod
+    async def run(workflow_id: UUID, config: Optional[Dict[str, Any]] = None):
+        try:
+            await run_deployment(workflow_id, parameters=config)
+        except Exception as e:
+            logger.debug(f"Unexpected error occurred: \n{e}")
+            raise e
+
     @staticmethod
     async def create_deployment_for_workflow(
         user_id: UUID, workflow_name: str, workflow_data: dict

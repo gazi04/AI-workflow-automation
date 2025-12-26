@@ -6,6 +6,7 @@ from core.database import get_db
 from core.setup_logging import setup_logger
 from orchestration.services import DeploymentService
 from user.models.user import User
+from workflow.schemas.run_workflow_request import RunWorkflowRequest
 from workflow.services import WorkflowService
 from workflow.schemas import UpdateWorkflowRequest, ToggleWorkflowRequest
 
@@ -33,6 +34,14 @@ async def get_workflows(
             detail="An unexpected error occurred.",
         )
 
+
+@workflow_router.post("/run")
+async def run_workflow(request: RunWorkflowRequest):
+    try:
+        # todo: validated the request
+        return await DeploymentService.run(request.deployment_id)
+    except Exception as e:
+        raise e
 
 @workflow_router.patch("/toggle")
 async def toggle_workflow(
