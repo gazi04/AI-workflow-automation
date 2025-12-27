@@ -97,7 +97,7 @@ class GmailService:
                                     .execute()
                                 )
                             except HttpError as e:
-                                if e.status_code() == 404:
+                                if e.status_code == 404:
                                     logger.warning(f"Message {message_id} not found (likely deleted). Skipping.")
                                     continue
 
