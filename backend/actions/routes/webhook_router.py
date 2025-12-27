@@ -5,15 +5,15 @@ from actions.services.gmail_service import GmailService
 from auth.depedencies import get_current_user
 from auth.services.account_service import AccountService
 from core.database import get_db
+from core.setup_logging import setup_logger
 from user.models.user import User
 
 import base64
 import json
-import logging
 
 
 webhook_router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
-
+logger = setup_logger("Webhook router")
 
 @webhook_router.get("/listen-to-gmail")
 async def listen_gmail(
@@ -63,11 +63,12 @@ async def gmail_webhook(
             # Still return 200/204 to avoid retries for bad payload format
             return {"status": "ok", "message": "Notification ignored (missing keys)"}
 
+        logger.debug(f"Email address: {email_address}\nNew history id: {new_history_id}")
         background_tasks.add_task(
             GmailService.handle_gmail_update, db, email_address, new_history_id
         )
 
         return {"status": "success", "message": "Processing started in background"}
     except Exception as e:
-        logging.error(f"Failed to parse incoming Pub/Sub message: {e}")
-        raise HTTPException(status_code=500, detail="Failed to process notification")
+        logger.error(f"Failed to parse incoming Pub/Sub message: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process notification. This is the error: \n{e}")

@@ -6,10 +6,11 @@ from sqlalchemy.orm import Session
 from auth.services.account_service import AccountService
 from auth.services.auth_service import AuthService
 from core.config_loader import settings
+from core.setup_logging import setup_logger
 from user.services.user_service import UserService
 
-import logging
-
+logger = setup_logger("Gmail Service")
+info_logger = setup_logger("Gmail Service", "info.log")
 
 class GmailService:
     @staticmethod
@@ -24,8 +25,8 @@ class GmailService:
         try:
             creds = AuthService.get_google_credentials(db, user_id, provider, scopes)
         except Exception as e:
-            print(f"Error retrieving credentials: {e}")
-            return None
+            logger.error(f"Error retrieving credentials: {e}")
+            return 
 
         try:
             service = build("gmail", "v1", credentials=creds)
@@ -42,15 +43,15 @@ class GmailService:
                 service.users().watch(userId="me", body=watch_request_body).execute()
             )
 
-            print(f"Watch successful for user {user_id}.")
-            print(f"Current History ID: {watch_response.get('historyId')}")
-            print(f"Expiration: {watch_response.get('expiration')}")
+            info_logger.info(f"Watch successful for user {user_id}.")
+            info_logger.info(f"Current History ID: {watch_response.get('historyId')}")
+            info_logger.info(f"Expiration: {watch_response.get('expiration')}")
 
             return watch_response
 
         except HttpError as error:
-            print(f"An error occurred during users.watch: {error}")
-            return None
+            logger.error(f"An error occurred during users.watch: {error}")
+            return 
 
     @staticmethod
     async def handle_gmail_update(db: Session, email_address: str, new_history_id: str):
@@ -59,7 +60,7 @@ class GmailService:
         """
         user = await UserService.get_by_email(db, email_address)
         if not user:
-            logging.error(f"User not found for email: {email_address}")
+            logger.error(f"User not found for email: {email_address}")
             return
 
         connected_account = await AccountService.get_account(db, user.id, "google")
@@ -93,9 +94,7 @@ class GmailService:
                             .execute()
                         )
 
-                        print("--------------------------------------------------")
-                        print(full_message)
-                        print("--------------------------------------------------")
+                        logger.debug(f"Full message: \n{full_message}")
                         # 🟢 todo: triggering prefect deployment
                         # todo: ✨ implement the feature later on that based workflow will
                         # be decided what should be triggered
@@ -107,6 +106,8 @@ class GmailService:
             )
 
         except HttpError as error:
-            logging.error(f"Gmail History API error for {email_address}: {error}")
+            logger.error(f"Gmail History API error for {email_address}: {error}")
+            return 
         except Exception as e:
-            logging.error(f"General processing error for {email_address}: {e}")
+            logger.error(f"General processing error for {email_address}: {e}")
+            return 
