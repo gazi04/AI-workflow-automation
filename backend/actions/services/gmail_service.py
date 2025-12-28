@@ -6,6 +6,7 @@ from auth.services.account_service import AccountService
 from auth.services.auth_service import AuthService
 from core.config_loader import settings
 from core.database import db_session
+from core.processors.gmail_history_processor import GmailHistoryProcessor
 from core.setup_logging import setup_logger
 from user.services.user_service import UserService
 
@@ -60,61 +61,38 @@ class GmailService:
         """
         with db_session() as db:
             user = await UserService.get_by_email(db, email_address)
+
             if not user:
                 logger.error(f"User not found for email: {email_address}")
                 return
 
-            connected_account = await AccountService.get_account(db, user.id, "google")
-            last_synced_history_id = connected_account.last_synced_history_id
-
             scopes = ["https://www.googleapis.com/auth/gmail.readonly"]
+            connected_account = await AccountService.get_account(db, user.id, "google")
             creds = AuthService.get_google_credentials(db, user.id, "google", scopes)
 
-            try:
-                service = build("gmail", "v1", credentials=creds)
+        last_synced_history_id = connected_account.last_synced_history_id
 
-                # Using the History API to find out *what* changed
-                # Start searching from the LAST successful sync ID (or the one from watch() if first time)
-                history_response = (
-                    service.users()
-                    .history()
-                    .list(userId="me", startHistoryId=last_synced_history_id)
-                    .execute()
+        try:
+            with GmailHistoryProcessor(creds) as processor:
+                processor.fetch_and_process(last_synced_history_id)
+
+            with db_session() as db:
+                user = await UserService.get_by_email(db, email_address)
+
+                if not user:
+                    logger.error(f"User not found for email: {email_address}")
+                    return
+
+                connected_account = await AccountService.get_account(
+                    db, user.id, "google"
                 )
-
-                for history_record in history_response.get("history", []):
-                    if "messagesAdded" in history_record:
-                        for message_item in history_record["messagesAdded"]:
-                            message_id = message_item["message"]["id"]
-
-                            # Fetch the full message content
-                            try:
-                                full_message = (
-                                    service.users()
-                                    .messages()
-                                    .get(userId="me", id=message_id)
-                                    .execute()
-                                )
-                            except HttpError as e:
-                                if e.status_code == 404:
-                                    logger.warning(f"Message {message_id} not found (likely deleted). Skipping.")
-                                    continue
-
-                                logger.error(f"Unhandled http error occurred: \n{e}")
-
-                            # 🟢 todo: triggering prefect deployment
-                            # todo: ✨ implement the feature later on that based workflow will
-                            # be decided what should be triggered
-                            # note: 📔 the workflow should pass the trigger function to
-                            # this handle_fmail_update() function
-
                 await AccountService.update_history_id(
                     db, connected_account, new_history_id
                 )
 
-            except HttpError as error:
-                logger.error(f"Gmail History API error for {email_address}: {error}")
-                return 
-            except Exception as e:
-                logger.error(f"General processing error for {email_address}: {e}")
-                return 
+        except HttpError as error:
+            logger.error(f"Gmail History API error for {email_address}: {error}")
+            return
+        except Exception as e:
+            logger.error(f"General processing error for {email_address}: {e}")
+            return
