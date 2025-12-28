@@ -1,7 +1,6 @@
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from uuid import UUID
-from sqlalchemy.orm import Session
 
 from auth.services.account_service import AccountService
 from auth.services.auth_service import AuthService
@@ -11,12 +10,12 @@ from core.setup_logging import setup_logger
 from user.services.user_service import UserService
 
 logger = setup_logger("Gmail Service")
-info_logger = setup_logger("Gmail Service", "info.log")
+
 
 class GmailService:
     @staticmethod
     async def watch_mailbox_for_updates(
-        db: Session, user_id: UUID, label_ids: list = ["INBOX"]
+        user_id: UUID, label_ids: list = ["INBOX"]
     ) -> dict[str, str] | None:
         provider = "google"
         scopes = [
@@ -24,14 +23,15 @@ class GmailService:
         ]
 
         try:
-            creds = AuthService.get_google_credentials(db, user_id, provider, scopes)
+            with db_session() as db:
+                creds = AuthService.get_google_credentials(
+                    db, user_id, provider, scopes
+                )
         except Exception as e:
             logger.error(f"Error retrieving credentials: {e}")
-            return 
+            return
 
         try:
-            service = build("gmail", "v1", credentials=creds)
-
             watch_request_body = {
                 "topicName": settings.google_cloud_email_topic,
                 "labelIds": label_ids,
@@ -40,19 +40,18 @@ class GmailService:
                 "labelFilterBehavior": "INCLUDE",
             }
 
-            watch_response = (
-                service.users().watch(userId="me", body=watch_request_body).execute()
-            )
-
-            info_logger.info(f"Watch successful for user {user_id}.")
-            info_logger.info(f"Current History ID: {watch_response.get('historyId')}")
-            info_logger.info(f"Expiration: {watch_response.get('expiration')}")
+            with build("gmail", "v1", credentials=creds) as service:
+                watch_response = (
+                    service.users()
+                    .watch(userId="me", body=watch_request_body)
+                    .execute()
+                )
 
             return watch_response
 
         except HttpError as error:
             logger.error(f"An error occurred during users.watch: {error}")
-            return 
+            return
 
     @staticmethod
     async def handle_gmail_update(email_address: str, new_history_id: str):

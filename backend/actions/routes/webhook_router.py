@@ -33,10 +33,7 @@ async def listen_gmail(
             detail=f"Failed to retrieve connected account: {e}",
         )
 
-    watch_response = await GmailService.watch_mailbox_for_updates(
-        db=db,
-        user_id=user.id,
-    )
+    watch_response = await GmailService.watch_mailbox_for_updates(user_id=user.id)
 
     if watch_response and watch_response.get("historyId"):
         await AccountService.update_history_id(
@@ -63,7 +60,6 @@ async def gmail_webhook(
             # Still return 200/204 to avoid retries for bad payload format
             return {"status": "ok", "message": "Notification ignored (missing keys)"}
 
-        logger.debug(f"Email address: {email_address}\nNew history id: {new_history_id}")
         background_tasks.add_task(
             GmailService.handle_gmail_update, email_address, new_history_id
         )
