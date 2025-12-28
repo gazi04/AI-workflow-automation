@@ -72,7 +72,7 @@ class GmailService:
             connected_account = await AccountService.get_account(db, user.id, "google")
             creds = AuthService.get_google_credentials(db, user.id, "google", scopes)
 
-        last_synced_history_id = connected_account.last_synced_history_id
+            last_synced_history_id = connected_account.last_synced_history_id
 
         try:
             with GmailHistoryProcessor(creds) as processor:
