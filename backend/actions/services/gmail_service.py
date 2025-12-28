@@ -66,6 +66,8 @@ class GmailService:
                 logger.error(f"User not found for email: {email_address}")
                 return
 
+            user_id = user.id # to use outside the with statment
+
             scopes = ["https://www.googleapis.com/auth/gmail.readonly"]
             connected_account = await AccountService.get_account(db, user.id, "google")
             creds = AuthService.get_google_credentials(db, user.id, "google", scopes)
@@ -77,14 +79,8 @@ class GmailService:
                 processor.fetch_and_process(last_synced_history_id)
 
             with db_session() as db:
-                user = await UserService.get_by_email(db, email_address)
-
-                if not user:
-                    logger.error(f"User not found for email: {email_address}")
-                    return
-
                 connected_account = await AccountService.get_account(
-                    db, user.id, "google"
+                    db, user_id, "google"
                 )
                 await AccountService.update_history_id(
                     db, connected_account, new_history_id
