@@ -1,21 +1,22 @@
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from uuid import UUID
-from sqlalchemy.orm import Session
 
 from auth.services.account_service import AccountService
 from auth.services.auth_service import AuthService
 from core.config_loader import settings
+from core.database import db_session
+from core.processors.gmail_history_processor import GmailHistoryProcessor
 from core.setup_logging import setup_logger
 from user.services.user_service import UserService
 
 logger = setup_logger("Gmail Service")
-info_logger = setup_logger("Gmail Service", "info.log")
+
 
 class GmailService:
     @staticmethod
     async def watch_mailbox_for_updates(
-        db: Session, user_id: UUID, label_ids: list = ["INBOX"]
+        user_id: UUID, label_ids: list = ["INBOX"]
     ) -> dict[str, str] | None:
         provider = "google"
         scopes = [
@@ -23,14 +24,15 @@ class GmailService:
         ]
 
         try:
-            creds = AuthService.get_google_credentials(db, user_id, provider, scopes)
+            with db_session() as db:
+                creds = AuthService.get_google_credentials(
+                    db, user_id, provider, scopes
+                )
         except Exception as e:
             logger.error(f"Error retrieving credentials: {e}")
-            return 
+            return
 
         try:
-            service = build("gmail", "v1", credentials=creds)
-
             watch_request_body = {
                 "topicName": settings.google_cloud_email_topic,
                 "labelIds": label_ids,
@@ -39,75 +41,54 @@ class GmailService:
                 "labelFilterBehavior": "INCLUDE",
             }
 
-            watch_response = (
-                service.users().watch(userId="me", body=watch_request_body).execute()
-            )
-
-            info_logger.info(f"Watch successful for user {user_id}.")
-            info_logger.info(f"Current History ID: {watch_response.get('historyId')}")
-            info_logger.info(f"Expiration: {watch_response.get('expiration')}")
+            with build("gmail", "v1", credentials=creds) as service:
+                watch_response = (
+                    service.users()
+                    .watch(userId="me", body=watch_request_body)
+                    .execute()
+                )
 
             return watch_response
 
         except HttpError as error:
             logger.error(f"An error occurred during users.watch: {error}")
-            return 
+            return
 
     @staticmethod
-    async def handle_gmail_update(db: Session, email_address: str, new_history_id: str):
+    async def handle_gmail_update(email_address: str, new_history_id: str):
         """
         Runs in the background. Fetches changes since the last sync and triggers actions.
         """
-        user = await UserService.get_by_email(db, email_address)
-        if not user:
-            logger.error(f"User not found for email: {email_address}")
-            return
+        with db_session() as db:
+            user = await UserService.get_by_email(db, email_address)
 
-        connected_account = await AccountService.get_account(db, user.id, "google")
-        last_synced_history_id = connected_account.last_synced_history_id
+            if not user:
+                logger.error(f"User not found for email: {email_address}")
+                return
 
-        scopes = ["https://www.googleapis.com/auth/gmail.readonly"]
-        creds = AuthService.get_google_credentials(db, user.id, "google", scopes)
+            user_id = user.id # to use outside the with statment
+
+            scopes = ["https://www.googleapis.com/auth/gmail.readonly"]
+            connected_account = await AccountService.get_account(db, user.id, "google")
+            creds = AuthService.get_google_credentials(db, user.id, "google", scopes)
+
+            last_synced_history_id = connected_account.last_synced_history_id
 
         try:
-            service = build("gmail", "v1", credentials=creds)
+            with GmailHistoryProcessor(creds, user_id) as processor:
+                await processor.fetch_and_process(last_synced_history_id)
 
-            # Using the History API to find out *what* changed
-            # Start searching from the LAST successful sync ID (or the one from watch() if first time)
-            history_response = (
-                service.users()
-                .history()
-                .list(userId="me", startHistoryId=last_synced_history_id)
-                .execute()
-            )
-
-            for history_record in history_response.get("history", []):
-                if "messagesAdded" in history_record:
-                    for message_item in history_record["messagesAdded"]:
-                        message_id = message_item["message"]["id"]
-
-                        # Fetch the full message content
-                        full_message = (
-                            service.users()
-                            .messages()
-                            .get(userId="me", id=message_id)
-                            .execute()
-                        )
-
-                        logger.debug(f"Full message: \n{full_message}")
-                        # 🟢 todo: triggering prefect deployment
-                        # todo: ✨ implement the feature later on that based workflow will
-                        # be decided what should be triggered
-                        # note: 📔 the workflow should pass the trigger function to
-                        # this handle_fmail_update() function
-
-            await AccountService.update_history_id(
-                db, connected_account, new_history_id
-            )
+            with db_session() as db:
+                connected_account = await AccountService.get_account(
+                    db, user_id, "google"
+                )
+                await AccountService.update_history_id(
+                    db, connected_account, new_history_id
+                )
 
         except HttpError as error:
             logger.error(f"Gmail History API error for {email_address}: {error}")
-            return 
+            return
         except Exception as e:
             logger.error(f"General processing error for {email_address}: {e}")
-            return 
+            return

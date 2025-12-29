@@ -167,7 +167,6 @@ async def callback_google(
 
         # After a successfull login with google enable gmail listener for push notifications
         watch_response = await GmailService.watch_mailbox_for_updates(
-            db=db,
             user_id=user.id,
         )
 

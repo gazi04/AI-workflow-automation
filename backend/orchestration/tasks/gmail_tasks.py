@@ -13,6 +13,8 @@ from core.setup_logging import setup_logger
 from user.services.user_service import UserService
 
 
+logger = setup_logger("Prefect Gmail Task")
+
 class GmailTasks:
     @staticmethod
     async def create_draft(db: Session, user_id: UUID):
@@ -31,30 +33,32 @@ class GmailTasks:
 
         try:
             # ♻️ todo: refactore the service names and use enums
-            service = build("gmail", "v1", credentials=creds)
+            with build("gmail", "v1", credentials=creds) as service:
+                # service = build("gmail", "v1", credentials=creds)
 
-            message = EmailMessage()
+                message = EmailMessage()
 
-            message.set_content("This is automated draft mail")
+                message.set_content("This is automated draft mail")
 
-            message["To"] = "gazmend.halili.st@uni-gjilan.net"
-            message["From"] = "gazmendhalili2016@gmail.com"
-            message["Subject"] = "Automated draft"
+                # todo: remove and pass down the message attributes
+                message["To"] = "gazmend.halili.st@uni-gjilan.net"
+                message["From"] = "gazmendhalili2016@gmail.com"
+                message["Subject"] = "Automated draft"
 
-            # encoded message
-            encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+                # encoded message
+                encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
-            create_message = {"message": {"raw": encoded_message}}
+                create_message = {"message": {"raw": encoded_message}}
 
-            # pylint: disable=E1101
-            draft = (
-                service.users()
-                .drafts()
-                .create(userId="me", body=create_message)
-                .execute()
-            )
+                # pylint: disable=E1101
+                draft = (
+                    service.users()
+                    .drafts()
+                    .create(userId="me", body=create_message)
+                    .execute()
+                )
 
-            print(f"Draft id: {draft['id']}\nDraft message: {draft['message']}")
+                print(f"Draft id: {draft['id']}\nDraft message: {draft['message']}")
         except HttpError as error:
             print(f"An error occurred: {error}")
             draft = None
@@ -80,7 +84,6 @@ class GmailTasks:
                 )
                 user_email = await UserService.get_email(db, user_id)
 
-            service = build("gmail", "v1", credentials=creds)
             message = EmailMessage()
 
             message.set_content(body)
@@ -93,19 +96,20 @@ class GmailTasks:
 
             create_message = {"raw": encoded_message}
 
-            send_message = (
-                service.users()
-                .messages()
-                .send(userId="me", body=create_message)
-                .execute()
-            )
-            print(f"Message Id: {send_message['id']}")
+            with build("gmail", "v1", credentials=creds) as service:
+                send_message = (
+                    service.users()
+                    .messages()
+                    .send(userId="me", body=create_message)
+                    .execute()
+                )
+                print(f"Message Id: {send_message['id']}")
         except HttpError as error:
             print(f"An error occurred: {error}")
-            setup_logger("Prefect Gmail Task").error(f"Http error occurred: \n {error}")
+            logger.error(f"Http error occurred: \n {error}")
             send_message = None
         except Exception as error:
-            setup_logger("Prefect Gmail Task").error(
+            logger.error(
                 f"Unhandled error occurred: \n {error}"
             )
             send_message = None

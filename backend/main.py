@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from actions.routes.action_router import action_router
 from actions.routes.webhook_router import webhook_router
 from auth.routes.auth_router import auth_router
 from ai.routes.ai_router import ai_router
@@ -29,7 +28,6 @@ def api_status():
 
 app.include_router(auth_router, prefix="/api")
 app.include_router(ai_router, prefix="/api")
-app.include_router(action_router, prefix="/api")
 app.include_router(webhook_router, prefix="/api")
 app.include_router(workflow_router, prefix="/api")
 
