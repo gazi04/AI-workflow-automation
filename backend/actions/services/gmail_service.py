@@ -75,8 +75,8 @@ class GmailService:
             last_synced_history_id = connected_account.last_synced_history_id
 
         try:
-            with GmailHistoryProcessor(creds) as processor:
-                processor.fetch_and_process(last_synced_history_id)
+            with GmailHistoryProcessor(creds, user_id) as processor:
+                await processor.fetch_and_process(last_synced_history_id)
 
             with db_session() as db:
                 connected_account = await AccountService.get_account(
