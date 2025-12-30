@@ -39,13 +39,23 @@ class GmailHistoryProcessor:
         await self._filter_notifications(history_response)
 
     async def _filter_notifications(self, history_response: Dict[str, Any]):
+        unique_message_ids = set()
+
         for history_record in history_response.get("history", []):
             if "messagesAdded" not in history_record:
                 continue
 
             for message_item in history_record["messagesAdded"]:
                 message_id = message_item["message"]["id"]
-                await self._process_single_message(message_id)
+                unique_message_ids.add(message_id)
+                # await self._process_single_message(message_id)
+
+        if not unique_message_ids:
+            self.logger.info("No new messages found in this sync.")
+            return
+        
+        for message_id in unique_message_ids:
+            await self._process_single_message(message_id)
 
     async def _process_single_message(self, message_id: str):
         try:
