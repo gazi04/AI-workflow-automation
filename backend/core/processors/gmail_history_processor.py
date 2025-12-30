@@ -7,6 +7,7 @@ from typing import Dict, Any
 from core.database import db_session
 from core.setup_logging import setup_logger
 from orchestration.services.deployment_service import DeploymentService
+from processed_messages.services.processed_message_service import ProcessedMessageService
 from workflow.services.workflow_service import WorkflowService
 
 
@@ -100,6 +101,12 @@ class GmailHistoryProcessor:
                     if trigger_from and trigger_from not in email_from:
                         continue
 
+                    exists_processed_message = await ProcessedMessageService.get_by_message_id_and_workflow_id(db, email_data["message_id"], workflow.id)
+
+                    if exists_processed_message:
+                        self.logger.info(f"Skipping duplicated: Workflow {workflow.id} already ran for message {message_id}")
+                        continue
+
                     trigger_subject = trigger_config.get("subject_contains", "").strip().lower()
                     email_subject = email_data["subject"].lower()
 
@@ -114,6 +121,7 @@ class GmailHistoryProcessor:
                     )
 
                     self.logger.info(f"Triggering workflow {workflow.id}")
+                    await ProcessedMessageService.create(db, email_data["message_id"], workflow.id)
                     await DeploymentService.run(workflow.id)
         except HttpError as e:
             if e.resp.status == 404:
