@@ -22,8 +22,8 @@ class ProcessedMessageService:
         processed_message = (
             db.query(ProcessedMessages)
             .filter(
-                ProcessedMessages.message_id == message_id
-                and ProcessedMessages.workflow_id == workflow_id
+                ProcessedMessages.message_id == message_id,
+                ProcessedMessages.workflow_id == workflow_id
             )
             .first()
         )
