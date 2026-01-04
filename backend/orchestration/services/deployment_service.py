@@ -82,3 +82,8 @@ class DeploymentService:
                 deployment=DeploymentUpdate(parameters=updated_params),
             )
             return {"status": "updated", "parameters": updated_params}
+
+    @staticmethod
+    async def delete(id: UUID):
+        async with get_client() as client:
+            await client.delete_deployment(id)

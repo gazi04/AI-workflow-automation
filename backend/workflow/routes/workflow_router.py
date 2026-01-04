@@ -6,6 +6,7 @@ from core.database import get_db
 from core.setup_logging import setup_logger
 from orchestration.services import DeploymentService
 from user.models.user import User
+from workflow.schemas.delete_workflow_request import DeleteWorkflowRequest
 from workflow.schemas.run_workflow_request import RunWorkflowRequest
 from workflow.services import WorkflowService
 from workflow.schemas import UpdateWorkflowRequest, ToggleWorkflowRequest
@@ -87,6 +88,22 @@ async def update_workflow_config(
         return result
     except Exception as e:
         logger.error(f"Error updating config for {request.deployment_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred.",
+        )
+
+@workflow_router.delete("/delete")
+async def delete_workflow(request: DeleteWorkflowRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """
+    Deletes a workflow from the database and deletes it's deployment from Prefect
+    """
+    try:
+        await WorkflowService.delete_by_id(db, request.deployment_id)
+        await DeploymentService.delete(request.deployment_id)
+        db.commit() # to actually commit the changes to the database
+    except Exception as e:
+        logger.error(f"Error deleting workflow {request.deployment_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred.",
