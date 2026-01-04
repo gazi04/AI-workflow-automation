@@ -61,7 +61,7 @@ class GmailTasks:
                 print(f"Draft id: {draft['id']}\nDraft message: {draft['message']}")
         except HttpError as error:
             print(f"An error occurred: {error}")
-            draft = None
+            raise error
 
         return draft
 
@@ -107,11 +107,11 @@ class GmailTasks:
         except HttpError as error:
             print(f"An error occurred: {error}")
             logger.error(f"Http error occurred: \n {error}")
-            send_message = None
+            raise error
         except Exception as error:
             logger.error(
                 f"Unhandled error occurred: \n {error}"
             )
-            send_message = None
+            raise error
 
         return send_message
