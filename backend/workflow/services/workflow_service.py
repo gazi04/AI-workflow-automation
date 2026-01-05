@@ -53,3 +53,7 @@ class WorkflowService:
     async def get_by_user_id(db: Session, id: UUID) -> List[Workflow]:
         return db.query(Workflow).filter(Workflow.user_id == id).all()
 
+    @staticmethod
+    async def delete_by_id(db: Session, id: UUID) -> None:
+        db.query(Workflow).filter(Workflow.id == id).delete(synchronize_session="fetch")
+
