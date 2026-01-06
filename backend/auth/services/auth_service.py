@@ -1,7 +1,8 @@
 from datetime import timezone
 from fastapi import HTTPException
-from google.oauth2.credentials import Credentials
+from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
 from sqlalchemy.orm import Session
 
 from auth.models.refresh_token import RefreshToken
@@ -13,11 +14,13 @@ from auth.utils import (
     get_password_hash,
 )
 from core.config_loader import settings
+from core.setup_logging import setup_logger
 from user.models.user import User
 from user.services.user_service import UserService
 
 import uuid
 
+logger = setup_logger("Auth Service")
 
 # 🔴 todo: Core-Security risk Client-Side Identity Spoofing
 # 🔴 todo: Core-Security risk XSS attacks, hint CSRF
@@ -100,6 +103,23 @@ class AuthService:
                     token=creds.token,
                     refresh_token=creds.refresh_token,
                     expiry=creds.expiry,
+                )
+            except RefreshError as e:
+                error_message = str(e).lower()
+
+                if "invalid_grant" in error_message or "token has been expired" in error_message:
+                    logger.error(f"Google Creds Revoked for user {user_id}. Marking account as disconnected.")
+
+                    connected_account.is_connected = False
+                    connected_account.access_token = None
+                    connected_account.refresh_token = None
+                    db.add(connected_account)
+                    db.commit()
+
+                    raise ValueError("GOOGLE_AUTH_EXPIRED: User needs to log in again via the dashboard.")
+
+                raise HTTPException(
+                    status_code=401, detail=f"Google token refresh failed: {e}"
                 )
             except Exception as e:
                 raise HTTPException(
