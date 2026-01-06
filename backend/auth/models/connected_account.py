@@ -1,6 +1,7 @@
 from core.database import Base
 from datetime import datetime, timezone
 from sqlalchemy import (
+    Boolean,
     String,
     DateTime,
     ForeignKey,
@@ -28,6 +29,8 @@ class ConnectedAccount(Base):
 
     provider: Mapped[str] = mapped_column(String(50), nullable=False)
     provider_account_id: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    is_connected: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     last_synced_history_id: Mapped[Optional[str]] = mapped_column(Text)
 
