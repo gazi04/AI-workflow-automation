@@ -34,7 +34,7 @@ class ConnectedAccount(Base):
 
     last_synced_history_id: Mapped[Optional[str]] = mapped_column(Text)
 
-    access_token: Mapped[str] = mapped_column(Text, nullable=True)
+    access_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     refresh_token: Mapped[Optional[str]] = mapped_column(Text)
 
     token_expires_at: Mapped[Optional[datetime]] = mapped_column(
