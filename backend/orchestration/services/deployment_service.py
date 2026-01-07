@@ -62,7 +62,7 @@ class DeploymentService:
         """
         async with get_client() as client:
             await client.update_deployment(
-                deployment_id=deployment_id, deployment=DeploymentUpdate(paused=active)
+                deployment_id=deployment_id, deployment=DeploymentUpdate(paused=not active)
             )
             return {"status": "success", "is_active": active}
 
