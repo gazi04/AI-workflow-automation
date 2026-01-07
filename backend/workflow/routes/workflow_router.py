@@ -52,7 +52,7 @@ async def toggle_workflow(
     Pause or Resume a Prefect deployment and updates the status of the workflow in the database.
     """
     try:
-        await WorkflowService.update_status(db, request.deployment_id, request.status)
+        await WorkflowService.update_is_active(db, request.deployment_id, request.status)
 
         result = await DeploymentService.toggle_workflow(
             deployment_id=request.deployment_id, active=request.status

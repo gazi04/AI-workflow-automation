@@ -28,11 +28,11 @@ class WorkflowService:
         return new_workflow
 
     @staticmethod
-    async def update_status(db: Session, id: UUID, status: bool) -> Workflow:
+    async def update_is_active(db: Session, id: UUID, is_active: bool) -> Workflow:
         workflow = db.query(Workflow).filter(Workflow.id == id).first()
 
         if workflow:
-            workflow.status = status
+            workflow.is_active = is_active
             # we use flush because workflow and deployment services are sequantially dependent 
             db.flush() # in the workflow router the changes are commited
 
