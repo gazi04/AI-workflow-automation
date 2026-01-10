@@ -60,6 +60,7 @@ async def gmail_webhook(
             # Still return 200/204 to avoid retries for bad payload format
             return {"status": "ok", "message": "Notification ignored (missing keys)"}
 
+        # ✨ todo: for a proper task queue implement celery or redis
         background_tasks.add_task(
             GmailService.handle_gmail_update, email_address, new_history_id
         )

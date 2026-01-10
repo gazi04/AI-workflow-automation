@@ -84,6 +84,7 @@ class GmailHistoryProcessor:
             }
 
             with db_session() as db:
+                # ⚡ todo: improve performance by caching the workflows
                 workflows = await WorkflowService.get_by_user_id(db, self.user_id)
 
                 for workflow in workflows:
