@@ -87,6 +87,10 @@ class GmailHistoryProcessor:
                 workflows = await WorkflowService.get_by_user_id(db, self.user_id)
 
                 for workflow in workflows:
+                    if not workflow.is_active:
+                        self.logger.info(f"Skipping workflow {workflow.id} because it's inactive")
+                        continue
+
                     config = workflow.config or {}
                     trigger = config.get("trigger")
 
