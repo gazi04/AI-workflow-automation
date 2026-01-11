@@ -42,6 +42,26 @@ services:
         condition: service_healthy
     entrypoint: ["/bin/bash", "-c", "sleep 5 && prefect server start --host 0.0.0.0"]
 
+  prefect-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    entrypoint: ["/bin/bash", "-c"]
+    command: 
+      - |
+        uv run prefect config set PREFECT_API_URL=http://prefect-server:4200/api &&
+        uv run prefect worker start --pool 'my-process-pool' --type process
+    environment:
+      - PREFECT_API_URL=http://prefect-server:4200/api
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/workflow_automation
+    volumes:
+      - ./backend:/app
+      - /app/.venv
+      - /app/__pycache__
+    depends_on:
+      - prefect-server
+
   backend:
     build:
       context: ./backend
