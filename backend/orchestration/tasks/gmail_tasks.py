@@ -1,4 +1,5 @@
 from email.message import EmailMessage
+from typing import Any, Dict
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from uuid import UUID
@@ -110,3 +111,38 @@ class GmailTasks:
             raise error
 
         return send_message
+
+    @staticmethod
+    async def reply_email(user_id: UUID, body: str, original_email: Dict[str, Any]):
+        """
+        original_email contains: subject, from, header_message_id, references, thread_id
+        """
+        scopes = ["https://www.googleapis.com/auth/gmail.send"]
+        
+        with db_session() as db:
+            creds = AuthService.get_google_credentials(db, user_id, "google", scopes)
+
+        message = EmailMessage()
+        message.set_content(body)
+        
+        # Subject should start with Re: if it doesn't already
+        subject = original_email["subject"]
+        if not subject.lower().startswith("re:"):
+            subject = f"Re: {subject}"
+            
+        message["To"] = original_email["from"]
+        message["Subject"] = subject
+        
+        message["In-Reply-To"] = original_email["header_message_id"]
+        old_refs = original_email["references"]
+        message["References"] = f"{old_refs} {original_email['header_message_id']}".strip()
+
+        encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+
+        create_message = {
+            "raw": encoded_message,
+            "threadId": original_email["thread_id"] # Crucial for Gmail UI threading
+        }
+
+        with build("gmail", "v1", credentials=creds) as service:
+            return service.users().messages().send(userId="me", body=create_message).execute()
