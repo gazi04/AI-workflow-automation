@@ -69,8 +69,8 @@ class GmailService:
             user_id = user.id # to use outside the with statment
 
             scopes = ["https://www.googleapis.com/auth/gmail.readonly"]
-            connected_account = await AccountService.get_account(db, user.id, "google")
-            creds = AuthService.get_google_credentials(db, user.id, "google", scopes)
+            connected_account = await AccountService.get_account(db, user_id, "google")
+            creds = AuthService.get_google_credentials(db, user_id, "google", scopes)
 
             last_synced_history_id = connected_account.last_synced_history_id
 
@@ -81,7 +81,7 @@ class GmailService:
             with db_session() as db:
                 connected_account = await AccountService.get_account(
                     db, user_id, "google"
-                )
+                ) # need to query the connected account again cause a SQLAlchemy model doesn't work outside the session
                 await AccountService.update_history_id(
                     db, connected_account, new_history_id
                 )
