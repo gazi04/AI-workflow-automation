@@ -14,6 +14,7 @@ class DeploymentService:
     async def run(workflow_id: UUID, config: Optional[Dict[str, Any]] = None):
         try:
             await run_deployment(workflow_id, parameters=config)
+            logger.info(f"Triggering workflow {workflow_id}")
         except Exception as e:
             logger.debug(f"Unexpected error occurred: \n{e}")
             raise e

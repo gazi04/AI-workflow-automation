@@ -77,6 +77,7 @@ class GmailHistoryProcessor:
             headers = payload.get("headers", [])
             
             email_data = {
+                "thread_id": full_message.get("threadId", ""),
                 "message_id": message_id,
                 "subject": next((h["value"] for h in headers if h["name"] == "Subject"), ""),
                 "from": next((h["value"] for h in headers if h["name"] == "From"), ""),
@@ -131,7 +132,6 @@ class GmailHistoryProcessor:
                         "trigger_context": { "original_email": email_data }
                     }
 
-                    self.logger.info(f"Triggering workflow {workflow.id}")
                     await ProcessedMessageService.create(db, email_data["message_id"], workflow.id)
                     await DeploymentService.run(workflow.id, trigger_context)
         except HttpError as e:

@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from uuid import UUID
@@ -67,12 +68,23 @@ class GmailService:
                 return
 
             user_id = user.id # to use outside the with statment
-
-            scopes = ["https://www.googleapis.com/auth/gmail.readonly"]
             connected_account = await AccountService.get_account(db, user_id, "google")
-            creds = AuthService.get_google_credentials(db, user_id, "google", scopes)
+
+            now = datetime.now(timezone.utc)
+            if connected_account.last_synced_started_at:
+                # If the lock is "fresh" (e.g., less than 5 mins old), skip this request
+                if now - connected_account.last_synced_started_at < timedelta(minutes=5):
+                    logger.info(f"Skipping sync for {email_address} - Sync already in progress.")
+                    return 
+
+            # Set the lock
+            connected_account.last_synced_started_at = now
+            db.commit()
 
             last_synced_history_id = connected_account.last_synced_history_id
+
+            scopes = ["https://www.googleapis.com/auth/gmail.readonly"]
+            creds = AuthService.get_google_credentials(db, user_id, "google", scopes)
 
         try:
             with GmailHistoryProcessor(creds, user_id) as processor:
@@ -88,7 +100,15 @@ class GmailService:
 
         except HttpError as error:
             logger.error(f"Gmail History API error for {email_address}: {error}")
+            with db_session() as db:
+                acc = await AccountService.get_account(db, user_id, "google")
+                acc.last_synced_started_at = None
+                db.commit()
             return
         except Exception as e:
             logger.error(f"General processing error for {email_address}: {e}")
+            with db_session() as db:
+                acc = await AccountService.get_account(db, user_id, "google")
+                acc.last_synced_started_at = None
+                db.commit()
             return

@@ -33,6 +33,7 @@ class ConnectedAccount(Base):
     is_connected: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     last_synced_history_id: Mapped[Optional[str]] = mapped_column(Text)
+    last_synced_started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     access_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     refresh_token: Mapped[Optional[str]] = mapped_column(Text)
