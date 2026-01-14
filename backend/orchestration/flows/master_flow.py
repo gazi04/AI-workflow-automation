@@ -51,6 +51,7 @@ async def execute_automation_flow(
                     )
                     continue
 
+                logger.info(f"The orginal email: {original_email}")
                 await GmailTasks.reply_email(
                     user_id, config.get("body"), original_email
                 )
@@ -61,3 +62,4 @@ async def execute_automation_flow(
         except Exception as e:
             # todo: ✨ send a notification to the user here
             print(f"❌ Error executing action {action_type}: {e}")
+            logger.error(f"Unexpected error occurred on action {action_type}: {e}")
