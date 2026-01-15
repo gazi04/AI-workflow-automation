@@ -5,5 +5,6 @@ from pydantic import BaseModel, Field
 
 class UpdateWorkflowRequest(BaseModel):
     deployment_id: UUID = Field(..., description="The Prefect Deployment ID")
-    config: Dict[str, Any] = Field(..., description="New configuration/parameters to merge")
-
+    config: Dict[str, Any] = Field(
+        ..., description="New configuration/parameters to merge"
+    )

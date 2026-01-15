@@ -67,15 +67,19 @@ class GmailService:
                 logger.error(f"User not found for email: {email_address}")
                 return
 
-            user_id = user.id # to use outside the with statment
+            user_id = user.id  # to use outside the with statment
             connected_account = await AccountService.get_account(db, user_id, "google")
 
             now = datetime.now(timezone.utc)
             if connected_account.last_synced_started_at:
                 # If the lock is "fresh" (e.g., less than 5 mins old), skip this request
-                if now - connected_account.last_synced_started_at < timedelta(minutes=5):
-                    logger.info(f"Skipping sync for {email_address} - Sync already in progress.")
-                    return 
+                if now - connected_account.last_synced_started_at < timedelta(
+                    minutes=5
+                ):
+                    logger.info(
+                        f"Skipping sync for {email_address} - Sync already in progress."
+                    )
+                    return
 
             # Set the lock
             connected_account.last_synced_started_at = now
@@ -93,7 +97,7 @@ class GmailService:
             with db_session() as db:
                 connected_account = await AccountService.get_account(
                     db, user_id, "google"
-                ) # need to query the connected account again cause a SQLAlchemy model doesn't work outside the session
+                )  # need to query the connected account again cause a SQLAlchemy model doesn't work outside the session
                 await AccountService.update_history_id(
                     db, connected_account, new_history_id
                 )

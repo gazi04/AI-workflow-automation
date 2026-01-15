@@ -22,6 +22,7 @@ import uuid
 
 logger = setup_logger("Auth Service")
 
+
 # 🔴 todo: Core-Security risk Client-Side Identity Spoofing
 # 🔴 todo: Core-Security risk XSS attacks, hint CSRF
 class AuthService:
@@ -107,8 +108,13 @@ class AuthService:
             except RefreshError as e:
                 error_message = str(e).lower()
 
-                if "invalid_grant" in error_message or "token has been expired" in error_message:
-                    logger.error(f"Google Creds Revoked for user {user_id}. Marking account as disconnected.")
+                if (
+                    "invalid_grant" in error_message
+                    or "token has been expired" in error_message
+                ):
+                    logger.error(
+                        f"Google Creds Revoked for user {user_id}. Marking account as disconnected."
+                    )
 
                     connected_account.is_connected = False
                     connected_account.access_token = None
@@ -116,7 +122,9 @@ class AuthService:
                     db.add(connected_account)
                     db.commit()
 
-                    raise ValueError("GOOGLE_AUTH_EXPIRED: User needs to log in again via the dashboard.")
+                    raise ValueError(
+                        "GOOGLE_AUTH_EXPIRED: User needs to log in again via the dashboard."
+                    )
 
                 raise HTTPException(
                     status_code=401, detail=f"Google token refresh failed: {e}"

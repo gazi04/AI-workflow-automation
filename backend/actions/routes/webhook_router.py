@@ -15,6 +15,7 @@ import json
 webhook_router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 logger = setup_logger("Webhook router")
 
+
 @webhook_router.get("/listen-to-gmail")
 async def listen_gmail(
     db: Session = Depends(get_db), user: User = Depends(get_current_user)
@@ -42,9 +43,7 @@ async def listen_gmail(
 
 
 @webhook_router.post("/gmail")
-async def gmail_webhook(
-    request: Request, background_tasks: BackgroundTasks
-):
+async def gmail_webhook(request: Request, background_tasks: BackgroundTasks):
     """Receives push notifications from Google Cloud Pub/Sub."""
     try:
         data = await request.json()
@@ -68,4 +67,7 @@ async def gmail_webhook(
         return {"status": "success", "message": "Processing started in background"}
     except Exception as e:
         logger.error(f"Failed to parse incoming Pub/Sub message: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to process notification. This is the error: \n{e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to process notification. This is the error: \n{e}",
+        )

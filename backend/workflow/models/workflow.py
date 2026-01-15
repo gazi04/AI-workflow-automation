@@ -12,12 +12,13 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import Optional, TYPE_CHECKING
 
 from core.database import Base
-    
+
 import uuid
 
 
-if TYPE_CHECKING: 
+if TYPE_CHECKING:
     from user.models.user import User
+
 
 class Workflow(Base):
     __tablename__ = "workflows"
@@ -35,16 +36,17 @@ class Workflow(Base):
     version: Mapped[int] = mapped_column(Integer, default=1)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc)
+        onupdate=lambda: datetime.now(timezone.utc),
     )
     last_triggered_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True)
     )
 
-    user: Mapped["User"] = relationship("user.models.user.User", back_populates="workflows")
+    user: Mapped["User"] = relationship(
+        "user.models.user.User", back_populates="workflows"
+    )

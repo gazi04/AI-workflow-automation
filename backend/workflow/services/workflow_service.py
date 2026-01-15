@@ -8,19 +8,19 @@ from workflow.models.workflow import Workflow
 class WorkflowService:
     @staticmethod
     async def create(
-            db: Session,
-            workflow_id: UUID,
-            user_id: UUID,
-            name: str,
-            description: str,
-            workflow_definition: dict
+        db: Session,
+        workflow_id: UUID,
+        user_id: UUID,
+        name: str,
+        description: str,
+        workflow_definition: dict,
     ) -> Workflow:
         new_workflow = Workflow(
-            id = workflow_id,
-            user_id = user_id,
-            name = name,
-            description = description,
-            config = workflow_definition
+            id=workflow_id,
+            user_id=user_id,
+            name=name,
+            description=description,
+            config=workflow_definition,
         )
         db.add(new_workflow)
         db.commit()
@@ -33,8 +33,8 @@ class WorkflowService:
 
         if workflow:
             workflow.is_active = is_active
-            # we use flush because workflow and deployment services are sequantially dependent 
-            db.flush() # in the workflow router the changes are commited
+            # we use flush because workflow and deployment services are sequantially dependent
+            db.flush()  # in the workflow router the changes are commited
 
         return workflow
 
@@ -44,8 +44,8 @@ class WorkflowService:
 
         if workflow:
             workflow.config = config
-            # we use flush because workflow and deployment services are sequantially dependent 
-            db.flush() # in the workflow router the changes are commited
+            # we use flush because workflow and deployment services are sequantially dependent
+            db.flush()  # in the workflow router the changes are commited
 
         return workflow
 
@@ -56,4 +56,3 @@ class WorkflowService:
     @staticmethod
     async def delete_by_id(db: Session, id: UUID) -> None:
         db.query(Workflow).filter(Workflow.id == id).delete(synchronize_session="fetch")
-

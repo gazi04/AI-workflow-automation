@@ -40,4 +40,3 @@ def db_session() -> Iterator[Session]:
         raise e
     finally:
         db.close()
-

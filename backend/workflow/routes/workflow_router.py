@@ -44,6 +44,7 @@ async def run_workflow(request: RunWorkflowRequest):
     except Exception as e:
         raise e
 
+
 @workflow_router.patch("/toggle")
 async def toggle_workflow(
     request: ToggleWorkflowRequest, db: Session = Depends(get_db)
@@ -52,7 +53,9 @@ async def toggle_workflow(
     Pause or Resume a Prefect deployment and updates the status of the workflow in the database.
     """
     try:
-        await WorkflowService.update_is_active(db, request.deployment_id, request.status)
+        await WorkflowService.update_is_active(
+            db, request.deployment_id, request.status
+        )
 
         result = await DeploymentService.toggle_workflow(
             deployment_id=request.deployment_id, active=request.status
@@ -93,15 +96,20 @@ async def update_workflow_config(
             detail="An unexpected error occurred.",
         )
 
+
 @workflow_router.delete("/delete")
-async def delete_workflow(request: DeleteWorkflowRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+async def delete_workflow(
+    request: DeleteWorkflowRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     """
     Deletes a workflow from the database and deletes it's deployment from Prefect
     """
     try:
         await WorkflowService.delete_by_id(db, request.deployment_id)
         await DeploymentService.delete(request.deployment_id)
-        db.commit() # to actually commit the changes to the database
+        db.commit()  # to actually commit the changes to the database
     except Exception as e:
         logger.error(f"Error deleting workflow {request.deployment_id}: {e}")
         raise HTTPException(

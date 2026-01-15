@@ -9,6 +9,7 @@ from orchestration.flows.master_flow import execute_automation_flow
 
 logger = setup_logger("Deployment Service")
 
+
 class DeploymentService:
     @staticmethod
     async def run(workflow_id: UUID, config: Optional[Dict[str, Any]] = None):
@@ -63,7 +64,8 @@ class DeploymentService:
         """
         async with get_client() as client:
             await client.update_deployment(
-                deployment_id=deployment_id, deployment=DeploymentUpdate(paused=not active)
+                deployment_id=deployment_id,
+                deployment=DeploymentUpdate(paused=not active),
             )
             return {"status": "success", "is_active": active}
 

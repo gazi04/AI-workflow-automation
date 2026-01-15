@@ -7,7 +7,9 @@ from typing import Dict, Any
 from core.database import db_session
 from core.setup_logging import setup_logger
 from orchestration.services.deployment_service import DeploymentService
-from processed_messages.services.processed_message_service import ProcessedMessageService
+from processed_messages.services.processed_message_service import (
+    ProcessedMessageService,
+)
 from workflow.services.workflow_service import WorkflowService
 
 
@@ -16,6 +18,7 @@ class GmailHistoryProcessor:
     Helper class to manage the lifecycle of the Gmail service
     and shared state for a single sync job.
     """
+
     def __init__(self, creds: Credentials, user_id: UUID):
         self.creds = creds
         self.user_id = user_id
@@ -54,7 +57,7 @@ class GmailHistoryProcessor:
         if not unique_message_ids:
             self.logger.info("No new messages found in this sync.")
             return
-        
+
         for message_id in unique_message_ids:
             await self._process_single_message(message_id)
 
@@ -75,15 +78,23 @@ class GmailHistoryProcessor:
 
             payload = full_message.get("payload", {})
             headers = payload.get("headers", [])
-            
+
             email_data = {
                 "thread_id": full_message.get("threadId", ""),
                 "message_id": message_id,
-                "subject": next((h["value"] for h in headers if h["name"] == "Subject"), ""),
+                "subject": next(
+                    (h["value"] for h in headers if h["name"] == "Subject"), ""
+                ),
                 "from": next((h["value"] for h in headers if h["name"] == "From"), ""),
                 "snippet": full_message.get("snippet", ""),
-                "header_message_id": next((h["value"] for h in headers if h["name"].lower() == "message-id"), ""),
-                "references": next((h["value"] for h in headers if h["name"].lower() == "references"), ""),
+                "header_message_id": next(
+                    (h["value"] for h in headers if h["name"].lower() == "message-id"),
+                    "",
+                ),
+                "references": next(
+                    (h["value"] for h in headers if h["name"].lower() == "references"),
+                    "",
+                ),
             }
 
             with db_session() as db:
@@ -92,7 +103,9 @@ class GmailHistoryProcessor:
 
                 for workflow in workflows:
                     if not workflow.is_active:
-                        self.logger.info(f"Skipping workflow {workflow.id} because it's inactive")
+                        self.logger.info(
+                            f"Skipping workflow {workflow.id} because it's inactive"
+                        )
                         continue
 
                     config = workflow.config or {}
@@ -100,22 +113,30 @@ class GmailHistoryProcessor:
 
                     if not trigger or trigger.get("type") != "email_received":
                         continue
-                    
+
                     trigger_config = trigger.get("config", {})
-                    
+
                     trigger_from = trigger_config.get("from", "").strip().lower()
                     email_from = email_data["from"].lower()
-                    
+
                     if trigger_from and trigger_from not in email_from:
                         continue
 
-                    exists_processed_message = await ProcessedMessageService.get_by_message_id_and_workflow_id(db, email_data["message_id"], workflow.id)
+                    exists_processed_message = (
+                        await ProcessedMessageService.get_by_message_id_and_workflow_id(
+                            db, email_data["message_id"], workflow.id
+                        )
+                    )
 
                     if exists_processed_message:
-                        self.logger.info(f"Skipping duplicated: Workflow {workflow.id} already ran for message {message_id}")
+                        self.logger.info(
+                            f"Skipping duplicated: Workflow {workflow.id} already ran for message {message_id}"
+                        )
                         continue
 
-                    trigger_subject = trigger_config.get("subject_contains", "").strip().lower()
+                    trigger_subject = (
+                        trigger_config.get("subject_contains", "").strip().lower()
+                    )
                     email_subject = email_data["subject"].lower()
 
                     if trigger_subject and trigger_subject not in email_subject:
@@ -129,13 +150,17 @@ class GmailHistoryProcessor:
                     )
 
                     trigger_context = {
-                        "trigger_context": { "original_email": email_data }
+                        "trigger_context": {"original_email": email_data}
                     }
 
-                    await ProcessedMessageService.create(db, email_data["message_id"], workflow.id)
+                    await ProcessedMessageService.create(
+                        db, email_data["message_id"], workflow.id
+                    )
                     await DeploymentService.run(workflow.id, trigger_context)
         except HttpError as e:
             if e.resp.status == 404:
-                self.logger.warning(f"Message {message_id} not found (likely deleted). Skipping.")
+                self.logger.warning(
+                    f"Message {message_id} not found (likely deleted). Skipping."
+                )
                 return
             self.logger.error(f"Unhandled http error occurred: \n{e}")
