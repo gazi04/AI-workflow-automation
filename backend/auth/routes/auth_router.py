@@ -16,10 +16,12 @@ from auth.services.token_service import TokenService
 from auth.utils import create_access_token, create_refresh_token
 from core.config_loader import settings
 from core.database import get_db
+from core.setup_logging import setup_logger
 from user.models.user import User
 from user.services.user_service import UserService
 
 auth_router = APIRouter(prefix="/auth", tags=["Auth"])
+logger = setup_logger("Auth Router")    
 
 
 @auth_router.get("/protected")
@@ -34,6 +36,7 @@ async def refresh_access_token(
     """Refreshes the Access Token using a valid Refresh Token."""
     new_tokens = TokenService.refresh_token(db, request.refresh_token)
     if not new_tokens:
+        logger.warning(f"Invalid refresh token")
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
     return {**new_tokens, "token_type": "bearer"}
@@ -110,6 +113,7 @@ async def callback_google(
             provider_account_id = user_info["sub"]
             provider_account_email = user_info["email"]
         except ValueError as e:
+            logger.error(f"ValueError: Invalid ID token: {e}")
             raise HTTPException(status_code=400, detail=f"Invalid ID token: {e}")
 
         user = await UserService.get_or_create(db, provider_account_email)
@@ -188,4 +192,5 @@ async def callback_google(
         )
 
     except Exception as e:
+        logger.error(f"Unhandled error: {e}")
         raise HTTPException(status_code=400, detail=f"Authentication failed: {str(e)}")
