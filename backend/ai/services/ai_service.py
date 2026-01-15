@@ -4,10 +4,12 @@ from azure.core.credentials import AzureKeyCredential
 from fastapi import HTTPException
 
 from core.config_loader import settings
+from core.setup_logging import setup_logger
 from workflow.schemas.workflow_definition import WorkflowDefinition
 
 import json
 
+logger = setup_logger("AI Service")
 
 class AiService:
     @staticmethod
@@ -40,6 +42,7 @@ class AiService:
             return response.choices[0].message.content
 
         except Exception as e:
+            logger.error(f"Unhandled error: {e}")
             raise HTTPException(status_code=500, detail=f"AI API call failed: {str(e)}")
 
     @staticmethod
@@ -62,11 +65,11 @@ class AiService:
         except (json.JSONDecodeError, ValueError) as e:
             # Check if the AI itself responded with an error
             if "error" in raw_response.lower():
+                logger.error(f"Error in the AI response. This is the respone: {raw_response}")
                 raise ValueError(raw_response)
             else:
-                raise ValueError(
-                    f"Failed to parse AI response as JSON: {e}\nResponse was: {raw_response}"
-                )
+                logger.error(f"Failed to parse AI response as JSON: {e}\nResponse was: {raw_response}")
+                raise ValueError("Failed to interpret AI response.")
 
     @staticmethod
     def health_check() -> dict:

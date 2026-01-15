@@ -69,6 +69,7 @@ async def health():
     try:
         return AiService.health_check()
     except Exception as e:
+        logger.error(f"Ai model connection failed: {e}")
         raise HTTPException(
             status_code=500, detail=f"Azure connection failed: {str(e)}"
         )
