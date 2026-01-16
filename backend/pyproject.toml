@@ -20,6 +20,7 @@ dependencies = [
   "pydantic-settings>=2.11.0",
   "prefect",
   "alembic>=1.17.2",
+  "pytest>=9.0.2",
 ]
 
 [tool.pyright]
@@ -34,3 +35,7 @@ dev = [
 [tool.setuptools]
 packages = ["ai", "auth", "core", "user", "workflow"]
 
+[tool.pytest.ini_options]
+pythonpath = ["."]
+asyncio_mode = "auto"
+testpaths = ["tests"]
