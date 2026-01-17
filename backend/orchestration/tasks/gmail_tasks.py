@@ -5,13 +5,12 @@ from googleapiclient.errors import HttpError
 from uuid import UUID
 
 from auth.services.auth_service import AuthService
-
-import base64
-
 from core.database import db_session
 from core.setup_logging import setup_logger
+from gmail.schemas.label import LabelListVisibility, LabelType, MessageListVisibility
 from user.services.user_service import UserService
 
+import base64
 
 logger = setup_logger("Prefect Gmail Task")
 
@@ -165,3 +164,42 @@ class GmailTasks:
             print(f"An error occurred: {error}")
             logger.error(f"Unhandled error occurred: \n {error}")
             raise error
+
+    @staticmethod
+    async def label_mail(user_id: UUID, label: str, original_email: Dict[str, Any]):
+        provider = "google"
+        scopes = [
+            "https://www.googleapis.com/auth/gmail.readonly",
+            "https://www.googleapis.com/auth/gmail.modify",
+        ]
+
+        with db_session() as db:
+            creds = AuthService.get_google_credentials(db, user_id, provider, scopes)
+            user_email = await UserService.get_email(db, user_id)
+
+        with build("gmail", "v1", credentials=creds) as service:
+            response = service.users().labels().list(userId="me").execute()
+
+            labels = response.get("labels", [])
+
+            label_exists = next((l for l in labels if l["name"] == label), None)
+
+            if not label_exists:
+                print(f"Label doesn't exists, we're creating the label...")
+                request = {
+                    "color": {
+                        "backgroundColor": "#711a36",
+                        "textColor": "#f3f3f3",
+                    },
+                    "labelListVisibility": LabelListVisibility.LABEL_SHOW,
+                    "messageListVisibility": MessageListVisibility.SHOW,
+                    "name": label,
+                    "type": LabelType.USER,
+                }
+                service.users().labels().create(userId="me", body=request).execute()
+
+                print(f"The label is created with success")
+
+
+        return labels
+
