@@ -16,7 +16,7 @@ logger = setup_logger("Gmail Service")
 
 class GmailService:
     @staticmethod
-    async def watch_mailbox_for_updates(
+    def watch_mailbox_for_updates(
         user_id: UUID, label_ids: list = ["INBOX"]
     ) -> dict[str, str] | None:
         provider = "google"
@@ -56,7 +56,7 @@ class GmailService:
             return
 
     @staticmethod
-    async def handle_gmail_update(email_address: str, new_history_id: str):
+    def handle_gmail_update(email_address: str, new_history_id: str):
         """
         Runs in the background. Fetches changes since the last sync and triggers actions.
         """
@@ -92,7 +92,7 @@ class GmailService:
 
         try:
             with GmailHistoryProcessor(creds, user_id) as processor:
-                await processor.fetch_and_process(last_synced_history_id)
+                processor.fetch_and_process(last_synced_history_id)
 
             with db_session() as db:
                 connected_account = AccountService.get_account(
@@ -116,3 +116,20 @@ class GmailService:
                 acc.last_synced_started_at = None
                 db.commit()
             return
+
+    @staticmethod
+    def get_latest_message_id(user_id: UUID):
+        """
+        The method is for testing purpose
+        """
+        with db_session() as db:
+            scopes = ["https://www.googleapis.com/auth/gmail.readonly"]
+            creds = AuthService.get_google_credentials(db, user_id, "google", scopes)
+
+        with build("gmail", "v1", credentials=creds) as service:
+            results = service.users().messages().list(userId='me', maxResults=1).execute()
+            messages = results.get('messages', [])
+            if not messages:
+                return None
+            return messages[0]['id']
+

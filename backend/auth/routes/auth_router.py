@@ -6,7 +6,6 @@ from google.oauth2 import id_token
 from google.auth.transport import requests
 from sqlalchemy.orm import Session
 
-from actions.services.gmail_service import GmailService
 from auth.depedencies import get_current_user
 from auth.models import RefreshToken
 from auth.models import ConnectedAccount
@@ -17,11 +16,12 @@ from auth.utils import create_access_token, create_refresh_token
 from core.config_loader import settings
 from core.database import get_db
 from core.setup_logging import setup_logger
+from gmail.services import GmailService
 from user.models.user import User
 from user.services.user_service import UserService
 
 auth_router = APIRouter(prefix="/auth", tags=["Auth"])
-logger = setup_logger("Auth Router")    
+logger = setup_logger("Auth Router")
 
 
 @auth_router.get("/protected")
@@ -171,7 +171,7 @@ async def callback_google(
         db.commit()
 
         # After a successfull login with google enable gmail listener for push notifications
-        watch_response = await GmailService.watch_mailbox_for_updates(
+        watch_response = GmailService.watch_mailbox_for_updates(
             user_id=user.id,
         )
 

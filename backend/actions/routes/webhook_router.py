@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Request, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from actions.services.gmail_service import GmailService
 from auth.depedencies import get_current_user
 from auth.services.account_service import AccountService
 from core.database import get_db
 from core.setup_logging import setup_logger
+from gmail.services import GmailService
 from user.models.user import User
 
 import base64
@@ -34,7 +34,7 @@ async def listen_gmail(
             detail=f"Failed to retrieve connected account: {e}",
         )
 
-    watch_response = await GmailService.watch_mailbox_for_updates(user_id=user.id)
+    watch_response = GmailService.watch_mailbox_for_updates(user_id=user.id)
 
     if watch_response and watch_response.get("historyId"):
         AccountService.update_history_id(
