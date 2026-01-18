@@ -17,7 +17,7 @@ logger = setup_logger("Prefect Gmail Task")
 
 class GmailTasks:
     @staticmethod
-    async def create_draft(user_id: UUID, to: str, subject: str, body: str):
+    def create_draft(user_id: UUID, to: str, subject: str, body: str):
         """Create and insert a draft email.
         Print the returned draft's message and id.
         Returns: Draft object, including draft id and message meta data.
@@ -61,7 +61,7 @@ class GmailTasks:
         return draft
 
     @staticmethod
-    async def send_message(user_id: UUID, to: str, subject: str, body: str):
+    def send_message(user_id: UUID, to: str, subject: str, body: str):
         """Create and send an email message
         Print the returned  message id
         Returns: Message object, including message id
@@ -111,7 +111,7 @@ class GmailTasks:
         return send_message
 
     @staticmethod
-    async def reply_email(user_id: UUID, body: str, original_email: Dict[str, Any]):
+    def reply_email(user_id: UUID, body: str, original_email: Dict[str, Any]):
         """
         original_email contains: subject, from, header_message_id, references, thread_id
         """
@@ -166,7 +166,7 @@ class GmailTasks:
             raise error
 
     @staticmethod
-    async def label_mail(user_id: UUID, label: str, original_email: Dict[str, Any]):
+    def label_mail(user_id: UUID, label: str, original_email: Dict[str, Any]):
         provider = "google"
         scopes = [
             "https://www.googleapis.com/auth/gmail.readonly",
