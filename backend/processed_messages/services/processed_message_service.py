@@ -6,7 +6,7 @@ from processed_messages.models.processed_messages import ProcessedMessages
 
 class ProcessedMessageService:
     @staticmethod
-    async def create(db: Session, message_id: str, workflow_id: UUID):
+    def create(db: Session, message_id: str, workflow_id: UUID):
         new_processed_message = ProcessedMessages(
             message_id=message_id, workflow_id=workflow_id
         )
@@ -16,7 +16,7 @@ class ProcessedMessageService:
         return new_processed_message
 
     @staticmethod
-    async def get_by_message_id_and_workflow_id(
+    def get_by_message_id_and_workflow_id(
         db: Session, message_id: str, workflow_id: UUID
     ) -> ProcessedMessages:
         processed_message = (

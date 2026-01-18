@@ -117,9 +117,9 @@ async def callback_google(
             logger.error(f"ValueError: Invalid ID token: {e}")
             raise HTTPException(status_code=400, detail=f"Invalid ID token: {e}")
 
-        user = await UserService.get_or_create(db, provider_account_email)
+        user = UserService.get_or_create(db, provider_account_email)
 
-        existing_account = await AccountService.get_account(db, user.id, "google")
+        existing_account = AccountService.get_account(db, user.id, "google")
 
         if existing_account:
             existing_account.access_token = credentials.token
@@ -176,7 +176,7 @@ async def callback_google(
         )
 
         if watch_response and watch_response.get("historyId"):
-            await AccountService.update_history_id(
+            AccountService.update_history_id(
                 db, saved_account, watch_response["historyId"]
             )
 

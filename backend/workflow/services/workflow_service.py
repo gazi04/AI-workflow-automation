@@ -7,7 +7,7 @@ from workflow.models.workflow import Workflow
 
 class WorkflowService:
     @staticmethod
-    async def create(
+    def create(
         db: Session,
         workflow_id: UUID,
         user_id: UUID,
@@ -28,7 +28,7 @@ class WorkflowService:
         return new_workflow
 
     @staticmethod
-    async def update_is_active(db: Session, id: UUID, is_active: bool) -> Workflow:
+    def update_is_active(db: Session, id: UUID, is_active: bool) -> Workflow:
         workflow = db.query(Workflow).filter(Workflow.id == id).first()
 
         if workflow:
@@ -39,7 +39,7 @@ class WorkflowService:
         return workflow
 
     @staticmethod
-    async def update_config(db: Session, id: UUID, config: Dict) -> Workflow:
+    def update_config(db: Session, id: UUID, config: Dict) -> Workflow:
         workflow = db.query(Workflow).filter(Workflow.id == id).first()
 
         if workflow:
@@ -50,9 +50,9 @@ class WorkflowService:
         return workflow
 
     @staticmethod
-    async def get_by_user_id(db: Session, id: UUID) -> List[Workflow]:
+    def get_by_user_id(db: Session, id: UUID) -> List[Workflow]:
         return db.query(Workflow).filter(Workflow.user_id == id).all()
 
     @staticmethod
-    async def delete_by_id(db: Session, id: UUID) -> None:
+    def delete_by_id(db: Session, id: UUID) -> None:
         db.query(Workflow).filter(Workflow.id == id).delete(synchronize_session="fetch")

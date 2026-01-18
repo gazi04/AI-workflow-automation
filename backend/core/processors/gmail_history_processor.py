@@ -99,7 +99,7 @@ class GmailHistoryProcessor:
 
             with db_session() as db:
                 # ⚡ todo: improve performance by caching the workflows
-                workflows = await WorkflowService.get_by_user_id(db, self.user_id)
+                workflows = WorkflowService.get_by_user_id(db, self.user_id)
 
                 for workflow in workflows:
                     if not workflow.is_active:
@@ -123,7 +123,7 @@ class GmailHistoryProcessor:
                         continue
 
                     exists_processed_message = (
-                        await ProcessedMessageService.get_by_message_id_and_workflow_id(
+                        ProcessedMessageService.get_by_message_id_and_workflow_id(
                             db, email_data["message_id"], workflow.id
                         )
                     )
@@ -153,7 +153,7 @@ class GmailHistoryProcessor:
                         "trigger_context": {"original_email": email_data}
                     }
 
-                    await ProcessedMessageService.create(
+                    ProcessedMessageService.create(
                         db, email_data["message_id"], workflow.id
                     )
                     await DeploymentService.run(workflow.id, trigger_context)

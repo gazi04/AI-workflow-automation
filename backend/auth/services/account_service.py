@@ -51,7 +51,7 @@ class AccountService:
         return account
 
     @staticmethod
-    async def get_account(
+    def get_account(
         db: Session, user_id: UUID, provider: str
     ) -> ConnectedAccount:
         return (
@@ -64,7 +64,7 @@ class AccountService:
         )
 
     @staticmethod
-    async def update_history_id(
+    def update_history_id(
         db: Session, account: ConnectedAccount, new_history_id: str
     ) -> ConnectedAccount:
         account.last_synced_history_id = new_history_id

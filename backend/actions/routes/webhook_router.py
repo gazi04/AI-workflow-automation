@@ -22,7 +22,7 @@ async def listen_gmail(
 ):
     """Initiate the webhook to get gmail push notifications"""
     try:
-        google_account = await AccountService.get_account(db, user.id, "google")
+        google_account = AccountService.get_account(db, user.id, "google")
         if not google_account:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -37,7 +37,7 @@ async def listen_gmail(
     watch_response = await GmailService.watch_mailbox_for_updates(user_id=user.id)
 
     if watch_response and watch_response.get("historyId"):
-        await AccountService.update_history_id(
+        AccountService.update_history_id(
             db, google_account, watch_response["historyId"]
         )
 

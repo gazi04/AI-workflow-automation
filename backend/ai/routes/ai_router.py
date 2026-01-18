@@ -40,7 +40,7 @@ async def interpret_command(
             user.id, workflow_definition.name, ai_generated_definition_dict
         )
 
-        await WorkflowService.create(
+        WorkflowService.create(
             db,
             deployment_id,
             user.id,

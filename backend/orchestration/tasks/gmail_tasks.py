@@ -31,7 +31,7 @@ class GmailTasks:
 
         with db_session() as db:
             creds = AuthService.get_google_credentials(db, user_id, provider, scopes)
-            user_email = await UserService.get_email(db, user_id)
+            user_email = UserService.get_email(db, user_id)
 
         try:
             with build("gmail", "v1", credentials=creds) as service:
@@ -77,7 +77,7 @@ class GmailTasks:
                 creds = AuthService.get_google_credentials(
                     db, user_id, provider, scopes
                 )
-                user_email = await UserService.get_email(db, user_id)
+                user_email = UserService.get_email(db, user_id)
 
             message = EmailMessage()
 
@@ -175,7 +175,7 @@ class GmailTasks:
 
         with db_session() as db:
             creds = AuthService.get_google_credentials(db, user_id, provider, scopes)
-            user_email = await UserService.get_email(db, user_id)
+            user_email = UserService.get_email(db, user_id)
 
         with build("gmail", "v1", credentials=creds) as service:
             response = service.users().labels().list(userId="me").execute()

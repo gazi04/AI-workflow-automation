@@ -61,14 +61,14 @@ class GmailService:
         Runs in the background. Fetches changes since the last sync and triggers actions.
         """
         with db_session() as db:
-            user = await UserService.get_by_email(db, email_address)
+            user = UserService.get_by_email(db, email_address)
 
             if not user:
                 logger.error(f"User not found for email: {email_address}")
                 return
 
             user_id = user.id  # to use outside the with statment
-            connected_account = await AccountService.get_account(db, user_id, "google")
+            connected_account = AccountService.get_account(db, user_id, "google")
 
             now = datetime.now(timezone.utc)
             if connected_account.last_synced_started_at:
@@ -95,24 +95,24 @@ class GmailService:
                 await processor.fetch_and_process(last_synced_history_id)
 
             with db_session() as db:
-                connected_account = await AccountService.get_account(
+                connected_account = AccountService.get_account(
                     db, user_id, "google"
                 )  # need to query the connected account again cause a SQLAlchemy model doesn't work outside the session
-                await AccountService.update_history_id(
+                AccountService.update_history_id(
                     db, connected_account, new_history_id
                 )
 
         except HttpError as error:
             logger.error(f"Gmail History API error for {email_address}: {error}")
             with db_session() as db:
-                acc = await AccountService.get_account(db, user_id, "google")
+                acc = AccountService.get_account(db, user_id, "google")
                 acc.last_synced_started_at = None
                 db.commit()
             return
         except Exception as e:
             logger.error(f"General processing error for {email_address}: {e}")
             with db_session() as db:
-                acc = await AccountService.get_account(db, user_id, "google")
+                acc = AccountService.get_account(db, user_id, "google")
                 acc.last_synced_started_at = None
                 db.commit()
             return

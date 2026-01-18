@@ -9,7 +9,7 @@ import uuid
 class UserService:
     # 🔴 todo: need to handle exceptions
     @staticmethod
-    async def create(db: Session, email: str, hashed_password: str) -> User:
+    def create(db: Session, email: str, hashed_password: str) -> User:
         new_user = User(id=uuid.uuid4(), email=email, password_hash=hashed_password)
 
         db.add(new_user)
@@ -18,7 +18,7 @@ class UserService:
         return new_user
 
     @staticmethod
-    async def get_or_create(db: Session, email: str) -> User:
+    def get_or_create(db: Session, email: str) -> User:
         user = db.query(User).filter(User.email == email).first()
 
         if not user:
@@ -33,13 +33,13 @@ class UserService:
         return user
 
     @staticmethod
-    async def get(db: Session, id: UUID) -> User:
+    def get(db: Session, id: UUID) -> User:
         return db.query(User).filter(User.id == id).first()
 
     @staticmethod
-    async def get_by_email(db: Session, email: str) -> User:
+    def get_by_email(db: Session, email: str) -> User:
         return db.query(User).filter(User.email == email).first()
 
     @staticmethod
-    async def get_email(db: Session, id: UUID) -> str:
+    def get_email(db: Session, id: UUID) -> str:
         return db.query(User).filter(User.id == id).first().email
