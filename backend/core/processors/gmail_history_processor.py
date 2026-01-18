@@ -80,6 +80,7 @@ class GmailHistoryProcessor:
             headers = payload.get("headers", [])
 
             email_data = {
+                "message_id": message_id,
                 "thread_id": full_message.get("threadId", ""),
                 "message_id": message_id,
                 "subject": next(
