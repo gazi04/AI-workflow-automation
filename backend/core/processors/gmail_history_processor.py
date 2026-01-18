@@ -7,11 +7,10 @@ from typing import Dict, Any
 from core.database import db_session
 from core.setup_logging import setup_logger
 from orchestration.services.deployment_service import DeploymentService
-from processed_messages.services.processed_message_service import (
-    ProcessedMessageService,
-)
+from processed_messages.services import ProcessedMessageService
 from workflow.services.workflow_service import WorkflowService
 
+import anyio
 
 class GmailHistoryProcessor:
     """
@@ -33,16 +32,16 @@ class GmailHistoryProcessor:
         if self.service:
             self.service.close()
 
-    async def fetch_and_process(self, start_history_id: str) -> None:
+    def fetch_and_process(self, start_history_id: str) -> None:
         history_response = (
             self.service.users()
             .history()
             .list(userId="me", startHistoryId=start_history_id)
             .execute()
         )
-        await self._filter_notifications(history_response)
+        self._filter_notifications(history_response)
 
-    async def _filter_notifications(self, history_response: Dict[str, Any]):
+    def _filter_notifications(self, history_response: Dict[str, Any]):
         unique_message_ids = set()
 
         for history_record in history_response.get("history", []):
@@ -59,9 +58,9 @@ class GmailHistoryProcessor:
             return
 
         for message_id in unique_message_ids:
-            await self._process_single_message(message_id)
+            self._process_single_message(message_id)
 
-    async def _process_single_message(self, message_id: str):
+    def _process_single_message(self, message_id: str):
         try:
             full_message = (
                 self.service.users()
@@ -157,7 +156,12 @@ class GmailHistoryProcessor:
                     ProcessedMessageService.create(
                         db, email_data["message_id"], workflow.id
                     )
-                    await DeploymentService.run(workflow.id, trigger_context)
+
+                    anyio.from_thread.run(
+                        DeploymentService.run,
+                        workflow.id,
+                        trigger_context
+                    )
         except HttpError as e:
             if e.resp.status == 404:
                 self.logger.warning(
