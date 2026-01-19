@@ -196,10 +196,22 @@ class GmailTasks:
                     "name": label,
                     "type": LabelType.USER,
                 }
-                service.users().labels().create(userId="me", body=request).execute()
+
+                label_exists = service.users().labels().create(userId="me", body=request).execute()
 
                 print(f"The label is created with success")
 
+            label_id = label_exists.get("id", None)
+            message_id = original_email.get("message_id", None)
+
+            if not message_id or not label_id:
+                raise ValueError(f"Either label id or message id is none.")
+
+            request = {
+                "addLabelIds": [label_id]
+            }
+
+            service.users().messages().modify(userId="me", id=message_id, body=request).execute()
 
         return labels
 
