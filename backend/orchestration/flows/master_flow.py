@@ -1,4 +1,5 @@
 from uuid import UUID
+
 from core.setup_logging import setup_logger
 from prefect import flow
 from typing import Dict, Any, List, Optional
@@ -10,6 +11,7 @@ import auth.models  # noqa: F401
 import user.models  # noqa: F401
 import workflow.models  # noqa: F401
 
+import anyio
 
 @flow(name="Master Automation Executor")
 async def execute_automation_flow(
@@ -37,11 +39,12 @@ async def execute_automation_flow(
 
         try:
             if action_type == "send_email":
-                await GmailTasks.send_message(
-                    user_id=user_id,
-                    to=config.get("to"),
-                    subject=config.get("subject"),
-                    body=config.get("body"),
+                await anyio.to_thread.run_sync(
+                    GmailTasks.send_message,
+                    user_id,
+                    config.get("to"),
+                    config.get("subject"),
+                    config.get("body"),
                 )
 
             elif action_type == "reply_email":
@@ -52,8 +55,11 @@ async def execute_automation_flow(
                     continue
 
                 logger.info(f"The orginal email: {original_email}")
-                await GmailTasks.reply_email(
-                    user_id, config.get("body"), original_email
+                await anyio.to_thread.run_sync(
+                    GmailTasks.reply_email,
+                    user_id,
+                    config.get("body"),
+                    original_email,
                 )
 
             elif action_type == "send_slack_message":
