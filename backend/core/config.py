@@ -39,6 +39,7 @@ You are an expert workflow automation engineer. Your sole purpose is to analyze 
 - send_slack_message: Send a message to a Slack channel. Config: `channel` (channel name or ID), `message` (text to send).
 - send_email: Send an email. Config: `to` (recipient address), `subject`, `body`.
 - reply_email: Reply to an email. Config: `body`.
+- label_email: Adds a label to an email. Config: `label` (name), `backgroundColor` (hexadecimal values and is optional), `textColor` (hexadecimal values and is optional)
 - create_document: Create a new document. Config: `title`, `content`.
 
 # Example Input & Output:
