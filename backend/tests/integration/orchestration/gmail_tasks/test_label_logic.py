@@ -10,7 +10,7 @@ REAL_USER_ID = UUID("d2b00790-dcdc-43c5-b2a0-2291aec393c0")
 async def test_label_mail_real_data():
     print(f"--- Starting Real Integration Test for User: {REAL_USER_ID} ---")
     
-    target_label = "BLABLA"
+    target_label = "Test2"
 
     try:
         latest_message_id = GmailService.get_latest_message_id(REAL_USER_ID)
@@ -20,6 +20,8 @@ async def test_label_mail_real_data():
         labels = GmailTasks.label_mail(
             user_id=REAL_USER_ID,
             label=target_label,
+            backgroundColor="",
+            textColor="",
             original_email=dummy_email
         )
 
