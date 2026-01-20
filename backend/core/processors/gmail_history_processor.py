@@ -71,8 +71,8 @@ class GmailHistoryProcessor:
 
             labels = full_message.get("labelIds", [])
 
-            if "INBOX" not in labels or "UNREAD" not in labels:
-                self.logger.debug(f"Skipping message {message_id}. Labels are {labels}")
+            if "INBOX" not in labels or "SPAM" in labels or "TRASH" in labels:
+                self.logger.debug(f"Skipping message {message_id}. Labels {labels} do not meet criteria (Must be INBOX, not SPAM/TRASH).")
                 return
 
             payload = full_message.get("payload", {})
@@ -97,15 +97,20 @@ class GmailHistoryProcessor:
                 ),
             }
 
+            email_from = email_data["from"].lower()
+            email_subject = email_data["subject"].lower()
+
             with db_session() as db:
                 # ⚡ todo: improve performance by caching the workflows
                 workflows = WorkflowService.get_by_user_id(db, self.user_id)
+                
+                active_ids = [w.id for w in workflows if w.is_active]
+                self.logger.debug(f"Processing message {message_id} against {len(active_ids)} active workflows. IDs: {active_ids}")
 
                 for workflow in workflows:
+                    self.logger.debug(f"Checking email with subject `{email_data.get("subject")}` with workflow {workflow.name}")
                     if not workflow.is_active:
-                        self.logger.info(
-                            f"Skipping workflow {workflow.id} because it's inactive"
-                        )
+                        self.logger.debug(f"Skipping workflow {workflow.id} (Inactive)")
                         continue
 
                     config = workflow.config or {}
@@ -116,12 +121,25 @@ class GmailHistoryProcessor:
 
                     trigger_config = trigger.get("config", {})
 
+                    # from condition
                     trigger_from = trigger_config.get("from", "").strip().lower()
-                    email_from = email_data["from"].lower()
-
                     if trigger_from and trigger_from not in email_from:
+                        self.logger.debug(
+                            f"Workflow {workflow.id} mismatch: 'From' condition failed. "
+                            f"Expected '{trigger_from}' in '{email_from}'"
+                        )
                         continue
 
+                    # subject condition
+                    trigger_subject = trigger_config.get("subject_contains", "").strip().lower()
+                    if trigger_subject and trigger_subject not in email_subject:
+                        self.logger.debug(
+                            f"Workflow {workflow.id} mismatch: 'Subject' condition failed. "
+                            f"Expected '{trigger_subject}' in '{email_subject}'"
+                        )
+                        continue
+
+                    # check if message was processed
                     exists_processed_message = (
                         ProcessedMessageService.get_by_message_id_and_workflow_id(
                             db, email_data["message_id"], workflow.id
@@ -134,13 +152,6 @@ class GmailHistoryProcessor:
                         )
                         continue
 
-                    trigger_subject = (
-                        trigger_config.get("subject_contains", "").strip().lower()
-                    )
-                    email_subject = email_data["subject"].lower()
-
-                    if trigger_subject and trigger_subject not in email_subject:
-                        continue
 
                     self.logger.info(
                         f"✅ MATCH FOUND! Workflow ID: {workflow.id}\n"
@@ -157,15 +168,20 @@ class GmailHistoryProcessor:
                         db, email_data["message_id"], workflow.id
                     )
 
-                    anyio.from_thread.run(
-                        DeploymentService.run,
-                        workflow.id,
-                        trigger_context
-                    )
+                    try:
+                        anyio.from_thread.run(
+                            DeploymentService.run,
+                            workflow.id,
+                            trigger_context
+                        )
+                    except Exception as e:
+                        self.logger.error(f"Failed to trigger deployment for workflow {workflow.id}: {e}")
         except HttpError as e:
             if e.resp.status == 404:
                 self.logger.warning(
                     f"Message {message_id} not found (likely deleted). Skipping."
                 )
                 return
-            self.logger.error(f"Unhandled http error occurred: \n{e}")
+            self.logger.error(f"Gmail API HttpError: {e}")
+        except Exception as e:
+            self.logger.error(f"Unhandled error occurred: {e}")
