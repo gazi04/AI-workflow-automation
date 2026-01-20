@@ -1,5 +1,5 @@
 from email.message import EmailMessage
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from uuid import UUID
@@ -7,7 +7,7 @@ from uuid import UUID
 from auth.services.auth_service import AuthService
 from core.database import db_session
 from core.setup_logging import setup_logger
-from gmail.schemas.label import LabelListVisibility, LabelType, MessageListVisibility
+from gmail.schemas.label import GmailLabel, LabelColor, LabelListVisibility, LabelType, MessageListVisibility
 from user.services.user_service import UserService
 
 import base64
@@ -166,52 +166,69 @@ class GmailTasks:
             raise error
 
     @staticmethod
-    def label_mail(user_id: UUID, label: str, original_email: Dict[str, Any]):
+    def label_mail(user_id: UUID, label: str, backgroundColor: Optional[str], textColor: Optional[str], original_email: Dict[str, Any]):
         provider = "google"
         scopes = [
             "https://www.googleapis.com/auth/gmail.readonly",
             "https://www.googleapis.com/auth/gmail.modify",
         ]
 
-        with db_session() as db:
-            creds = AuthService.get_google_credentials(db, user_id, provider, scopes)
-            user_email = UserService.get_email(db, user_id)
+        try:
+            with db_session() as db:
+                creds = AuthService.get_google_credentials(db, user_id, provider, scopes)
+                user_email = UserService.get_email(db, user_id)
 
-        with build("gmail", "v1", credentials=creds) as service:
-            response = service.users().labels().list(userId="me").execute()
+            with build("gmail", "v1", credentials=creds) as service:
+                response = service.users().labels().list(userId="me").execute()
 
-            labels = response.get("labels", [])
+                labels = response.get("labels", [])
 
-            label_exists = next((l for l in labels if l["name"] == label), None)
+                label_exists = next((l for l in labels if l["name"] == label), None)
 
-            if not label_exists:
-                print(f"Label doesn't exists, we're creating the label...")
+                if not label_exists:
+                    logger.info(f"Label {label} doesn't exists, we're creating the label...")
+                    print(f"Label doesn't exists, we're creating the label...")
+                    request = {
+                        # "color": {
+                        #     "backgroundColor": "#711aa6",
+                        #     # "textColor": "#f3f3f3",
+                        # },
+                        "name": label,
+                        "labelListVisibility": LabelListVisibility.LABEL_SHOW,
+                        "messageListVisibility": MessageListVisibility.SHOW,
+                        "type": LabelType.USER,
+                    }
+
+                    logger.info(f"This is the request before pydantic. This is the type: {type(request)}, and the data is: {request}")
+                    request = GmailLabel(**request)
+
+                    if backgroundColor and textColor:
+                        color = LabelColor(backgroundColor=backgroundColor, textColor=textColor)
+                        request.color = color
+
+                    logger.info(f"This is the request with pydantic. This is the type: {type(request)}, and the data is: {request}.\nAnd this is what is passed down in the api call: {request.model_dump_json()}")
+                    label_exists = service.users().labels().create(userId="me", body=request.model_dump(mode="json", exclude_none=True)).execute()
+
+                    print(f"The label is created with success")
+
+                label_id = label_exists.get("id", None)
+                message_id = original_email.get("message_id", None)
+
+                if not message_id or not label_id:
+                    raise ValueError(f"Either label id or message id is none.")
+
                 request = {
-                    "color": {
-                        "backgroundColor": "#711a36",
-                        "textColor": "#f3f3f3",
-                    },
-                    "labelListVisibility": LabelListVisibility.LABEL_SHOW,
-                    "messageListVisibility": MessageListVisibility.SHOW,
-                    "name": label,
-                    "type": LabelType.USER,
+                    "addLabelIds": [label_id]
                 }
 
-                label_exists = service.users().labels().create(userId="me", body=request).execute()
+                service.users().messages().modify(userId="me", id=message_id, body=request).execute()
 
-                print(f"The label is created with success")
-
-            label_id = label_exists.get("id", None)
-            message_id = original_email.get("message_id", None)
-
-            if not message_id or not label_id:
-                raise ValueError(f"Either label id or message id is none.")
-
-            request = {
-                "addLabelIds": [label_id]
-            }
-
-            service.users().messages().modify(userId="me", id=message_id, body=request).execute()
-
-        return labels
+            return labels
+        except HttpError as error:
+            print(f"An http error occurred: {error}")
+            logger.error(f"Http error occurred: \n {error}")
+            raise error
+        except Exception as e:
+            logger.error(f"Unhandled error: {e}")
+            raise e
 
