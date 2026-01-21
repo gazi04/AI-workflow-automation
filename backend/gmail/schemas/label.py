@@ -24,12 +24,5 @@ class GmailLabel(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     labelListVisibility: Optional[LabelListVisibility] = None
     messageListVisibility: Optional[MessageListVisibility] = None
-    color: Optional[LabelColor] = None
-    
-    # These fields are usually read-only/returned by the API
-    id: Optional[str] = None
     type: Optional[LabelType] = None
-    messagesTotal: Optional[int] = 0
-    messagesUnread: Optional[int] = 0
-    threadsTotal: Optional[int] = 0
-    threadsUnread: Optional[int] = 0
+    color: Optional[LabelColor] = None
