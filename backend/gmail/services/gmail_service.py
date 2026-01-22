@@ -72,7 +72,14 @@ class GmailService:
 
             now = datetime.now(timezone.utc)
             if connected_account.last_synced_started_at:
-                # If the lock is "fresh" (e.g., less than 5 mins old), skip this request
+                '''
+                 🐛 todo: use queue to push new_history_id
+                 In case where notification A arrives on 20:01 and another notification B is send on 20:02
+                 the B notification is skipped and also the other notification that will arrive on the 20:01-20:06 time window,
+                 so in the worse case scenario that means there is the notification B (not handled) and there isn't any new notification
+                 for the upcoming 4 hours. After 4 hours there is a new notification Z but there is still notification B that 
+                 was send on 20:02 and wasn't supposed to be handled after 4 hours
+                '''
                 if now - connected_account.last_synced_started_at < timedelta(
                     minutes=5
                 ):
