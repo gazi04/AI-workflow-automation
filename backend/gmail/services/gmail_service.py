@@ -7,7 +7,7 @@ from auth.services.account_service import AccountService
 from auth.services.auth_service import AuthService
 from core.config_loader import settings
 from core.database import db_session
-from core.processors.gmail_history_processor import GmailHistoryProcessor
+from core.processors import GmailHistoryProcessor
 from core.setup_logging import setup_logger
 from user.services.user_service import UserService
 
