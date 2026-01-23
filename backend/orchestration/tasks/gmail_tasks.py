@@ -184,7 +184,6 @@ class GmailTasks:
         try:
             with db_session() as db:
                 creds = AuthService.get_google_credentials(db, user_id, provider, scopes)
-                user_email = UserService.get_email(db, user_id)
 
             with build("gmail", "v1", credentials=creds) as service:
                 response = service.users().labels().list(userId="me").execute()
@@ -197,24 +196,18 @@ class GmailTasks:
                     logger.info(f"Label {label} doesn't exists, we're creating the label...")
                     print(f"Label doesn't exists, we're creating the label...")
                     request = {
-                        # "color": {
-                        #     "backgroundColor": "#711aa6",
-                        #     # "textColor": "#f3f3f3",
-                        # },
                         "name": label,
                         "labelListVisibility": LabelListVisibility.LABEL_SHOW,
                         "messageListVisibility": MessageListVisibility.SHOW,
                         "type": LabelType.USER,
                     }
 
-                    logger.info(f"This is the request before pydantic. This is the type: {type(request)}, and the data is: {request}")
                     request = GmailLabel(**request)
 
                     if backgroundColor and textColor:
                         color = LabelColor(backgroundColor=backgroundColor, textColor=textColor)
                         request.color = color
 
-                    logger.info(f"This is the request with pydantic. This is the type: {type(request)}, and the data is: {request}.\nAnd this is what is passed down in the api call: {request.model_dump_json()}")
                     label_exists = service.users().labels().create(userId="me", body=request.model_dump(mode="json", exclude_none=True)).execute()
 
                     print(f"The label is created with success")
@@ -236,7 +229,8 @@ class GmailTasks:
             print(f"An http error occurred: {error}")
             logger.error(f"Http error occurred: \n {error}")
             raise error
-        except Exception as e:
-            logger.error(f"Unhandled error: {e}")
-            raise e
+        except Exception as error:
+            print(f"An error occurred: {error}")
+            logger.error(f"Unhandled error: {error}")
+            raise error
 
