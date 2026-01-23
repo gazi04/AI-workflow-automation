@@ -58,7 +58,7 @@ class GmailService:
     @staticmethod
     def handle_gmail_update(email_address: str, new_history_id: str):
         """
-        Runs in the background. Fetches changes since the last sync and triggers actions.
+            Runs in the background. Fetches changes since the last sync and triggers actions.
         """
         with db_session() as db:
             user = UserService.get_by_email(db, email_address)
@@ -127,7 +127,7 @@ class GmailService:
     @staticmethod
     def get_latest_message_id(user_id: UUID):
         """
-        The method is for testing purpose
+            The method is for testing purpose
         """
         with db_session() as db:
             scopes = ["https://www.googleapis.com/auth/gmail.readonly"]

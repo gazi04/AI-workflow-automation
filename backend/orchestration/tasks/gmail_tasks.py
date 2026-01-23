@@ -18,9 +18,10 @@ logger = setup_logger("Prefect Gmail Task")
 class GmailTasks:
     @staticmethod
     def create_draft(user_id: UUID, to: str, subject: str, body: str):
-        """Create and insert a draft email.
-        Print the returned draft's message and id.
-        Returns: Draft object, including draft id and message meta data.
+        """
+            Create and insert a draft email.
+            Print the returned draft's message and id.
+            Returns: Draft object, including draft id and message meta data.
         """
 
         provider = "google"
@@ -62,9 +63,10 @@ class GmailTasks:
 
     @staticmethod
     def send_message(user_id: UUID, to: str, subject: str, body: str):
-        """Create and send an email message
-        Print the returned  message id
-        Returns: Message object, including message id
+        """
+            Create and send an email message
+            Print the returned  message id
+            Returns: Message object, including message id
         """
         provider = "google"
         scopes = [
@@ -113,7 +115,8 @@ class GmailTasks:
     @staticmethod
     def reply_email(user_id: UUID, body: str, original_email: Dict[str, Any]):
         """
-        original_email contains: subject, from, header_message_id, references, thread_id
+            Reply to an email with a predefined message.
+            original_email contains: subject, from, header_message_id, references, thread_id
         """
         scopes = ["https://www.googleapis.com/auth/gmail.send"]
 
@@ -167,6 +170,11 @@ class GmailTasks:
 
     @staticmethod
     def label_mail(user_id: UUID, label: str, backgroundColor: Optional[str], textColor: Optional[str], original_email: Dict[str, Any]):
+        """
+            Label emails with an existing label or with a new (non-exsiting) label
+            original_email contains: subject, from, header_message_id, references, thread_id
+        """
+
         provider = "google"
         scopes = [
             "https://www.googleapis.com/auth/gmail.readonly",

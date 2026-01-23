@@ -20,8 +20,8 @@ async def execute_automation_flow(
     trigger_context: Optional[Dict[str, Any]] = None,
 ):
     """
-    This flow is generic. It doesn't know what it does until it receives
-    the 'workflow_data' JSON at runtime.
+        This flow is generic. It doesn't know what it does until it receives
+        the 'workflow_data' JSON at runtime.
     """
     print(f"🚀 Starting Workflow: {workflow_data.get('name')}")
 

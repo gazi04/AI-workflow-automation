@@ -11,6 +11,9 @@ VALID_TEXT_COLOR = {
 }
 
 def validate_background_color(hex_background_color: str) -> Optional[str]:
+    """
+        Validates the incoming color from the user if it's on the valid color palette of Gmail (to create a label in gmail)
+    """
     clean_hex_code = hex_background_color.strip().lower()
 
     if clean_hex_code in VALID_BACKGROUND_COLOR:
@@ -19,6 +22,9 @@ def validate_background_color(hex_background_color: str) -> Optional[str]:
     return None
 
 def validate_text_color(hex_text_color: str) -> Optional[str]:
+    """
+        Validates the incoming color from the user if it's on the valid color palette of Gmail (to create a label in gmail)
+    """
     clean_hex_code = hex_text_color.strip().lower()
 
     if clean_hex_code in VALID_TEXT_COLOR:
