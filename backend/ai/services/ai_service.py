@@ -11,6 +11,7 @@ import json
 
 logger = setup_logger("AI Service")
 
+
 class AiService:
     @staticmethod
     def __get_azure_client():
@@ -53,6 +54,11 @@ class AiService:
         """
         response = AiService.__make_ai_request(user_input)
         return AiService.parse_ai_response(response)
+
+    @staticmethod
+    def ask_ai(user_input: str, prompt: str) -> str:
+        """Make generall questions to AI and get it's response"""
+        return AiService.__make_ai_request(user_input, prompt)
 
     @staticmethod
     def parse_ai_response(raw_response: str) -> WorkflowDefinition:
