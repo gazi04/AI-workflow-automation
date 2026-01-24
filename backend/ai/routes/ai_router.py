@@ -27,9 +27,7 @@ async def interpret_command(
     and returns a structured workflow definition or an error.
     """
     try:
-        raw_ai_response = AiService.get_ai_response(user_request.text)
-
-        workflow_definition = AiService.parse_ai_response(raw_ai_response)
+        workflow_definition = AiService.create_workflow(user_request.text)
 
         ai_generated_definition_dict = {
             "trigger": workflow_definition.trigger.model_dump(),

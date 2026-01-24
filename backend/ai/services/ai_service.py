@@ -24,15 +24,15 @@ class AiService:
         )
 
     @staticmethod
-    def get_ai_response(user_input: str) -> str:
+    def __make_ai_request(input: str, prompt: str = settings.system_prompt) -> str:
         """Sends the prompt to Azure AI and returns the raw response."""
         try:
             client = AiService.__get_azure_client()
 
             response = client.complete(
                 messages=[
-                    SystemMessage(settings.system_prompt),
-                    UserMessage(user_input),
+                    SystemMessage(prompt),
+                    UserMessage(input),
                 ],
                 model=settings.azure_model,
                 max_tokens=1000,
@@ -44,6 +44,15 @@ class AiService:
         except Exception as e:
             logger.error(f"Unhandled error: {e}")
             raise HTTPException(status_code=500, detail=f"AI API call failed: {str(e)}")
+
+    @staticmethod
+    def create_workflow(user_input: str) -> WorkflowDefinition:
+        """
+        Make a request to create a workflow, parses the response
+        Returns the parsed workflow definition
+        """
+        response = AiService.__make_ai_request(user_input)
+        return AiService.parse_ai_response(response)
 
     @staticmethod
     def parse_ai_response(raw_response: str) -> WorkflowDefinition:
@@ -65,10 +74,14 @@ class AiService:
         except (json.JSONDecodeError, ValueError) as e:
             # Check if the AI itself responded with an error
             if "error" in raw_response.lower():
-                logger.error(f"Error in the AI response. This is the respone: {raw_response}")
+                logger.error(
+                    f"Error in the AI response. This is the respone: {raw_response}"
+                )
                 raise ValueError(raw_response)
             else:
-                logger.error(f"Failed to parse AI response as JSON: {e}\nResponse was: {raw_response}")
+                logger.error(
+                    f"Failed to parse AI response as JSON: {e}\nResponse was: {raw_response}"
+                )
                 raise ValueError("Failed to interpret AI response.")
 
     @staticmethod
