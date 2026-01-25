@@ -48,7 +48,7 @@ class GmailTasks:
                 yield service, db
 
     @staticmethod
-    def create_draft(user_id: UUID, to: str, subject: str, body: str):
+    def create_draft(user_id: UUID, body: str, original_email: Dict[str, Any]):
         """
         Create and insert a draft email.
         Print the returned draft's message and id.
@@ -62,13 +62,29 @@ class GmailTasks:
                 message = EmailMessage()
                 message.set_content(body)
 
-                message["To"] = to
-                message["From"] = user_email
+                # subject should start with Re if it doesn't already
+                subject = original_email["subject"]
+                if not subject.lower().startswith("re:"):
+                    subject = f"Re: {subject}"
+
+                message["To"] = original_email["from"]
                 message["Subject"] = subject
+                message["From"] = user_email
+
+                message["In-Reply-To"] = original_email["header_message_id"]
+                old_refs = original_email["references"]
+                message["References"] = (
+                    f"{old_refs} {original_email['header_message_id']}".strip()
+                )
 
                 encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
-                create_message = {"message": {"raw": encoded_message}}
+                create_message = {
+                    "raw": encoded_message,
+                    "threadId": original_email[
+                        "thread_id"
+                    ],  # Crucial for Gmail UI threading
+                }
 
                 draft = (
                     service.users()
