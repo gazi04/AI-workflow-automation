@@ -1,3 +1,4 @@
+import base64
 from uuid import UUID
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -77,6 +78,7 @@ class GmailHistoryProcessor:
 
             payload = full_message.get("payload", {})
             headers = payload.get("headers", [])
+            email_body = self._get_email_body(payload)
 
             email_data = {
                 "message_id": message_id,
@@ -95,6 +97,7 @@ class GmailHistoryProcessor:
                     (h["value"] for h in headers if h["name"].lower() == "references"),
                     "",
                 ),
+                "body": email_body or full_message.get("snippet", "")
             }
 
             email_from = email_data["from"].lower()
@@ -185,3 +188,22 @@ class GmailHistoryProcessor:
             self.logger.error(f"Gmail API HttpError: {e}")
         except Exception as e:
             self.logger.error(f"Unhandled error occurred: {e}")
+
+    def _get_email_body(self, payload: Dict[str, Any]) -> str:
+        """
+        Recursively extracts the plain text body from the email payload.
+        """
+        if "body" in payload and "data" in payload["body"]:
+            return base64.urlsafe_b64decode(payload["body"]["data"]).decode("utf-8")
+        
+        if "parts" in payload:
+            for part in payload["parts"]:
+                mime_type = part.get("mimeType")
+                
+                if mime_type == "text/plain" and "body" in part and "data" in part["body"]:
+                    return base64.urlsafe_b64decode(part["body"]["data"]).decode("utf-8")
+                
+                if mime_type.startswith("multipart"):
+                    return self._get_email_body(part)
+        
+        return ""
