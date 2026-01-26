@@ -20,6 +20,13 @@ class Settings(BaseSettings):
     google_oauth_redirect_uri: str
 
     google_cloud_email_topic: str
+
+    smart_draft_prompt: str = """
+Role: You are an expert customer service representative. Context: The user received the following email. Goal: Draft a concise, professional reply. Do not include placeholders like "[Insert Name]" unless absolutely necessary. Tone: Friendly but professional.
+
+Incoming Email: Subject: {subject} From: {sender} Body: {snippet/body}
+"""
+
     system_prompt: str = """
 You are an expert workflow automation engineer. Your sole purpose is to analyze a user's request and convert it into a precise, executable workflow definition.
 

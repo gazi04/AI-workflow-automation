@@ -5,7 +5,9 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from uuid import UUID
 
+from ai.services.ai_service import AiService
 from auth.services.auth_service import AuthService
+from core.config_loader import settings
 from core.database import db_session
 from core.setup_logging import setup_logger
 from gmail.schemas.label import (
@@ -265,3 +267,31 @@ class GmailTasks:
             print(f"An error occurred: {error}")
             logger.error(f"Unhandled error: {error}")
             raise error
+
+    @staticmethod
+    def smart_draft(user_id: UUID, email_data: Dict[str, Any], context_instruction: Optional[str] = None):
+        """
+        Create a draft with an AI generated message
+        """
+        specific_instruction = f"Instruction: {context_instruction}\n" if context_instruction else ""
+        
+        user_input = (
+            f"{specific_instruction}"
+            f"Incoming Email Subject: {email_data.get('subject')}\n"
+            f"Incoming Email From: {email_data.get('from')}\n"
+            f"Incoming Email Body:\n{email_data.get('body')}\n\n"
+            "Draft a reply:"
+        )
+
+        try:
+            generated_body = AiService.ask_ai(user_input, settings.smart_draft_prompt)
+            logger.info(f"AI response: {generated_body}")
+
+            draft_result = GmailTasks.create_draft(user_id, generated_body, email_data)
+            
+            logger.info(f"Smart Draft created successfully. ID: {draft_result['id']}")
+            return draft_result
+
+        except Exception as e:
+            logger.error(f"Failed to generate Smart Draft: {e}")
+            raise e
