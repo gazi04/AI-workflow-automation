@@ -13,6 +13,7 @@ import workflow.models  # noqa: F401
 
 import anyio
 
+
 @flow(name="Master Automation Executor")
 async def execute_automation_flow(
     user_id: UUID,
@@ -20,8 +21,8 @@ async def execute_automation_flow(
     trigger_context: Optional[Dict[str, Any]] = None,
 ):
     """
-        This flow is generic. It doesn't know what it does until it receives
-        the 'workflow_data' JSON at runtime.
+    This flow is generic. It doesn't know what it does until it receives
+    the 'workflow_data' JSON at runtime.
     """
     print(f"🚀 Starting Workflow: {workflow_data.get('name')}")
 
@@ -76,6 +77,20 @@ async def execute_automation_flow(
                     action_config.get("backgroundColor", ""),
                     action_config.get("textColor", ""),
                     original_email,
+                )
+
+            elif action_type == "smart_draft":
+                if not original_email:
+                    logger.error(
+                        f"Action {action_type} requires an email trigger context. This is the original_email={original_email}"
+                    )
+                    continue
+
+                await anyio.to_thread.run_sync(
+                    GmailTasks.smart_draft,
+                    user_id,
+                    original_email,
+                    action_config.get("user_prompt", ""),
                 )
 
             elif action_type == "send_slack_message":
