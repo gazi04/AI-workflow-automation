@@ -82,10 +82,10 @@ class GmailTasks:
                 encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
 
                 create_message = {
-                    "raw": encoded_message,
-                    "threadId": original_email[
-                        "thread_id"
-                    ],  # Crucial for Gmail UI threading
+                    "message": {
+                        "raw": encoded_message,
+                        "threadId": original_email["thread_id"]
+                    }
                 }
 
                 draft = (
