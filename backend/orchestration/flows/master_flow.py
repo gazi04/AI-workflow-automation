@@ -74,8 +74,8 @@ async def execute_automation_flow(
                     GmailTasks.label_mail,
                     user_id,
                     action_config.get("label"),
-                    action_config.get("backgroundColor", ""),
-                    action_config.get("textColor", ""),
+                    action_config.get("backgroundColor"),
+                    action_config.get("textColor"),
                     original_email,
                 )
 

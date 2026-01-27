@@ -19,7 +19,7 @@ def validate_background_color(hex_background_color: str) -> Optional[str]:
     if clean_hex_code in VALID_BACKGROUND_COLOR:
         return clean_hex_code
 
-    return None
+    return "#999999"
 
 def validate_text_color(hex_text_color: str) -> Optional[str]:
     """
@@ -30,4 +30,4 @@ def validate_text_color(hex_text_color: str) -> Optional[str]:
     if clean_hex_code in VALID_TEXT_COLOR:
         return clean_hex_code
 
-    return None
+    return "#f3f3f3"
