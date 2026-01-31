@@ -84,7 +84,7 @@ services:
 
   frontend:
     build:
-      context: ./front
+      context: ./website
       dockerfile: Dockerfile
     ports:
       - "5173:5173"
@@ -93,8 +93,9 @@ services:
     depends_on:
       - backend
     volumes:
-      - ./front:/app
+      - ./website:/app
       - /app/node_modules
+      - /app/.svelte-kit
     restart: unless-stopped
     command: npm run dev -- --host 0.0.0.0
 
