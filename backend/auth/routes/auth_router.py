@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, Request, HTTPException, Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from google_auth_oauthlib.flow import Flow
 from google.oauth2 import id_token
 from google.auth.transport import requests
@@ -93,7 +93,7 @@ async def callback_google(
     code: str,
     state: str,
     db: Session = Depends(get_db),
-):
+) -> RedirectResponse:
     saved_account = None
 
     try:
@@ -183,14 +183,9 @@ async def callback_google(
         if state in user_sessions:
             del user_sessions[state]
 
-        return JSONResponse(
-            content={
-                "access_token": access_token,
-                "refresh_token": refresh_token_string,
-                "token_type": "bearer",
-                "message": "User successfully logged in with Google",
-            }
-        )
+        frontend_url = f"http://localhost:5173/auth/success?access_token={access_token}&refresh_token={refresh_token_string}"
+    
+        return RedirectResponse(url=frontend_url)
 
     except Exception as e:
         logger.error(f"Unhandled error: {e}")
