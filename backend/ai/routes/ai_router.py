@@ -53,7 +53,7 @@ async def interpret_command(
         return AIResponse(success=False, error=str(e))
     except HTTPException as e:
         logger.debug(f"Ai router, interpret_command HTTP exception: \n{e}")
-        raise e
+        return AIResponse(success=False, error=f"An HTTP error occurred: {str(e)}")
     except Exception as e:
         logger.debug(f"Ai router, interpret_command exception: \n{e}")
         return AIResponse(
