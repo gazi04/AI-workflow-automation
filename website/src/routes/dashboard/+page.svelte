@@ -7,6 +7,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Switch } from '$lib/components/ui/switch';
 	import { Loader2, Mail, Slack, Trash2, Play, Settings2 } from 'lucide-svelte';
+	import { goto } from '$app/navigation';
 
 	type Workflow = components['schemas']['WorkflowDefinition'] & {
 		deployment_id: string;
@@ -19,19 +20,25 @@
 
 	const API_BASE_URL = 'http://localhost:8000';
 
-	async function fetchWorkflows() {
-		try {
-			const res = await authorizedFetch(`${API_BASE_URL}/api/workflow/get_workflows`);
-			if (res && res.ok) {
-				// Backend returns an array of workflows matching our Workflow type
-				workflows = await res.json();
-			}
-		} catch (err) {
-			console.error('Failed to load workflows', err);
-		} finally {
-			isLoading = false;
-		}
-	}
+  async function fetchWorkflows() {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      goto('/login');
+      return;
+    }
+
+    try {
+      const res = await authorizedFetch(`${API_BASE_URL}/api/workflow/get_workflows`);
+      if (res && res.ok) {
+        // Backend returns an array of workflows matching our Workflow type
+        workflows = await res.json();
+      }
+    } catch (err) {
+      console.error('Failed to load workflows', err);
+    } finally {
+      isLoading = false;
+    }
+  }
 
 	async function toggleWorkflow(id: string, currentStatus: boolean) {
 		const payload: ToggleRequest = {
