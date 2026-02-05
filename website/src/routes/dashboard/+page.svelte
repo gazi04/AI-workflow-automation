@@ -20,25 +20,25 @@
 
 	const API_BASE_URL = 'http://localhost:8000';
 
-  async function fetchWorkflows() {
-    const token = localStorage.getItem("access_token");
-    if (!token) {
-      goto('/login');
-      return;
-    }
+	async function fetchWorkflows() {
+		const token = localStorage.getItem('access_token');
+		if (!token) {
+			goto('/login');
+			return;
+		}
 
-    try {
-      const res = await authorizedFetch(`${API_BASE_URL}/api/workflow/get_workflows`);
-      if (res && res.ok) {
-        // Backend returns an array of workflows matching our Workflow type
-        workflows = await res.json();
-      }
-    } catch (err) {
-      console.error('Failed to load workflows', err);
-    } finally {
-      isLoading = false;
-    }
-  }
+		try {
+			const res = await authorizedFetch(`${API_BASE_URL}/api/workflow/get_workflows`);
+			if (res && res.ok) {
+				// Backend returns an array of workflows matching our Workflow type
+				workflows = await res.json();
+			}
+		} catch (err) {
+			console.error('Failed to load workflows', err);
+		} finally {
+			isLoading = false;
+		}
+	}
 
 	async function toggleWorkflow(id: string, currentStatus: boolean) {
 		const payload: ToggleRequest = {
@@ -60,96 +60,74 @@
 	onMount(fetchWorkflows);
 </script>
 
-<div class="min-h-screen bg-slate-50 p-6 font-sans">
+<div class="min-h-screen bg-background p-6 lg:p-10">
 	<header class="mb-8 flex items-center justify-between">
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight text-slate-900">Agent Control Center</h1>
-			<p class="font-medium text-slate-500">Monitoring {workflows.length} active automations.</p>
+			<h1 class="text-3xl font-bold tracking-tight">Agent Control Center</h1>
+			<p class="text-muted-foreground">Monitoring {workflows.length} active automations.</p>
 		</div>
-		<a href="/dashboard/new">
-			<Button
-				class="rounded-none border-2 border-slate-900 bg-[#C7D2FE] text-slate-900 shadow-none hover:bg-[#A5B4FC]"
-			>
-				Create New Agent
-			</Button>
-		</a>
+		<Button href="/dashboard/new">Create New Agent</Button>
 	</header>
 
 	{#if isLoading}
 		<div class="flex h-64 items-center justify-center">
-			<Loader2 class="h-8 w-8 animate-spin text-slate-400" />
+			<Loader2 class="h-8 w-8 animate-spin text-muted-foreground" />
 		</div>
 	{:else if workflows.length === 0}
 		<Card.Root
-			class="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 bg-transparent p-12 text-center shadow-none"
+			class="flex flex-col items-center justify-center border-dashed p-12 text-center shadow-none"
 		>
-			<div class="mb-4 rounded-full border-2 border-slate-900 bg-white p-4">
-				<Mail class="h-8 w-8 text-slate-900" />
+			<div class="mb-4 rounded-full bg-muted p-4">
+				<Mail class="h-8 w-8 text-muted-foreground" />
 			</div>
-			<Card.Title class="text-xl">No Agents Deployed</Card.Title>
-			<Card.Description class="mt-2 font-medium"
-				>Your AI workforce is currently empty.</Card.Description
-			>
+			<Card.Title class="text-xl font-semibold">No Agents Deployed</Card.Title>
+			<Card.Description>Your AI workforce is currently empty.</Card.Description>
 		</Card.Root>
 	{:else}
 		<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
 			{#each workflows as wf}
-				<Card.Root
-					class="group relative rounded-none border-2 border-slate-900 bg-white shadow-none transition-all hover:-translate-y-1"
-				>
-					<Card.Header class="border-b-2 border-slate-900 bg-[#F8FAFC] pb-3">
+				<Card.Root>
+					<Card.Header>
 						<div class="flex items-center justify-between">
-							<Badge
-								class="rounded-none border-2 border-slate-900 shadow-none {wf.active
-									? 'bg-[#DCFCE7] text-slate-900'
-									: 'bg-slate-200 text-slate-600'}"
-							>
-								{wf.active ? 'RUNNING' : 'PAUSED'}
+							<Badge variant={wf.is_active ? 'default' : 'secondary'}>
+								{wf.is_active ? 'RUNNING' : 'PAUSED'}
 							</Badge>
 							<Switch
-								checked={wf.active}
-								onCheckedChange={() => toggleWorkflow(wf.deployment_id, wf.active)}
+								checked={wf.is_active}
+								onCheckedChange={() => toggleWorkflow(wf.id, wf.is_active)}
 							/>
 						</div>
-						<Card.Title class="mt-4 text-xl font-bold tracking-tight uppercase"
-							>{wf.name}</Card.Title
-						>
-						<Card.Description class="line-clamp-2 font-medium text-slate-600"
-							>{wf.description}</Card.Description
-						>
+						<Card.Title class="mt-4 text-xl font-bold">{wf.name}</Card.Title>
+						<Card.Description class="line-clamp-2 italic">
+							{wf.description}
+						</Card.Description>
 					</Card.Header>
 
-          <Card.Content class="space-y-4 pt-6">
-              <div class="flex items-center border border-slate-200 bg-muted/50 p-2 text-xs font-bold uppercase">
-                  <Play class="mr-2 h-4 w-4" />
-                  Trigger: {wf.config?.trigger?.type?.replace('_', ' ') || 'Unknown'}
-              </div>
+					<Card.Content class="space-y-4">
+						<div class="flex items-center rounded-md border bg-muted/50 p-2 text-xs font-semibold">
+							<Play class="mr-2 h-3.5 w-3.5 text-primary" />
+							TRIGGER: {wf.config?.trigger?.type?.replace('_', ' ') || 'Unknown'}
+						</div>
 
-              <div class="space-y-2">
-                  <p class="text-[10px] font-black uppercase text-slate-400">Steps</p>
-                  <div class="flex flex-wrap gap-2">
-                      {#each wf.config?.actions || [] as action}
-                          <div class="border border-slate-900 bg-white px-2 py-1 text-[10px] font-bold">
-                              {action.type.toUpperCase().replace('_', ' ')}
-                          </div>
-                      {/each}
-                  </div>
-              </div>
-          </Card.Content>
+						<div class="space-y-2">
+							<p class="text-[10px] font-bold text-muted-foreground uppercase">Automation Steps</p>
+							<div class="flex flex-wrap gap-2">
+								{#each wf.config?.actions || [] as action}
+									<Badge variant="outline" class="font-mono text-[10px] uppercase">
+										{action.type.replace('_', ' ')}
+									</Badge>
+								{/each}
+							</div>
+						</div>
+					</Card.Content>
 
-					<Card.Footer class="flex justify-between border-t-2 border-slate-900 bg-[#FFF7ED] p-3">
-						<Button variant="ghost" size="sm" class="rounded-none text-destructive hover:bg-red-50">
+					<Card.Footer class="flex justify-between border-t bg-muted/20 pt-4">
+						<Button variant="ghost" size="sm" class="text-destructive hover:bg-destructive/10">
 							<Trash2 class="h-4 w-4" />
 						</Button>
-						<div class="flex gap-2">
-							<Button
-								variant="outline"
-								size="sm"
-								class="rounded-none border-2 border-slate-900 bg-white font-bold"
-							>
-								<Settings2 class="mr-1 h-4 w-4" /> Config
-							</Button>
-						</div>
+						<Button variant="secondary" size="sm">
+							<Settings2 class="mr-1 h-4 w-4" /> Config
+						</Button>
 					</Card.Footer>
 				</Card.Root>
 			{/each}
