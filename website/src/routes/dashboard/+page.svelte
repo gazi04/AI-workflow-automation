@@ -119,25 +119,23 @@
 						>
 					</Card.Header>
 
-					<Card.Content class="space-y-4 pt-6">
-						<div
-							class="flex items-center border-2 border-slate-900 bg-[#E0F2FE] p-2 text-xs font-bold uppercase"
-						>
-							<Play class="mr-2 h-4 w-4" />
-							Trigger: {wf.trigger.type.replace('_', ' ')}
-						</div>
+          <Card.Content class="space-y-4 pt-6">
+              <div class="flex items-center border border-slate-200 bg-muted/50 p-2 text-xs font-bold uppercase">
+                  <Play class="mr-2 h-4 w-4" />
+                  Trigger: {wf.config?.trigger?.type?.replace('_', ' ') || 'Unknown'}
+              </div>
 
-						<div class="space-y-2">
-							<p class="text-[10px] font-black text-slate-400 uppercase">Next Steps</p>
-							<div class="flex flex-wrap gap-2">
-								{#each wf.actions as action}
-									<div class="border border-slate-900 bg-white px-2 py-1 text-[10px] font-bold">
-										{action.type.toUpperCase()}
-									</div>
-								{/each}
-							</div>
-						</div>
-					</Card.Content>
+              <div class="space-y-2">
+                  <p class="text-[10px] font-black uppercase text-slate-400">Steps</p>
+                  <div class="flex flex-wrap gap-2">
+                      {#each wf.config?.actions || [] as action}
+                          <div class="border border-slate-900 bg-white px-2 py-1 text-[10px] font-bold">
+                              {action.type.toUpperCase().replace('_', ' ')}
+                          </div>
+                      {/each}
+                  </div>
+              </div>
+          </Card.Content>
 
 					<Card.Footer class="flex justify-between border-t-2 border-slate-900 bg-[#FFF7ED] p-3">
 						<Button variant="ghost" size="sm" class="rounded-none text-destructive hover:bg-red-50">
