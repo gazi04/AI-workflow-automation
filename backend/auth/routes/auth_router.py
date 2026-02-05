@@ -189,4 +189,4 @@ async def callback_google(
 
     except Exception as e:
         logger.error(f"Unhandled error: {e}")
-        raise HTTPException(status_code=400, detail=f"Authentication failed: {str(e)}")
+        return RedirectResponse(url="http://localhost:5173/login?error=auth_failed")
