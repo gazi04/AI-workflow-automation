@@ -34,7 +34,6 @@
 	}
 </script>
 
-<!-- 🐛 todo: need to check if user is logged in if yes he can't open the login page -->
 <div class="flex min-h-screen flex-col items-center justify-center bg-muted/50 p-4">
 	<Card.Root class="w-full max-w-md">
 		<Card.Header class="text-center">
