@@ -5,7 +5,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 
-	const API_BASE_URL = 'http://localhost:8000';
+	const API_BASE_URL = 'http://backend:8000';
 	let isLoading = $state(false);
 
 	// Reactively derive the error message from the URL search params

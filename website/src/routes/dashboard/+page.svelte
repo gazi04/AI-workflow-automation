@@ -18,7 +18,7 @@
 	let workflows = $state<Workflow[]>([]);
 	let isLoading = $state(true);
 
-	const API_BASE_URL = 'http://localhost:8000';
+	const API_BASE_URL = 'http://backend:8000';
 
 	async function fetchWorkflows() {
 		const token = localStorage.getItem('access_token');
