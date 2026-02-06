@@ -1,47 +1,54 @@
 <script lang="ts">
-	import { authorizedFetch } from "$lib/api";
-	import type { components } from "$lib/types/api";
-	import { Button } from "$lib/components/ui/button";
-	import { Textarea } from "$lib/components/ui/textarea";
-	import * as Card from "$lib/components/ui/card";
-	import { Badge } from "$lib/components/ui/badge";
-	import { Loader2, Sparkles, ArrowRight, CheckCircle2, AlertCircle, ChevronLeft } from "lucide-svelte";
-	import { goto } from "$app/navigation";
+	import { authorizedFetch } from '$lib/api';
+	import type { components } from '$lib/types/api';
+	import { Button } from '$lib/components/ui/button';
+	import { Textarea } from '$lib/components/ui/textarea';
+	import * as Card from '$lib/components/ui/card';
+	import { Badge } from '$lib/components/ui/badge';
+	import {
+		Loader2,
+		Sparkles,
+		ArrowRight,
+		CheckCircle2,
+		AlertCircle,
+		ChevronLeft
+	} from 'lucide-svelte';
+	import { goto } from '$app/navigation';
 
-	type AIResponse = components["schemas"]["AIResponse"];
-	type WorkflowDef = components["schemas"]["WorkflowDefinition"];
+	type AIResponse = components['schemas']['AIResponse'];
+	type WorkflowDef = components['schemas']['WorkflowDefinition'];
 
-	let prompt = $state("");
+	let prompt = $state('');
 	let isAnalyzing = $state(false);
 	let generatedWorkflow = $state<WorkflowDef | null>(null);
-	let errorMessage = $state("");
+	let errorMessage = $state('');
 
-	const API_BASE_URL = "http://localhost:8000";
+	const API_BASE_URL = 'http://localhost:8000';
 
 	async function interpretCommand() {
 		if (!prompt) return;
-		
+
 		isAnalyzing = true;
-		errorMessage = "";
+		errorMessage = '';
 		generatedWorkflow = null;
 
 		try {
 			const res = await authorizedFetch(`${API_BASE_URL}/api/ai/interpret`, {
-				method: "POST",
+				method: 'POST',
 				body: JSON.stringify({ text: prompt })
 			});
 
-			if (!res?.ok) throw new Error("Failed to communicate with AI");
+			if (!res?.ok) throw new Error('Failed to communicate with AI');
 
 			const result: AIResponse = await res.json();
 
 			if (result.success && result.data) {
 				generatedWorkflow = result.data;
 			} else {
-				errorMessage = result.error || "AI could not structure that request.";
+				errorMessage = result.error || 'AI could not structure that request.';
 			}
 		} catch (err) {
-			errorMessage = "Server connection lost. Please try again.";
+			errorMessage = 'Server connection lost. Please try again.';
 		} finally {
 			isAnalyzing = false;
 		}
@@ -49,7 +56,7 @@
 
 	async function confirmAndDeploy() {
 		// Logic to save the workflow would go here
-		goto("/dashboard?created=success");
+		goto('/dashboard?created=success');
 	}
 </script>
 
@@ -61,7 +68,9 @@
 			</Button>
 			<div>
 				<h1 class="text-3xl font-bold tracking-tight">Create New Agent</h1>
-				<p class="text-muted-foreground">Describe your automation goal and let AI handle the configuration.</p>
+				<p class="text-muted-foreground">
+					Describe your automation goal and let AI handle the configuration.
+				</p>
 			</div>
 		</div>
 
@@ -73,18 +82,14 @@
 						<Card.Description>What should this agent do for you?</Card.Description>
 					</Card.Header>
 					<Card.Content>
-						<Textarea 
-							placeholder="e.g., When I get an email about a new lead, add it to my sheet and send a Slack notification." 
+						<Textarea
+							placeholder="e.g., When I get an email about a new lead, add it to my sheet and send a Slack notification."
 							class="min-h-[200px] text-base"
 							bind:value={prompt}
 						/>
 					</Card.Content>
 					<Card.Footer>
-						<Button 
-							class="w-full" 
-							disabled={isAnalyzing || !prompt}
-							onclick={interpretCommand}
-						>
+						<Button class="w-full" disabled={isAnalyzing || !prompt} onclick={interpretCommand}>
 							{#if isAnalyzing}
 								<Loader2 class="mr-2 h-4 w-4 animate-spin" /> Analyzing...
 							{:else}
@@ -95,7 +100,9 @@
 				</Card.Root>
 
 				{#if errorMessage}
-					<div class="flex items-center gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
+					<div
+						class="flex items-center gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive"
+					>
 						<AlertCircle class="h-4 w-4" />
 						{errorMessage}
 					</div>
@@ -107,27 +114,43 @@
 					<Card.Root class="animate-in fade-in slide-in-from-bottom-2">
 						<Card.Header>
 							<div class="flex items-center justify-between">
-								<Badge variant="outline" class="bg-primary/5 text-primary border-primary/20">Preview</Badge>
+								<Badge variant="outline" class="border-primary/20 bg-primary/5 text-primary"
+									>Preview</Badge
+								>
 								<CheckCircle2 class="h-5 w-5 text-primary" />
 							</div>
-							<Card.Title class="text-2xl pt-2">{generatedWorkflow.name}</Card.Title>
+							<Card.Title class="pt-2 text-2xl">{generatedWorkflow.name}</Card.Title>
 							<Card.Description>{generatedWorkflow.description}</Card.Description>
 						</Card.Header>
 						<Card.Content class="space-y-6">
 							<div class="space-y-2">
-								<h4 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Trigger</h4>
+								<h4 class="text-sm font-semibold tracking-wider text-muted-foreground uppercase">
+									Trigger
+								</h4>
 								<div class="flex items-center gap-3 rounded-md border bg-muted/50 p-3">
-									<div class="flex h-8 w-8 items-center justify-center rounded bg-background border shadow-sm font-mono text-xs">T</div>
-									<span class="font-medium capitalize">{generatedWorkflow.trigger.type.replace('_', ' ')}</span>
+									<div
+										class="flex h-8 w-8 items-center justify-center rounded border bg-background font-mono text-xs shadow-sm"
+									>
+										T
+									</div>
+									<span class="font-medium capitalize"
+										>{generatedWorkflow.trigger.type.replace('_', ' ')}</span
+									>
 								</div>
 							</div>
 
 							<div class="space-y-2">
-								<h4 class="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Actions</h4>
+								<h4 class="text-sm font-semibold tracking-wider text-muted-foreground uppercase">
+									Actions
+								</h4>
 								<div class="space-y-2">
 									{#each generatedWorkflow.actions as action, i}
 										<div class="flex items-center gap-3 rounded-md border p-3">
-											<div class="flex h-8 w-8 items-center justify-center rounded bg-primary text-primary-foreground font-mono text-xs">{i + 1}</div>
+											<div
+												class="flex h-8 w-8 items-center justify-center rounded bg-primary font-mono text-xs text-primary-foreground"
+											>
+												{i + 1}
+											</div>
 											<span class="font-medium capitalize">{action.type.replace('_', ' ')}</span>
 										</div>
 									{/each}
@@ -135,14 +158,14 @@
 							</div>
 						</Card.Content>
 						<Card.Footer>
-							<Button onclick={confirmAndDeploy} class="w-full">
-								Confirm and Deploy Agent
-							</Button>
+							<Button onclick={confirmAndDeploy} class="w-full">Confirm and Deploy Agent</Button>
 						</Card.Footer>
 					</Card.Root>
 				{:else}
-					<div class="flex h-[400px] flex-col items-center justify-center rounded-xl border border-dashed text-center">
-						<div class="rounded-full bg-muted p-4 mb-4">
+					<div
+						class="flex h-[400px] flex-col items-center justify-center rounded-xl border border-dashed text-center"
+					>
+						<div class="mb-4 rounded-full bg-muted p-4">
 							<Sparkles class="h-8 w-8 text-muted-foreground/50" />
 						</div>
 						<p class="text-sm text-muted-foreground">The agent's blueprint will appear here.</p>
