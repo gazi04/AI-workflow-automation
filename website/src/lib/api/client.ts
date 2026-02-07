@@ -2,6 +2,8 @@ import { env } from '$env/dynamic/public';
 
 const BASE_URL = env.PUBLIC_API_URL || 'http://localhost:8000';
 
+let isRefreshing = false;
+
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
 	const url = `${BASE_URL}${endpoint}`;
 
@@ -10,9 +12,30 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 		...options.headers
 	};
 
-	const fetcher = localStorage.getItem('access_token') ? authorizedFetch : fetch;
+	const fetcher =
+		typeof window !== 'undefined' && localStorage.getItem('access_token') ? authorizedFetch : fetch;
 
-	const response = await fetcher(url, { ...options, headers });
+	let response = await fetcher(url, { ...options, headers });
+
+	if (response.status === 401 && !isRefreshing) {
+		isRefreshing = true;
+
+		try {
+			const newToken = await attemptTokenRefresh();
+			if (newToken) {
+				const retryHeaders = {
+					...headers,
+					Authorization: `Bearer ${newToken}`
+				};
+				response = await fetch(url, { ...options, headers: retryHeaders });
+			}
+		} catch (err) {
+			handleLogout();
+			throw { status: 401, message: 'Session expired' };
+		} finally {
+			isRefreshing = false;
+		}
+	}
 
 	if (!response.ok) {
 		const errorData = await response.json().catch(() => ({}));
@@ -22,28 +45,58 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 	return response.json();
 }
 
-export const api = {
-	get: <T>(url: string) => request<T>(url, { method: 'GET' }),
-	post: <T>(url: string, body: any) => request<T>(url, { method: 'POST', body: JSON.stringify(body) }),
-	patch: <T>(url: string, body: any) => request<T>(url, { method: 'PATCH', body: JSON.stringify(body) }),
-	delete: <T>(url: string) => request<T>(url, { method: 'DELETE' })
-};
+async function attemptTokenRefresh(): Promise<string | null> {
+	const refreshToken = localStorage.getItem('refresh_token');
+	if (!refreshToken) return null;
+
+	try {
+		const res = await fetch(`${BASE_URL}/api/auth/refresh`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ refresh_token: refreshToken })
+		});
+
+		if (res.ok) {
+			const data = await res.json();
+
+			if (data.access_token) {
+				localStorage.setItem('access_token', data.access_token);
+
+				if (data.refresh_token) {
+					localStorage.setItem('refresh_token', data.refresh_token);
+				}
+
+				return data.access_token;
+			}
+		}
+	} catch (err) {
+		console.error('Token refresh network error:', err);
+	}
+
+	return null;
+}
 
 async function authorizedFetch(url: string, options: RequestInit = {}) {
 	const token = localStorage.getItem('access_token');
-
 	const headers = {
 		...options.headers,
-		Authorization: `Bearer ${token}`,
-		'Content-Type': 'application/json'
+		Authorization: `Bearer ${token}`
 	};
-
-	const response = await fetch(url, { ...options, headers });
-
-	if (response.status === 401) {
-		localStorage.clear();
-		window.location.href = '/login';
-	}
-
-	return response;
+	return fetch(url, { ...options, headers });
 }
+
+function handleLogout() {
+	if (typeof window !== 'undefined') {
+		localStorage.clear();
+		window.location.href = '/login?error=session_expired';
+	}
+}
+
+export const api = {
+	get: <T>(url: string) => request<T>(url, { method: 'GET' }),
+	post: <T>(url: string, body: any) =>
+		request<T>(url, { method: 'POST', body: JSON.stringify(body) }),
+	patch: <T>(url: string, body: any) =>
+		request<T>(url, { method: 'PATCH', body: JSON.stringify(body) }),
+	delete: <T>(url: string) => request<T>(url, { method: 'DELETE' })
+};
