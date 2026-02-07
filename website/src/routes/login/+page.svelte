@@ -4,8 +4,8 @@
 	import { Chrome, Loader2, AlertCircle } from 'lucide-svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
+	import { api } from '$lib/api/client';
 
-	const API_BASE_URL = 'http://backend:8000';
 	let isLoading = $state(false);
 
 	// Reactively derive the error message from the URL search params
@@ -14,10 +14,7 @@
 	async function handleGoogleLogin() {
 		isLoading = true;
 		try {
-			const response = await fetch(`${API_BASE_URL}/api/auth/connect/google`);
-			if (!response.ok) throw new Error('Failed to fetch auth URL');
-
-			const data = await response.json();
+			const data = await api.get<{ auth_url: string }>('/api/auth/connect/google');
 
 			if (data.auth_url) {
 				window.location.href = data.auth_url;

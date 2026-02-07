@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { authorizedFetch } from '$lib/api';
+	import { api } from '$lib/api/client';
 	import type { components } from '$lib/types/api';
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
@@ -21,19 +21,10 @@
 	const API_BASE_URL = 'http://backend:8000';
 
 	async function fetchWorkflows() {
-		const token = localStorage.getItem('access_token');
-		if (!token) {
-			goto('/login');
-			return;
-		}
-
 		try {
-			const res = await authorizedFetch(`${API_BASE_URL}/api/workflow/get_workflows`);
-			if (res && res.ok) {
-				// Backend returns an array of workflows matching our Workflow type
-				workflows = await res.json();
-			}
-		} catch (err) {
+			workflows = await api.get<Workflow[]>('/api/workflow/get_workflows');
+		} catch (err: any) {
+			if (err.status === 401) goto('/login');
 			console.error('Failed to load workflows', err);
 		} finally {
 			isLoading = false;
@@ -41,19 +32,14 @@
 	}
 
 	async function toggleWorkflow(id: string, currentStatus: boolean) {
-		const payload: ToggleRequest = {
-			deployment_id: id,
-			status: !currentStatus
-		};
-
-		const res = await authorizedFetch(`${API_BASE_URL}/api/workflow/toggle`, {
-			method: 'PATCH',
-			body: JSON.stringify(payload)
-		});
-
-		if (res?.ok) {
-			// Optimistic UI update or re-fetch
-			fetchWorkflows();
+		try {
+			await api.patch('/api/workflow/toggle', {
+				deployment_id: id,
+				status: !currentStatus
+			});
+			await fetchWorkflows();
+		} catch (err) {
+			console.error('Toggle failed', err);
 		}
 	}
 
