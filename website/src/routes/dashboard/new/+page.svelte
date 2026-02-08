@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { authorizedFetch } from '$lib/api';
+	import { api } from '$lib/api/client';
 	import type { components } from '$lib/types/api';
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
@@ -33,14 +33,7 @@
 		generatedWorkflow = null;
 
 		try {
-			const res = await authorizedFetch(`${API_BASE_URL}/api/ai/interpret`, {
-				method: 'POST',
-				body: JSON.stringify({ text: prompt })
-			});
-
-			if (!res?.ok) throw new Error('Failed to communicate with AI');
-
-			const result: AIResponse = await res.json();
+      const result = await api.post<AIResponse>('/api/ai/interpret', { text: prompt });
 
 			if (result.success && result.data) {
 				generatedWorkflow = result.data;
@@ -48,7 +41,8 @@
 				errorMessage = result.error || 'AI could not structure that request.';
 			}
 		} catch (err) {
-			errorMessage = 'Server connection lost. Please try again.';
+      errorMessage = err.message || 'Server connection lost. Please try again.';
+      console.error('Interpretation error:', err);
 		} finally {
 			isAnalyzing = false;
 		}
