@@ -23,8 +23,6 @@
 	let generatedWorkflow = $state<WorkflowDef | null>(null);
 	let errorMessage = $state('');
 
-	const API_BASE_URL = 'http://localhost:8000';
-
 	async function interpretCommand() {
 		if (!prompt) return;
 
@@ -33,7 +31,7 @@
 		generatedWorkflow = null;
 
 		try {
-      const result = await api.post<AIResponse>('/api/ai/interpret', { text: prompt });
+			const result = await api.post<AIResponse>('/api/ai/interpret', { text: prompt });
 
 			if (result.success && result.data) {
 				generatedWorkflow = result.data;
@@ -41,15 +39,14 @@
 				errorMessage = result.error || 'AI could not structure that request.';
 			}
 		} catch (err) {
-      errorMessage = err.message || 'Server connection lost. Please try again.';
-      console.error('Interpretation error:', err);
+			errorMessage = err.message || 'Server connection lost. Please try again.';
+			console.error('Interpretation error:', err);
 		} finally {
 			isAnalyzing = false;
 		}
 	}
 
 	async function confirmAndDeploy() {
-		// Logic to save the workflow would go here
 		goto('/dashboard?created=success');
 	}
 </script>
