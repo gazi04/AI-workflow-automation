@@ -6,19 +6,18 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Switch } from '$lib/components/ui/switch';
-	import { Loader2, Mail, Slack, Trash2, Play, Settings2 } from 'lucide-svelte';
+	import { Loader2, Mail, Trash2, Play, Settings2, RefreshCw } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
 
 	type Workflow = components['schemas']['WorkflowDefinition'] & {
 		deployment_id: string;
-		active: boolean;
+		is_active: boolean;
 	};
-	type ToggleRequest = components['schemas']['ToggleWorkflowRequest'];
 
 	let workflows = $state<Workflow[]>([]);
 	let isLoading = $state(true);
-
-	const API_BASE_URL = 'http://backend:8000';
+	let runningIds = $state<Set<string>>(new Set());
 
 	async function fetchWorkflows() {
 		try {
@@ -40,6 +39,33 @@
 			await fetchWorkflows();
 		} catch (err) {
 			console.error('Toggle failed', err);
+		}
+	}
+
+	async function runWorkflow(wf: Workflow) {
+		const id = wf.deployment_id || (wf as any).id;
+
+		if (!id) {
+			console.error('No deployment ID found on this workflow object', wf);
+			return;
+		}
+
+		if (runningIds.has(id)) return;
+
+		runningIds.add(id);
+		try {
+			await api.post('/api/workflow/run', {
+				deployment_id: id,
+				config: wf.config || { trigger: wf.trigger, actions: wf.actions }
+			});
+
+			console.log(`Workflow triggered successfully`);
+		} catch (err) {
+			console.error('Manual run failed', err);
+		} finally {
+			setTimeout(() => {
+				runningIds.delete(id);
+			}, 1000);
 		}
 	}
 
@@ -80,7 +106,7 @@
 							</Badge>
 							<Switch
 								checked={wf.is_active}
-								onCheckedChange={() => toggleWorkflow(wf.id, wf.is_active)}
+								onCheckedChange={() => toggleWorkflow(wf.deployment_id, wf.is_active)}
 							/>
 						</div>
 						<Card.Title class="mt-4 text-xl font-bold">{wf.name}</Card.Title>
@@ -90,10 +116,32 @@
 					</Card.Header>
 
 					<Card.Content class="space-y-4">
-						<div class="flex items-center rounded-md border bg-muted/50 p-2 text-xs font-semibold">
-							<Play class="mr-2 h-3.5 w-3.5 text-primary" />
-							TRIGGER: {wf.config?.trigger?.type?.replace('_', ' ') || 'Unknown'}
-						</div>
+						{#if wf.config?.trigger?.type === 'schedule'}
+							<button
+								onclick={() => runWorkflow(wf)}
+								disabled={runningIds.has(wf.deployment_id)}
+								class="group flex w-full items-center justify-between rounded-md border bg-primary/5 p-2 text-xs font-semibold transition-colors hover:bg-primary/10"
+							>
+								<div class="flex items-center">
+									{#if runningIds.has(wf.deployment_id)}
+										<RefreshCw class="mr-2 h-3.5 w-3.5 animate-spin text-primary" />
+									{:else}
+										<Play
+											class="mr-2 h-3.5 w-3.5 text-primary transition-transform group-hover:scale-110"
+										/>
+									{/if}
+									TRIGGER: {wf.config.trigger.type.replace('_', ' ')}
+								</div>
+								<span class="text-[10px] text-primary opacity-70">RUN NOW</span>
+							</button>
+						{:else}
+							<div
+								class="flex items-center rounded-md border bg-muted/50 p-2 text-xs font-semibold text-muted-foreground"
+							>
+								<Play class="mr-2 h-3.5 w-3.5 opacity-50" />
+								TRIGGER: {wf.config?.trigger?.type?.replace('_', ' ') || 'Unknown'}
+							</div>
+						{/if}
 
 						<div class="space-y-2">
 							<p class="text-[10px] font-bold text-muted-foreground uppercase">Automation Steps</p>
@@ -111,7 +159,7 @@
 						<Button variant="ghost" size="sm" class="text-destructive hover:bg-destructive/10">
 							<Trash2 class="h-4 w-4" />
 						</Button>
-						<Button variant="secondary" size="sm">
+						<Button variant="secondary" size="sm" href="/dashboard/edit/{wf.deployment_id}">
 							<Settings2 class="mr-1 h-4 w-4" /> Config
 						</Button>
 					</Card.Footer>
