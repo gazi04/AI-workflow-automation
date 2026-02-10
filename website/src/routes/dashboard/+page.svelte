@@ -159,7 +159,7 @@
 						<Button variant="ghost" size="sm" class="text-destructive hover:bg-destructive/10">
 							<Trash2 class="h-4 w-4" />
 						</Button>
-						<Button variant="secondary" size="sm" href="/dashboard/edit/{wf.deployment_id}">
+						<Button variant="secondary" size="sm" href="/dashboard/edit/{wf.id}">
 							<Settings2 class="mr-1 h-4 w-4" /> Config
 						</Button>
 					</Card.Footer>
