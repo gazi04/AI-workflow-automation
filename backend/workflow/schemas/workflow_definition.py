@@ -1,7 +1,8 @@
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional
 from .trigger import Trigger
 from .action import Action
+from .ui_metadata_workflow import UIMetadata
 
 
 class WorkflowDefinition(BaseModel):
@@ -11,3 +12,4 @@ class WorkflowDefinition(BaseModel):
     )
     trigger: Trigger
     actions: List[Action]
+    ui_metadata: Optional[UIMetadata] = None
