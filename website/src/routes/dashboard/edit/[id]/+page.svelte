@@ -1,103 +1,131 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
-    import { SvelteFlow, Controls, Background, type Node, type Edge } from '@xyflow/svelte';
-    import '@xyflow/svelte/dist/style.css';
-    import { api } from '$lib/api/client';
-    import { page } from '$app/state';
-    import { Loader2, Save } from 'lucide-svelte';
-    import { Button } from '$lib/components/ui/button';
+	import { onMount } from 'svelte';
+	import { SvelteFlow, Controls, Background, type Node, type Edge } from '@xyflow/svelte';
+	import '@xyflow/svelte/dist/style.css';
+	import { api } from '$lib/api/client';
+	import { page } from '$app/state';
+	import { Loader2, Save, X } from 'lucide-svelte';
+	import { Button } from '$lib/components/ui/button';
+	import TriggerNode from '$lib/editor/TriggerNode.svelte';
+	import ActionNode from '$lib/editor/ActionNode.svelte';
 
-    let isLoading = $state(true);
-    let nodes = $state<Node[]>([]);
-    let edges = $state<Edge[]>([]);
+	let isLoading = $state(true);
+	let workflow = $state<any>(null);
+	let nodes = $state<Node[]>([]);
+	let edges = $state<Edge[]>([]);
+	let selectedNode = $state<Node | null>(null);
 
-    async function loadWorkflow() {
-        try {
-            const id = page.params.id;
-            const wf = await api.get<any>(`/api/workflow/get_workflows`);
-            const currentWf = wf.find((w: any) => w.id === id);
+	const nodeTypes = {
+		trigger: TriggerNode,
+		action: ActionNode
+	};
 
-            if (currentWf) {
-                generateFlow(currentWf.config);
-            }
-        } finally {
-            isLoading = false;
-        }
-    }
+	async function loadWorkflow() {
+		try {
+			const id = page.params.id;
+			const res = await api.get<any>(`/api/workflow/get_workflows`);
+			workflow = res.find((w: any) => w.id === id);
 
-    function generateFlow(config: any) {
-        const newNodes: Node[] = [];
-        const newEdges: Edge[] = [];
+			if (workflow) {
+				// IMPORTANT: If we have UI metadata, use it. Otherwise, auto-layout.
+				if (workflow.ui_metadata && workflow.ui_metadata.nodes.length > 0) {
+					nodes = workflow.ui_metadata.nodes;
+					edges = workflow.ui_metadata.edges;
+				} else {
+					generateFlow(workflow.config);
+				}
+			}
+		} finally {
+			isLoading = false;
+		}
+	}
 
-        newNodes.push({
-            id: 'trigger',
-            type: 'default',
-            data: { label: `⚡ TRIGGER: ${config.trigger.type}` },
-            position: { x: 0, y: 0 },
-            style: 'background: #f0f9ff; border: 2px solid #0ea5e9; border-radius: 8px; padding: 10px;'
-        });
+	function generateFlow(config: any) {
+		// ... (Your existing generateFlow logic, but use types: 'trigger' and 'action')
+		// Ensure you add 'type: "trigger"' and 'type: "action"' to the objects
+		nodes = [
+			{ id: 'trigger', type: 'trigger', data: { ...config.trigger }, position: { x: 0, y: 0 } },
+			...config.actions.map((a, i) => ({
+				id: `action-${i}`,
+				type: 'action',
+				data: { ...a },
+				position: { x: (i + 1) * 300, y: 0 }
+			}))
+		];
+		// ... generate edges as you did before
+	}
 
-        config.actions.forEach((action: any, index: number) => {
-            const nodeId = `action-${index}`;
-            newNodes.push({
-                id: nodeId,
-                type: 'default',
-                data: { label: `⚙️ ACTION: ${action.type}` },
-                position: { x: (index + 1) * 250, y: 0 },
-                style: 'background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px;'
-            });
+	function onNodeClick({ detail }: any) {
+		selectedNode = detail.node;
+	}
 
-            newEdges.push({
-                id: `e-${index}`,
-                source: index === 0 ? 'trigger' : `action-${index - 1}`,
-                target: nodeId,
-                animated: true
-            });
-        });
+	async function handleSave() {
+		try {
+			isLoading = true;
+			// We send the current state of nodes/edges as ui_metadata
+			const updatedConfig = {
+				...workflow.config,
+				ui_metadata: { nodes, edges }
+			};
 
-        nodes = newNodes;
-        edges = newEdges;
-    }
+			await api.patch(`/api/workflow/update-config`, {
+				deployment_id: workflow.id, // Or deployment_id
+				config: updatedConfig
+			});
+			alert('Workflow saved successfully!');
+		} catch (e) {
+			console.error(e);
+		} finally {
+			isLoading = false;
+		}
+	}
 
-    async function handleSave() {
-        console.log("Saving current layout...");
-    }
-
-    onMount(loadWorkflow);
+	onMount(loadWorkflow);
 </script>
 
-<div class="flex flex-col h-screen bg-background">
-    <header class="p-4 border-b flex justify-between items-center bg-card text-card-foreground">
-        <div>
-            <h1 class="font-bold text-lg">Workflow Editor</h1>
-            <p class="text-xs text-muted-foreground">ID: {page.params.id}</p>
-        </div>
-        <Button onclick={handleSave} size="sm" class="gap-2">
-            <Save class="h-4 w-4" /> Save Changes
-        </Button>
-    </header>
+<div class="flex h-screen overflow-hidden bg-background">
+	<div class="flex flex-grow flex-col">
+		<header class="flex items-center justify-between border-b bg-card p-4">
+			<div>
+				<h1 class="text-lg font-bold">{workflow?.name || 'Loading...'}</h1>
+			</div>
+			<Button onclick={handleSave} size="sm" class="gap-2" disabled={isLoading}>
+				{#if isLoading}<Loader2 class="animate-spin" size={16} />{/if}
+				<Save class="h-4 w-4" /> Save
+			</Button>
+		</header>
 
-    <main class="flex-grow relative">
-        {#if isLoading}
-            <div class="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
-                <Loader2 class="h-8 w-8 animate-spin" />
-            </div>
-        {/if}
+		<main class="relative flex-grow">
+			<SvelteFlow {nodes} {edges} {nodeTypes} onnodeclick={onNodeClick} fitView>
+				<Controls />
+				<Background color="#eee" gap={20} />
+			</SvelteFlow>
+		</main>
+	</div>
 
-        <SvelteFlow 
-            bind:nodes 
-            bind:edges 
-            fitView
-        >
-            <Controls />
-            <Background color="#ccc" gap={20} />
-        </SvelteFlow>
-    </main>
+	{#if selectedNode}
+		<aside class="z-20 w-80 overflow-y-auto border-l bg-card p-6 shadow-xl">
+			<div class="mb-6 flex items-center justify-between">
+				<h2 class="text-md font-bold uppercase">Edit Step</h2>
+				<button onclick={() => (selectedNode = null)}><X size={18} /></button>
+			</div>
+
+			<div class="space-y-4">
+				<div>
+					<label class="text-xs font-bold text-muted-foreground uppercase">Type</label>
+					<p class="font-mono text-sm">{selectedNode.data.type}</p>
+				</div>
+
+				{#each Object.keys(selectedNode.data.config) as key}
+					<div>
+						<label class="text-xs font-bold text-muted-foreground uppercase">{key}</label>
+						<textarea
+							bind:value={selectedNode.data.config[key]}
+							class="mt-1 min-h-[100px] w-full rounded border bg-background p-2 text-sm"
+						></textarea>
+					</div>
+				{/each}
+			</div>
+		</aside>
+	{/if}
 </div>
-
-<style>
-    /* Ensure the container has height */
-    :global(.svelte-flow) {
-        background: var(--background);
-    }
-</style>
