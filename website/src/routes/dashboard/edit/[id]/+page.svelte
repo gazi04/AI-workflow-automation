@@ -15,7 +15,7 @@
         try {
             const id = page.params.id;
             const wf = await api.get<any>(`/api/workflow/get_workflows`);
-            const currentWf = wf.find((w: any) => w.deployment_id === id);
+            const currentWf = wf.find((w: any) => w.id === id);
 
             if (currentWf) {
                 generateFlow(currentWf.config);
