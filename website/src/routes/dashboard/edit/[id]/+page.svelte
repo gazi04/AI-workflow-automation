@@ -8,6 +8,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import TriggerNode from '$lib/editor/TriggerNode.svelte';
 	import ActionNode from '$lib/editor/ActionNode.svelte';
+	import ConfigPanel from '$lib/editor/ConfigPanel.svelte';
 
 	let isLoading = $state(true);
 	let workflow = $state<any>(null);
@@ -104,28 +105,6 @@
 	</div>
 
 	{#if selectedNode}
-		<aside class="z-20 w-80 overflow-y-auto border-l bg-card p-6 shadow-xl">
-			<div class="mb-6 flex items-center justify-between">
-				<h2 class="text-md font-bold uppercase">Edit Step</h2>
-				<button onclick={() => (selectedNode = null)}><X size={18} /></button>
-			</div>
-
-			<div class="space-y-4">
-				<div>
-					<label class="text-xs font-bold text-muted-foreground uppercase">Type</label>
-					<p class="font-mono text-sm">{selectedNode.data.type}</p>
-				</div>
-
-				{#each Object.keys(selectedNode.data.config) as key}
-					<div>
-						<label class="text-xs font-bold text-muted-foreground uppercase">{key}</label>
-						<textarea
-							bind:value={selectedNode.data.config[key]}
-							class="mt-1 min-h-[100px] w-full rounded border bg-background p-2 text-sm"
-						></textarea>
-					</div>
-				{/each}
-			</div>
-		</aside>
+		<ConfigPanel bind:node={selectedNode} onClose={() => (selectedNode = null)} />
 	{/if}
 </div>
