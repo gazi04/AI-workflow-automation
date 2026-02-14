@@ -6,9 +6,9 @@
 	import { page } from '$app/state';
 	import { Loader2, Save, X } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
-	import TriggerNode from '$lib/editor/TriggerNode.svelte';
-	import ActionNode from '$lib/editor/ActionNode.svelte';
-	import ConfigPanel from '$lib/editor/ConfigPanel.svelte';
+	import TriggerNode from '$lib/components/editor/TriggerNode.svelte';
+	import ActionNode from '$lib/components/editor/ActionNode.svelte';
+	import ConfigPanel from '$lib/components/editor/ConfigPanel.svelte';
 
 	let isLoading = $state(true);
 	let workflow = $state<any>(null);
