@@ -4,8 +4,9 @@
 	import '@xyflow/svelte/dist/style.css';
 	import { api } from '$lib/api/client';
 	import { page } from '$app/state';
-	import { Loader2, Save, X } from 'lucide-svelte';
+	import { Loader2, Save, X, ChevronLeft } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { goto } from '$app/navigation';
 	import TriggerNode from '$lib/components/editor/TriggerNode.svelte';
 	import ActionNode from '$lib/components/editor/ActionNode.svelte';
 	import ConfigPanel from '$lib/components/editor/ConfigPanel.svelte';
@@ -104,6 +105,10 @@
 <div class="flex h-screen overflow-hidden bg-background">
 	<div class="flex flex-grow flex-col">
 		<header class="flex items-center justify-between border-b bg-card p-4">
+			<Button variant="ghost" size="sm" class="w-fit gap-2" onclick={() => goto('/dashboard')}>
+				<ChevronLeft class="h-4 w-4" /> Go to dashboard
+			</Button>
+
 			<div>
 				<h1 class="text-lg font-bold">{workflow?.name || 'Loading...'}</h1>
 			</div>
