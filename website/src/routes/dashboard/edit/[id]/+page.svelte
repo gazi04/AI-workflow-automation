@@ -28,7 +28,6 @@
 			workflow = res.find((w: any) => w.id === id);
 
 			if (workflow) {
-				// IMPORTANT: If we have UI metadata, use it. Otherwise, auto-layout.
 				if (workflow.ui_metadata && workflow.ui_metadata.nodes.length > 0) {
 					nodes = workflow.ui_metadata.nodes;
 					edges = workflow.ui_metadata.edges;
@@ -42,35 +41,53 @@
 	}
 
 	function generateFlow(config: any) {
-		// ... (Your existing generateFlow logic, but use types: 'trigger' and 'action')
-		// Ensure you add 'type: "trigger"' and 'type: "action"' to the objects
-		nodes = [
-			{ id: 'trigger', type: 'trigger', data: { ...config.trigger }, position: { x: 0, y: 0 } },
-			...config.actions.map((a, i) => ({
-				id: `action-${i}`,
-				type: 'action',
-				data: { ...a },
-				position: { x: (i + 1) * 300, y: 0 }
-			}))
+		const newNodes: Node[] = [
+			{
+				id: 'trigger',
+				type: 'trigger',
+				data: { type: config.trigger.type, config: config.trigger.config },
+				position: { x: 0, y: 0 }
+			}
 		];
-		// ... generate edges as you did before
+
+		const newEdges: Edge[] = [];
+
+		config.actions.forEach((action: any, index: number) => {
+			const nodeId = `action-${index}`;
+			newNodes.push({
+				id: nodeId,
+				type: 'action',
+				data: { type: action.type, config: action.config },
+				position: { x: (index + 1) * 350, y: 0 }
+			});
+
+			newEdges.push({
+				id: `e-${index}`,
+				source: index === 0 ? 'trigger' : `action-${index - 1}`,
+				target: nodeId,
+				animated: true
+			});
+		});
+
+		nodes = newNodes;
+		edges = newEdges;
 	}
 
-	function onNodeClick({ detail }: any) {
-		selectedNode = detail.node;
+	function onNodeClick({ event, node }: { event: MouseEvent; node: Node }) {
+		selectedNode = node;
+		console.log('Selected node ID:', node.id);
 	}
 
 	async function handleSave() {
 		try {
 			isLoading = true;
-			// We send the current state of nodes/edges as ui_metadata
 			const updatedConfig = {
 				...workflow.config,
 				ui_metadata: { nodes, edges }
 			};
 
 			await api.patch(`/api/workflow/update-config`, {
-				deployment_id: workflow.id, // Or deployment_id
+				deployment_id: workflow.id,
 				config: updatedConfig
 			});
 			alert('Workflow saved successfully!');
