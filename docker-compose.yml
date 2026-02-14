@@ -98,7 +98,6 @@ services:
       - /app/.svelte-kit
       - /app/.vite
     restart: unless-stopped
-    command: npm run dev -- --host 0.0.0.0
 
 volumes:
   postgres_data:

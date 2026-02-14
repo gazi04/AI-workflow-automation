@@ -1,15 +1,18 @@
-FROM node:22-slim AS development
+FROM oven/bun:1.1-alpine AS base
 
 WORKDIR /app
 
-# Copy dependency files
-COPY package*.json ./
+COPY package.json bun.lockb* ./
 
-# Install all dependencies (including dev dependencies)
-RUN npm ci
+RUN bun install --frozen-lockfile
 
-# Copy source code
+FROM base AS development
+
 COPY . .
 
-# Development command with hot reload
-CMD ["npm", "run", "dev"]
+RUN bun run prepare
+
+ENV NODE_ENV=development
+EXPOSE 5173
+
+CMD ["bun", "run", "dev", "--", "--host", "0.0.0.0"]
