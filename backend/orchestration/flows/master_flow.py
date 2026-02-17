@@ -55,7 +55,6 @@ async def execute_automation_flow(
                     )
                     continue
 
-                logger.info(f"The orginal email: {original_email}")
                 await anyio.to_thread.run_sync(
                     GmailTasks.reply_email,
                     user_id,
