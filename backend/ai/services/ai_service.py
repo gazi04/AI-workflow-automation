@@ -36,8 +36,8 @@ class AiService:
                     UserMessage(input),
                 ],
                 model=settings.azure_model,
-                max_tokens=1000,
-                temperature=0.7,
+                max_tokens=2000,
+                temperature=0.1,
             )
 
             return response.choices[0].message.content
