@@ -47,48 +47,44 @@ class AiService:
             raise HTTPException(status_code=500, detail=f"AI API call failed: {str(e)}")
 
     @staticmethod
+    def __clean_json_response(raw_response: str) -> str:
+        clean_text = raw_response.replace("```json", "").replace("```", "").strip()
+        
+        start = clean_text.find("{")
+        end = clean_text.rfind("}")
+
+        if start == -1 or end == -1:
+            raise ValueError("No valid JSON object (enclosed in {}) found in the response")
+            
+        return clean_text[start:end+1] # the +1 will enclude the '}' character in the return
+
+    @staticmethod
     def create_workflow(user_input: str) -> WorkflowDefinition:
         """
         Make a request to create a workflow, parses the response
         Returns the parsed workflow definition
         """
-        response = AiService.__make_ai_request(user_input)
-        return AiService.parse_ai_response(response)
+        workflow_schema = json.dumps(WorkflowDefinition.model_json_schema(), indent=2)
+
+        strict_system_prompt = f"""
+        {settings.system_prompt}
+
+        CRITICAL OUTPUT INSTRUCTIONS:
+        1. You must output ONLY a valid JSON object.
+        2. Do not include markdown formatting, code blocks, or explanations.
+        3. Your JSON must strictly adhere to the following schema:
+        
+        {workflow_schema}
+        """
+
+        response = AiService.__make_ai_request(user_input, strict_system_prompt)
+        json_content = AiService.__clean_json_response(response)
+        return WorkflowDefinition.model_validate_json(json_content)
 
     @staticmethod
     def ask_ai(user_input: str, prompt: str) -> str:
         """Make generall questions to AI and get it's response"""
         return AiService.__make_ai_request(user_input, prompt)
-
-    @staticmethod
-    def parse_ai_response(raw_response: str) -> WorkflowDefinition:
-        """Tries to extract and parse JSON from the AI's response."""
-        try:
-            # Find the first JSON block in the response
-            start = raw_response.find("{")
-            end = raw_response.rfind("}") + 1
-
-            if start == -1 or end == 0:
-                raise ValueError("No JSON object found in the response")
-
-            json_str = raw_response[start:end]
-            data = json.loads(json_str)
-
-            # Validate and create the Pydantic model
-            return WorkflowDefinition(**data)
-
-        except (json.JSONDecodeError, ValueError) as e:
-            # Check if the AI itself responded with an error
-            if "error" in raw_response.lower():
-                logger.error(
-                    f"Error in the AI response. This is the respone: {raw_response}"
-                )
-                raise ValueError(raw_response)
-            else:
-                logger.error(
-                    f"Failed to parse AI response as JSON: {e}\nResponse was: {raw_response}"
-                )
-                raise ValueError("Failed to interpret AI response.")
 
     @staticmethod
     def health_check() -> dict:
