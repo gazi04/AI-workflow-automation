@@ -6,11 +6,7 @@ from typing import Dict, Any, List, Optional
 
 from orchestration.tasks import GmailTasks
 
-# Loading the models ensuring that the SQLAlchemy Base registry is fully populated before any database operation
-import auth.models  # noqa: F401
-import user.models  # noqa: F401
-import workflow.models  # noqa: F401
-
+import core.models
 import anyio
 
 
