@@ -1,11 +1,20 @@
 from uuid import UUID
-
-from core.setup_logging import setup_logger
 from prefect import flow
-from typing import Dict, Any, List, Optional
-
+from typing import Dict, Any, Optional
+from core.setup_logging import setup_logger
 from orchestration.tasks import GmailTasks
+from workflow.schemas.workflow_definition import WorkflowDefinition
+from workflow.schemas.action import (
+    Action,
+    SendEmailAction,
+    ReplyEmailAction,
+    LabelEmailAction,
+    SmartDraftAction,
+    SendSlackMessageAction,
+    CreateDocumentAction,
+)
 
+# Loading the models ensuring that the SQLAlchemy Base registry is fully populated before any database operation
 import core.models
 import anyio
 
@@ -20,78 +29,71 @@ async def execute_automation_flow(
     This flow is generic. It doesn't know what it does until it receives
     the 'workflow_data' JSON at runtime.
     """
-    print(f"🚀 Starting Workflow: {workflow_data.get('name')}")
-
     logger = setup_logger("Master flow")
 
-    original_email: Optional[Dict[str, Any]] = None
-    if trigger_context:
-        original_email = trigger_context.get("original_email")
+    try:
+        workflow = WorkflowDefinition.model_validate(workflow_data)
+    except Exception as e:
+        logger.error(f"Invalid workflow data for user {user_id}: {e}")
+        raise
 
-    actions: List[Dict] = workflow_data.get("actions", [])
+    print(f"🚀 Starting Workflow: {workflow.name}")
 
-    for action in actions:
-        action_type = action.get("type")
-        action_config = action.get("config", {})
+    original_email: Optional[Dict[str, Any]] = (
+        trigger_context.get("original_email") if trigger_context else None
+    )
 
+    def requires_email_context(action: Action) -> bool:
+        return isinstance(action, (ReplyEmailAction, LabelEmailAction, SmartDraftAction))
+
+    for action in workflow.actions:
         try:
-            if action_type == "send_email":
+            if requires_email_context(action) and not original_email:
+                logger.error(
+                    f"Action '{action.type}' requires an email trigger context but none was provided."
+                )
+                continue
+
+            if isinstance(action, SendEmailAction):
                 await anyio.to_thread.run_sync(
                     GmailTasks.send_message,
                     user_id,
-                    action_config.get("to"),
-                    action_config.get("subject"),
-                    action_config.get("body"),
+                    action.config.to,
+                    action.config.subject,
+                    action.config.body,
                 )
 
-            elif action_type == "reply_email":
-                if not original_email:
-                    logger.error(
-                        f"Action {action_type} requires an email trigger context. This is the original_email={original_email}"
-                    )
-                    continue
-
+            elif isinstance(action, ReplyEmailAction):
                 await anyio.to_thread.run_sync(
                     GmailTasks.reply_email,
                     user_id,
-                    action_config.get("body"),
+                    action.config.body,
                     original_email,
                 )
 
-            elif action_type == "label_email":
-                if not original_email:
-                    logger.error(
-                        f"Action {action_type} requires an email trigger context. This is the original_email={original_email}"
-                    )
-                    continue
-
+            elif isinstance(action, LabelEmailAction):
                 await anyio.to_thread.run_sync(
                     GmailTasks.label_mail,
                     user_id,
-                    action_config.get("label"),
-                    action_config.get("backgroundColor"),
-                    action_config.get("textColor"),
+                    action.config.label_info,
                     original_email,
                 )
 
-            elif action_type == "smart_draft":
-                if not original_email:
-                    logger.error(
-                        f"Action {action_type} requires an email trigger context. This is the original_email={original_email}"
-                    )
-                    continue
-
+            elif isinstance(action, SmartDraftAction):
                 await anyio.to_thread.run_sync(
                     GmailTasks.smart_draft,
                     user_id,
                     original_email,
-                    action_config.get("user_prompt", ""),
+                    action.config.user_prompt,
                 )
 
-            elif action_type == "send_slack_message":
-                print(f"Send slack message to {action_config.get('channel')}")
+            elif isinstance(action, SendSlackMessageAction):
+                print(f"Send slack message to {action.config.channel}")
+
+            elif isinstance(action, CreateDocumentAction):
+                print(f"Create document '{action.config.title}'")
 
         except Exception as e:
             # todo: ✨ send a notification to the user here
-            print(f"❌ Error executing action {action_type}: {e}")
-            logger.error(f"Unexpected error occurred on action {action_type}: {e}")
+            print(f"❌ Error executing action '{action.type}': {e}")
+            logger.error(f"Unexpected error occurred on action '{action.type}': {e}")
