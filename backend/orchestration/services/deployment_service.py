@@ -6,6 +6,7 @@ from prefect.client.schemas.actions import DeploymentUpdate
 from prefect.client.schemas.schedules import CronSchedule
 from core.setup_logging import setup_logger
 from orchestration.flows.master_flow import execute_automation_flow
+from workflow.schemas import WorkflowDefinition
 
 logger = setup_logger("Deployment Service")
 
@@ -25,22 +26,23 @@ class DeploymentService:
 
     @staticmethod
     async def create_deployment_for_workflow(
-        user_id: UUID, workflow_name: str, workflow_data: dict
+            user_id: UUID, workflow: WorkflowDefinition
     ) -> UUID:
         """
             Dynamically registers a deployment with Prefect.
         """
-        trigger_data = workflow_data.get("trigger", {})
-        trigger_type = trigger_data.get("type")
+        trigger = workflow.trigger
+        trigger_type = trigger.type
 
         schedule = None
         if trigger_type == "schedule":
-            cron_expression = trigger_data.get("config", {}).get("cron")
+            cron_expression = trigger.config.cron
             if cron_expression:
                 schedule = CronSchedule(cron=cron_expression, timezone="UTC")
 
-        safe_name = workflow_name.replace(" ", "-").lower()
+        safe_name = workflow.name.replace(" ", "-").lower()
         deployment_name = f"user-{user_id}-{safe_name}"
+        workflow_data = workflow.model_dump()
 
         flow_from_source = await execute_automation_flow.from_source(
             source=".",
