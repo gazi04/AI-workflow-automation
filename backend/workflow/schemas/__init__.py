@@ -1,4 +1,12 @@
-from .action import Action
+from .action import (
+    Action,
+    SendEmailAction,
+    ReplyEmailAction,
+    LabelEmailAction,
+    SmartDraftAction,
+    SendSlackMessageAction,
+    CreateDocumentAction,
+)
 from .trigger import Trigger
 from .workflow_definition import WorkflowDefinition
 from .toggle_workflow_request import ToggleWorkflowRequest
@@ -10,4 +18,10 @@ __all__ = [
     "WorkflowDefinition",
     "ToggleWorkflowRequest",
     "UpdateWorkflowRequest",
+    "SendEmailAction",
+    "ReplyEmailAction",
+    "LabelEmailAction",
+    "SmartDraftAction",
+    "SendSlackMessageAction",
+    "CreateDocumentAction",
 ]

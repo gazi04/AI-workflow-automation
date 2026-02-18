@@ -3,8 +3,8 @@ from prefect import flow
 from typing import Dict, Any, Optional
 from core.setup_logging import setup_logger
 from orchestration.tasks import GmailTasks
-from workflow.schemas.workflow_definition import WorkflowDefinition
-from workflow.schemas.action import (
+from workflow.schemas import (
+    WorkflowDefinition,
     Action,
     SendEmailAction,
     ReplyEmailAction,
@@ -15,7 +15,7 @@ from workflow.schemas.action import (
 )
 
 # Loading the models ensuring that the SQLAlchemy Base registry is fully populated before any database operation
-import core.models
+import core.models  # F401
 import anyio
 
 
@@ -44,7 +44,9 @@ async def execute_automation_flow(
     )
 
     def requires_email_context(action: Action) -> bool:
-        return isinstance(action, (ReplyEmailAction, LabelEmailAction, SmartDraftAction))
+        return isinstance(
+            action, (ReplyEmailAction, LabelEmailAction, SmartDraftAction)
+        )
 
     for action in workflow.actions:
         try:
