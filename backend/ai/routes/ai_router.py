@@ -35,7 +35,7 @@ async def interpret_command(
         }
 
         deployment_id = await DeploymentService.create_deployment_for_workflow(
-            user.id, workflow_definition.name, ai_generated_definition_dict
+            user.id, workflow_definition
         )
 
         WorkflowService.create(
