@@ -4,63 +4,6 @@
  */
 
 export interface paths {
-	'/items': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/** Test Front */
-		get: operations['test_front_items_get'];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * Read Root
-		 * @description A simple root endpoint to confirm the server is reachable.
-		 */
-		get: operations['read_root__get'];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/status': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		/**
-		 * Api Status
-		 * @description Endpoint to check the general status of the API.
-		 */
-		get: operations['api_status_api_status_get'];
-		put?: never;
-		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
 	'/api/auth/protected': {
 		parameters: {
 			query?: never;
@@ -318,33 +261,26 @@ export interface components {
 		AIResponse: {
 			/** Success */
 			success: boolean;
-			data?: components['schemas']['WorkflowDefinition'] | null;
+			data?: components['schemas']['WorkflowDefinition-Output'] | null;
 			/** Error */
 			error?: string | null;
 		};
-		/** Action */
-		Action: {
-			/** @description The type of action to perform */
-			type: components['schemas']['ActionType'];
+		/** CreateDocumentAction */
+		CreateDocumentAction: {
 			/**
-			 * Config
-			 * @description The configuration needed for this action, like channel name, email address, etc.
+			 * @description discriminator enum property added by openapi-typescript
+			 * @enum {string}
 			 */
-			config: {
-				[key: string]: unknown;
-			};
+			type: 'create_document';
+			config: components['schemas']['CreateDocumentConfig'];
 		};
-		/**
-		 * ActionType
-		 * @enum {string}
-		 */
-		ActionType:
-			| 'send_slack_message'
-			| 'send_email'
-			| 'reply_email'
-			| 'label_email'
-			| 'smart_draft'
-			| 'create_document';
+		/** CreateDocumentConfig */
+		CreateDocumentConfig: {
+			/** Title */
+			title: string;
+			/** Content */
+			content: string;
+		};
 		/** DeleteWorkflowRequest */
 		DeleteWorkflowRequest: {
 			/**
@@ -354,15 +290,128 @@ export interface components {
 			 */
 			deployment_id: string;
 		};
+		/** EmailReceivedConfig */
+		EmailReceivedConfig: {
+			/**
+			 * From
+			 * Format: email
+			 */
+			from: string;
+			/**
+			 * Subject Contains
+			 * @default
+			 */
+			subject_contains: string;
+		};
+		/** EmailReceivedTrigger */
+		EmailReceivedTrigger: {
+			/**
+			 * @description discriminator enum property added by openapi-typescript
+			 * @enum {string}
+			 */
+			type: 'email_received';
+			config: components['schemas']['EmailReceivedConfig'];
+		};
+		/** GmailLabel */
+		GmailLabel: {
+			/** Name */
+			name: string;
+			labelListVisibility?: components['schemas']['LabelListVisibility'] | null;
+			messageListVisibility?: components['schemas']['MessageListVisibility'] | null;
+			type?: components['schemas']['LabelType'] | null;
+			color?: components['schemas']['LabelColor'] | null;
+		};
 		/** HTTPValidationError */
 		HTTPValidationError: {
 			/** Detail */
 			detail?: components['schemas']['ValidationError'][];
 		};
+		/** LabelColor */
+		LabelColor: {
+			/**
+			 * Backgroundcolor
+			 * @description The background color hex string (e.g., #000000)
+			 */
+			backgroundColor: string;
+			/**
+			 * Textcolor
+			 * @description The text color hex string (e.g., #ffffff)
+			 */
+			textColor: string;
+		};
+		/** LabelEmailAction */
+		'LabelEmailAction-Input': {
+			/**
+			 * @description discriminator enum property added by openapi-typescript
+			 * @enum {string}
+			 */
+			type: 'label_email';
+			config: components['schemas']['LabelEmailConfig-Input'];
+		};
+		/** LabelEmailAction */
+		'LabelEmailAction-Output': {
+			/**
+			 * @description discriminator enum property added by openapi-typescript
+			 * @enum {string}
+			 */
+			type: 'label_email';
+			config: components['schemas']['LabelEmailConfig-Output'];
+		};
+		/** LabelEmailConfig */
+		'LabelEmailConfig-Input': {
+			label_info: components['schemas']['GmailLabel'];
+		};
+		/** LabelEmailConfig */
+		'LabelEmailConfig-Output': {
+			label_info: components['schemas']['GmailLabel'];
+		};
+		/**
+		 * LabelListVisibility
+		 * @enum {string}
+		 */
+		LabelListVisibility: 'labelShow' | 'labelShowIfUnread' | 'labelHide';
+		/**
+		 * LabelType
+		 * @enum {string}
+		 */
+		LabelType: 'system' | 'user';
+		/**
+		 * MessageListVisibility
+		 * @enum {string}
+		 */
+		MessageListVisibility: 'show' | 'hide';
+		/** NewSheetRowConfig */
+		NewSheetRowConfig: {
+			/** Spreadsheet Id */
+			spreadsheet_id: string;
+		};
+		/** NewSheetRowTrigger */
+		NewSheetRowTrigger: {
+			/**
+			 * @description discriminator enum property added by openapi-typescript
+			 * @enum {string}
+			 */
+			type: 'new_sheet_row';
+			config: components['schemas']['NewSheetRowConfig'];
+		};
 		/** RefreshTokenRequest */
 		RefreshTokenRequest: {
 			/** Refresh Token */
 			refresh_token: string;
+		};
+		/** ReplyEmailAction */
+		ReplyEmailAction: {
+			/**
+			 * @description discriminator enum property added by openapi-typescript
+			 * @enum {string}
+			 */
+			type: 'reply_email';
+			config: components['schemas']['ReplyEmailConfig'];
+		};
+		/** ReplyEmailConfig */
+		ReplyEmailConfig: {
+			/** Body */
+			body: string;
 		};
 		/** RunWorkflowRequest */
 		RunWorkflowRequest: {
@@ -379,6 +428,79 @@ export interface components {
 			config: {
 				[key: string]: unknown;
 			};
+		};
+		/** ScheduleConfig */
+		ScheduleConfig: {
+			/**
+			 * Cron
+			 * @example 0 9 * * *
+			 */
+			cron: string;
+			/** Description */
+			description: string;
+		};
+		/** ScheduleTrigger */
+		ScheduleTrigger: {
+			/**
+			 * @description discriminator enum property added by openapi-typescript
+			 * @enum {string}
+			 */
+			type: 'schedule';
+			config: components['schemas']['ScheduleConfig'];
+		};
+		/** SendEmailAction */
+		SendEmailAction: {
+			/**
+			 * @description discriminator enum property added by openapi-typescript
+			 * @enum {string}
+			 */
+			type: 'send_email';
+			config: components['schemas']['SendEmailConfig'];
+		};
+		/** SendEmailConfig */
+		SendEmailConfig: {
+			/**
+			 * To
+			 * Format: email
+			 */
+			to: string;
+			/** Subject */
+			subject: string;
+			/** Body */
+			body: string;
+		};
+		/** SendSlackMessageAction */
+		SendSlackMessageAction: {
+			/**
+			 * @description discriminator enum property added by openapi-typescript
+			 * @enum {string}
+			 */
+			type: 'send_slack_message';
+			config: components['schemas']['SendSlackMessageConfig'];
+		};
+		/** SendSlackMessageConfig */
+		SendSlackMessageConfig: {
+			/**
+			 * Channel
+			 * @description Channel name or ID (e.g., #general)
+			 */
+			channel: string;
+			/** Message */
+			message: string;
+		};
+		/** SmartDraftAction */
+		SmartDraftAction: {
+			/**
+			 * @description discriminator enum property added by openapi-typescript
+			 * @enum {string}
+			 */
+			type: 'smart_draft';
+			config: components['schemas']['SmartDraftConfig'];
+		};
+		/** SmartDraftConfig */
+		SmartDraftConfig: {
+			/** User Prompt */
+			user_prompt: string;
 		};
 		/** ToggleWorkflowRequest */
 		ToggleWorkflowRequest: {
@@ -403,23 +525,21 @@ export interface components {
 			/** Token Type */
 			token_type: string;
 		};
-		/** Trigger */
-		Trigger: {
-			/** @description The event that starts the workflow */
-			type: components['schemas']['TriggerType'];
-			/**
-			 * Config
-			 * @description The configuration needed for this trigger, like sender's email, sheet ID, etc.
-			 */
-			config: {
+		/** UIMetadata */
+		UIMetadata: {
+			/** Nodes */
+			nodes: {
 				[key: string]: unknown;
-			};
+			}[];
+			/** Edges */
+			edges: {
+				[key: string]: unknown;
+			}[];
+			/** Viewport */
+			viewport?: {
+				[key: string]: unknown;
+			} | null;
 		};
-		/**
-		 * TriggerType
-		 * @enum {string}
-		 */
-		TriggerType: 'email_received' | 'new_sheet_row' | 'schedule';
 		/** UpdateWorkflowRequest */
 		UpdateWorkflowRequest: {
 			/**
@@ -428,13 +548,8 @@ export interface components {
 			 * @description The Prefect Deployment ID
 			 */
 			deployment_id: string;
-			/**
-			 * Config
-			 * @description New configuration/parameters to merge
-			 */
-			config: {
-				[key: string]: unknown;
-			};
+			/** @description New configuration/parameters to merge */
+			config: components['schemas']['WorkflowDefinition-Input'];
 		};
 		/** UserRequest */
 		UserRequest: {
@@ -451,7 +566,7 @@ export interface components {
 			type: string;
 		};
 		/** WorkflowDefinition */
-		WorkflowDefinition: {
+		'WorkflowDefinition-Input': {
 			/**
 			 * Name
 			 * @description A concise, descriptive name for this workflow
@@ -462,9 +577,49 @@ export interface components {
 			 * @description A one-sentence summary of the workflow's purpose
 			 */
 			description: string;
-			trigger: components['schemas']['Trigger'];
+			/** Trigger */
+			trigger:
+				| components['schemas']['EmailReceivedTrigger']
+				| components['schemas']['NewSheetRowTrigger']
+				| components['schemas']['ScheduleTrigger'];
 			/** Actions */
-			actions: components['schemas']['Action'][];
+			actions: (
+				| components['schemas']['SendSlackMessageAction']
+				| components['schemas']['SendEmailAction']
+				| components['schemas']['ReplyEmailAction']
+				| components['schemas']['LabelEmailAction-Input']
+				| components['schemas']['SmartDraftAction']
+				| components['schemas']['CreateDocumentAction']
+			)[];
+			ui_metadata?: components['schemas']['UIMetadata'] | null;
+		};
+		/** WorkflowDefinition */
+		'WorkflowDefinition-Output': {
+			/**
+			 * Name
+			 * @description A concise, descriptive name for this workflow
+			 */
+			name: string;
+			/**
+			 * Description
+			 * @description A one-sentence summary of the workflow's purpose
+			 */
+			description: string;
+			/** Trigger */
+			trigger:
+				| components['schemas']['EmailReceivedTrigger']
+				| components['schemas']['NewSheetRowTrigger']
+				| components['schemas']['ScheduleTrigger'];
+			/** Actions */
+			actions: (
+				| components['schemas']['SendSlackMessageAction']
+				| components['schemas']['SendEmailAction']
+				| components['schemas']['ReplyEmailAction']
+				| components['schemas']['LabelEmailAction-Output']
+				| components['schemas']['SmartDraftAction']
+				| components['schemas']['CreateDocumentAction']
+			)[];
+			ui_metadata?: components['schemas']['UIMetadata'] | null;
 		};
 	};
 	responses: never;
@@ -475,66 +630,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-	test_front_items_get: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Successful Response */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': unknown;
-				};
-			};
-		};
-	};
-	read_root__get: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Successful Response */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': unknown;
-				};
-			};
-		};
-	};
-	api_status_api_status_get: {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		requestBody?: never;
-		responses: {
-			/** @description Successful Response */
-			200: {
-				headers: {
-					[name: string]: unknown;
-				};
-				content: {
-					'application/json': unknown;
-				};
-			};
-		};
-	};
 	protected_route_api_auth_protected_get: {
 		parameters: {
 			query?: never;
