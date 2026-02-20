@@ -15,6 +15,17 @@
 	let currentType = $derived(node.data.type);
 	let definition = $derived(availableDefinitions[currentType as keyof typeof availableDefinitions]);
 
+  $effect(() => {
+      const config = node.data.config;
+      if (node.data.type === 'email_received' && config) {
+          if (config.from_email && !config.from) {
+              console.log("Healing workflow config: moving from_email to from");
+              config.from = config.from_email;
+              delete config.from_email;
+          }
+      }
+  });
+
 	function handleTypeChange(newType: string) {
 		const def = availableDefinitions[newType as keyof typeof availableDefinitions];
 		if (!def) return;

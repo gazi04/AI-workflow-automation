@@ -30,8 +30,8 @@ async def interpret_command(
         workflow_definition = AiService.create_workflow(user_request.text)
 
         ai_generated_definition_dict = {
-            "trigger": workflow_definition.trigger.model_dump(),
-            "actions": [action.model_dump() for action in workflow_definition.actions],
+            "trigger": workflow_definition.trigger.model_dump(by_alias=True),
+            "actions": [action.model_dump(by_alias=True) for action in workflow_definition.actions],
         }
 
         deployment_id = await DeploymentService.create_deployment_for_workflow(
