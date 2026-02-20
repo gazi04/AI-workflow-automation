@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { api } from '$lib/api/client';
-	import type { components } from '$lib/types/api';
+	import type { components } from '$lib/types/schema';
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import * as Card from '$lib/components/ui/card';
@@ -9,7 +9,7 @@
 	import { goto } from '$app/navigation';
 
 	type AIResponse = components['schemas']['AIResponse'];
-	type WorkflowDef = components['schemas']['WorkflowDefinition'];
+	type WorkflowDef = components['schemas']['WorkflowDefinition-Output'];
 
 	let prompt = $state('');
 	let isAnalyzing = $state(false);

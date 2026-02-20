@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api/client';
-	import type { components } from '$lib/types/api';
+	import type { components } from '$lib/types/schema';
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
@@ -10,9 +10,13 @@
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 
-	type Workflow = components['schemas']['WorkflowDefinition'] & {
+	type WorkflowDef = components['schemas']['WorkflowDefinition-Output'];
+
+	type Workflow = WorkflowDef & {
 		deployment_id: string;
+		id: string;
 		is_active: boolean;
+		config?: WorkflowDef;
 	};
 
 	let workflows = $state<Workflow[]>([]);
@@ -56,7 +60,12 @@
 		try {
 			await api.post('/api/workflow/run', {
 				deployment_id: id,
-				config: wf.config || { trigger: wf.trigger, actions: wf.actions }
+				config: wf.config || {
+					name: wf.name,
+					description: wf.description,
+					trigger: wf.trigger,
+					actions: wf.actions
+				}
 			});
 
 			console.log(`Workflow triggered successfully`);
