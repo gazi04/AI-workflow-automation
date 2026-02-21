@@ -3,10 +3,10 @@
 	import { Zap } from 'lucide-svelte';
 	let { data } = $props();
 
-  const formatLabel = (text: string) => {
-    const formatedText = text.replace('_', ' ');
-    return formatedText.charAt(0).toUpperCase() + formatedText.slice(1);
-  }
+	const formatLabel = (text: string) => {
+		const formatedText = text.replace('_', ' ');
+		return formatedText.charAt(0).toUpperCase() + formatedText.slice(1);
+	};
 </script>
 
 <div
