@@ -13,7 +13,6 @@
 	type WorkflowDef = components['schemas']['WorkflowDefinition-Output'];
 
 	type Workflow = WorkflowDef & {
-		deployment_id: string;
 		id: string;
 		is_active: boolean;
 		config?: WorkflowDef;
@@ -47,7 +46,7 @@
 	}
 
 	async function runWorkflow(wf: Workflow) {
-		const id = wf.deployment_id || (wf as any).id;
+		const id = wf.id;
 
 		if (!id) {
 			console.error('No deployment ID found on this workflow object', wf);
@@ -115,7 +114,7 @@
 							</Badge>
 							<Switch
 								checked={wf.is_active}
-								onCheckedChange={() => toggleWorkflow(wf.deployment_id, wf.is_active)}
+								onCheckedChange={() => toggleWorkflow(wf.id, wf.is_active)}
 							/>
 						</div>
 						<Card.Title class="mt-4 text-xl font-bold">{wf.name}</Card.Title>
@@ -128,11 +127,11 @@
 						{#if wf.config?.trigger?.type === 'schedule'}
 							<button
 								onclick={() => runWorkflow(wf)}
-								disabled={runningIds.has(wf.deployment_id)}
+								disabled={runningIds.has(wf.id)}
 								class="group flex w-full items-center justify-between rounded-md border bg-primary/5 p-2 text-xs font-semibold transition-colors hover:bg-primary/10"
 							>
 								<div class="flex items-center">
-									{#if runningIds.has(wf.deployment_id)}
+									{#if runningIds.has(wf.id)}
 										<RefreshCw class="mr-2 h-3.5 w-3.5 animate-spin text-primary" />
 									{:else}
 										<Play
