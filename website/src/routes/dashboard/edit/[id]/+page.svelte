@@ -10,9 +10,22 @@
 	import TriggerNode from '$lib/components/editor/TriggerNode.svelte';
 	import ActionNode from '$lib/components/editor/ActionNode.svelte';
 	import ConfigPanel from '$lib/components/editor/ConfigPanel.svelte';
+	import type { components } from '$lib/types/schema';
+
+	type WorkflowDef = components['schemas']['WorkflowDefinition-Output'];
+
+	type Workflow = WorkflowDef & {
+		deployment_id: string;
+		id: string;
+		is_active: boolean;
+		name: string;
+		config: any;
+		ui_metadata?: { nodes: Node[]; edges: Edge[] } | null;
+	};
 
 	let isLoading = $state(true);
-	let workflow = $state<any>(null);
+
+	let workflow = $state<Workflow | null>(null);
 	let nodes = $state<Node[]>([]);
 	let edges = $state<Edge[]>([]);
 	let selectedNode = $state<Node | null>(null);
@@ -25,17 +38,25 @@
 	async function loadWorkflow() {
 		try {
 			const id = page.params.id;
-			const res = await api.get<any>(`/api/workflow/get_workflows`);
-			workflow = res.find((w: any) => w.id === id);
+
+			const res = await api.get<Workflow>(`/api/workflow/get_workflow/${id}`);
+			workflow = res;
 
 			if (workflow) {
-				if (workflow.ui_metadata && workflow.ui_metadata.nodes.length > 0) {
+				if (
+					workflow.ui_metadata &&
+					workflow.ui_metadata.nodes &&
+					workflow.ui_metadata.nodes.length > 0
+				) {
 					nodes = workflow.ui_metadata.nodes;
 					edges = workflow.ui_metadata.edges;
-				} else {
+				} else if (workflow.config) {
 					generateFlow(workflow.config);
 				}
 			}
+		} catch (err: any) {
+			console.error('Failed to load workflow:', err);
+			if (err.status === 401) goto('/login');
 		} finally {
 			isLoading = false;
 		}
@@ -80,6 +101,8 @@
 	}
 
 	async function handleSave() {
+		if (!workflow) return;
+
 		try {
 			isLoading = true;
 			const updatedConfig = {
