@@ -1,3 +1,4 @@
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -35,6 +36,18 @@ async def get_workflows(
             detail="An unexpected error occurred.",
         )
 
+@workflow_router.get("/get_workflow/{workflow_id}")
+async def get_workflow(workflow_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    try:
+        return WorkflowService.get_by_id(db, workflow_id)
+    except Exception as e:
+        logger.error(
+            f"Unexpected error occurred in the get_workflows endpoint with message: \n{e}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred.",
+        )
 
 @workflow_router.post("/run")
 async def run_workflow(request: RunWorkflowRequest):

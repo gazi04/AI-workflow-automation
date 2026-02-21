@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 from uuid import UUID
 from sqlalchemy.orm import Session
 
@@ -52,6 +52,10 @@ class WorkflowService:
     @staticmethod
     def get_by_user_id(db: Session, id: UUID) -> List[Workflow]:
         return db.query(Workflow).filter(Workflow.user_id == id).all()
+
+    @staticmethod
+    def get_by_id(db: Session, id: UUID) -> Optional[Workflow]:
+        return db.query(Workflow).filter(Workflow.id == id).first()
 
     @staticmethod
     def delete_by_id(db: Session, id: UUID) -> None:
