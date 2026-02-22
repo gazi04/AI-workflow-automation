@@ -1,12 +1,8 @@
 <script lang="ts">
 	import { Handle, Position } from '@xyflow/svelte';
 	import { Zap } from 'lucide-svelte';
+	import { formatLabel } from '$lib/utils';
 	let { data } = $props();
-
-	const formatLabel = (text: string) => {
-		const formatedText = text.replace('_', ' ');
-		return formatedText.charAt(0).toUpperCase() + formatedText.slice(1);
-	};
 </script>
 
 <div

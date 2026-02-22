@@ -8,6 +8,7 @@
 	import { Switch } from '$lib/components/ui/switch';
 	import { Loader2, Mail, Trash2, Play, Settings2, RefreshCw } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
+	import { formatLabel } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
 
 	type WorkflowDef = components['schemas']['WorkflowDefinition-Output'];
@@ -138,7 +139,7 @@
 											class="mr-2 h-3.5 w-3.5 text-primary transition-transform group-hover:scale-110"
 										/>
 									{/if}
-									TRIGGER: {wf.config.trigger.type.replace('_', ' ')}
+									TRIGGER: {formatLabel(wf.config.trigger.type)}
 								</div>
 								<span class="text-[10px] text-primary opacity-70">RUN NOW</span>
 							</button>
@@ -147,7 +148,7 @@
 								class="flex items-center rounded-md border bg-muted/50 p-2 text-xs font-semibold text-muted-foreground"
 							>
 								<Play class="mr-2 h-3.5 w-3.5 opacity-50" />
-								TRIGGER: {wf.config?.trigger?.type?.replace('_', ' ') || 'Unknown'}
+								TRIGGER: {formatLabel(wf.config?.trigger?.type?)}
 							</div>
 						{/if}
 
@@ -156,7 +157,7 @@
 							<div class="flex flex-wrap gap-2">
 								{#each wf.config?.actions || [] as action}
 									<Badge variant="outline" class="font-mono text-[10px] uppercase">
-										{action.type.replace('_', ' ')}
+										{formatLabel(action.type)}
 									</Badge>
 								{/each}
 							</div>
