@@ -78,6 +78,22 @@
 		}
 	}
 
+	async function deleteWorkflow(id: string, name: string) {
+		const confirmed = confirm(
+			`Are you sure you want to delete "${name}"? This will stop all active runs and remove the agent permanently.`
+		);
+		if (!confirmed) return;
+
+		try {
+      await api.delete(`/api/workflow/delete?deployment_id=${id}`);
+      await fetchWorkflows();
+      toast.success(`Agent "${name}" deleted.`);
+		} catch (err: any) {
+			console.error('Delete failed', err);
+			toast.error(err.detail || 'Failed to delete agent. Please try again.');
+		}
+	}
+
 	onMount(fetchWorkflows);
 </script>
 
@@ -165,7 +181,12 @@
 					</Card.Content>
 
 					<Card.Footer class="flex justify-between border-t bg-muted/20 pt-4">
-						<Button variant="ghost" size="sm" class="text-destructive hover:bg-destructive/10">
+						<Button
+							variant="ghost"
+							size="sm"
+							class="text-destructive hover:bg-destructive/10"
+							onclick={() => deleteWorkflow(wf.id)}
+						>
 							<Trash2 class="h-4 w-4" />
 						</Button>
 						<Button variant="secondary" size="sm" href="/dashboard/edit/{wf.id}">
