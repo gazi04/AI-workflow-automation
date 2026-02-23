@@ -7,7 +7,7 @@ from auth.models.connected_account import ConnectedAccount
 
 class AccountService:
     @staticmethod
-    def get_account_by_id_and_provider(
+    def get_account_by_user_and_provider(
         db: Session, user_id: UUID, provider: str
     ) -> ConnectedAccount:
         return (
