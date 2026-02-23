@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from actions.routes.webhook_router import webhook_router
-from auth.routes.auth_router import auth_router
+from auth.routes import auth_router, connection_router
 from ai.routes.ai_router import ai_router
 from workflow.routes.workflow_router import workflow_router
 
@@ -15,6 +15,7 @@ import core.models # noqa: F401
 app = FastAPI(title="AI Workflow Orchestrator API")
 
 app.include_router(auth_router, prefix="/api")
+app.include_router(connection_router, prefix="/api")
 app.include_router(ai_router, prefix="/api")
 app.include_router(webhook_router, prefix="/api")
 app.include_router(workflow_router, prefix="/api")
@@ -30,5 +31,4 @@ app.add_middleware(
 
 if __name__ == "__main__":
     import uvicorn
-    # Run the server on http://localhost:8000
     uvicorn.run(app, host="0.0.0.0", port=8000)
