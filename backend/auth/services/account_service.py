@@ -12,8 +12,10 @@ class AccountService:
     ) -> ConnectedAccount:
         return (
             db.query(ConnectedAccount)
-            .filter(ConnectedAccount.user_id == user_id)
-            .filter(ConnectedAccount.provider == provider)
+            .filter(
+                ConnectedAccount.user_id == user_id,
+                ConnectedAccount.provider == provider,
+            )
             .first()
         )
 
@@ -49,19 +51,6 @@ class AccountService:
         db.commit()
         db.refresh(account)
         return account
-
-    @staticmethod
-    def get_account(
-        db: Session, user_id: UUID, provider: str
-    ) -> ConnectedAccount:
-        return (
-            db.query(ConnectedAccount)
-            .filter(
-                ConnectedAccount.user_id == user_id,
-                ConnectedAccount.provider == provider,
-            )
-            .first()
-        )
 
     @staticmethod
     def update_history_id(
