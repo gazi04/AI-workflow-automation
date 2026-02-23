@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from typing import Any
+from typing import Any, List, Optional
 from uuid import UUID
 
 from auth.models.connected_account import ConnectedAccount
@@ -9,7 +9,7 @@ class AccountService:
     @staticmethod
     def get_account_by_user_and_provider(
         db: Session, user_id: UUID, provider: str
-    ) -> ConnectedAccount:
+    ) -> Optional[ConnectedAccount]:
         return (
             db.query(ConnectedAccount)
             .filter(
@@ -18,6 +18,10 @@ class AccountService:
             )
             .first()
         )
+
+    @staticmethod
+    def get_all_user_accounts(db: Session, user_id: UUID) -> List[ConnectedAccount]:
+        return db.query(ConnectedAccount).filter(ConnectedAccount.user_id == user_id).all()
 
     @staticmethod
     def refresh_tokens(
