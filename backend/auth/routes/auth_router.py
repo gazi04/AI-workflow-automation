@@ -119,7 +119,7 @@ async def callback_google(
 
         user = UserService.get_or_create(db, provider_account_email)
 
-        existing_account = AccountService.get_account(db, user.id, "google")
+        existing_account = AccountService.get_account_by_user_and_provider(db, user.id, "google")
 
         if existing_account:
             existing_account.access_token = credentials.token
@@ -184,7 +184,7 @@ async def callback_google(
             del user_sessions[state]
 
         frontend_url = f"http://localhost:5173/auth/success?access_token={access_token}&refresh_token={refresh_token_string}"
-    
+
         return RedirectResponse(url=frontend_url)
 
     except Exception as e:
