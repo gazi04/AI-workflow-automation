@@ -27,7 +27,6 @@
 		try {
 			workflows = await api.get<Workflow[]>('/api/workflow/get_workflows');
 		} catch (err: any) {
-			if (err.status === 401) goto('/login');
 			toast.error('Failed to load workflows.');
 			console.error('Failed to load workflows', err);
 		} finally {

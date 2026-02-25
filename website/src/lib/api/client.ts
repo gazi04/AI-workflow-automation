@@ -2,7 +2,7 @@ import { env } from '$env/dynamic/public';
 
 export const BASE_URL = env.PUBLIC_API_URL || 'http://localhost:8000';
 
-let isRefreshing = false;
+let refreshPromise: Promise<string | null> | null = null;
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
 	const url = `${BASE_URL}${endpoint}`;
@@ -17,23 +17,28 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
 	let response = await fetcher(url, { ...options, headers });
 
-	if (response.status === 401 && !isRefreshing) {
-		isRefreshing = true;
+	if (response.status === 401) {
+		if (!refreshPromise) {
+			refreshPromise = attemptTokenRefresh().finally(() => {
+				refreshPromise = null;
+			});
+		}
 
 		try {
-			const newToken = await attemptTokenRefresh();
+			const newToken = await refreshPromise;
 			if (newToken) {
 				const retryHeaders = {
 					...headers,
 					Authorization: `Bearer ${newToken}`
 				};
 				response = await fetch(url, { ...options, headers: retryHeaders });
+			} else {
+				handleLogout();
+				throw { status: 401, message: 'Session expired' };
 			}
 		} catch (err) {
 			handleLogout();
 			throw { status: 401, message: 'Session expired' };
-		} finally {
-			isRefreshing = false;
 		}
 	}
 

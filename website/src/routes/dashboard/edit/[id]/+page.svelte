@@ -56,7 +56,6 @@
 			}
 		} catch (err: any) {
 			console.error('Failed to load workflow:', err);
-			if (err.status === 401) goto('/login');
 		} finally {
 			isLoading = false;
 		}
