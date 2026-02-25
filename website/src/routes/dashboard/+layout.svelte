@@ -3,6 +3,8 @@
 	import { api } from '$lib/api/client';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { LayoutDashboard, PlusCircle, Plug } from 'lucide-svelte';
 
 	let { children } = $props();
 
@@ -67,22 +69,64 @@
 		const interval = setInterval(checkAndRecoverConnections, 1000 * 60 * 45);
 		return () => clearInterval(interval);
 	});
+
 </script>
 
-{#if gmailNeedsReconnect}
-	<div
-		class="flex items-center justify-between bg-destructive/15 px-6 py-3 text-sm font-medium text-destructive"
+<div class="flex min-h-screen flex-col">
+	<header
+		class="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
 	>
-		<p>⚠️ Your Gmail connection requires authorization to continue processing automations.</p>
-		<button
-			class="text-destructive-foreground rounded-md bg-destructive px-3 py-1.5 transition-colors hover:bg-destructive/90"
-			onclick={() => goto('/dashboard/integrations')}
-		>
-			Fix Connection
-		</button>
-	</div>
-{/if}
+		<nav class="flex h-14 items-center gap-6 px-6">
+			<a
+				href="/dashboard"
+				class="flex items-center gap-2 text-sm font-medium transition-colors {$page.url.pathname ===
+				'/dashboard'
+					? 'text-foreground'
+					: 'text-muted-foreground hover:text-foreground'}"
+			>
+				<LayoutDashboard class="h-4 w-4" />
+				Agents
+			</a>
 
-<main class="flex-1">
-	{@render children()}
-</main>
+			<a
+				href="/dashboard/new"
+				class="flex items-center gap-2 text-sm font-medium transition-colors {$page.url.pathname ===
+				'/dashboard/new'
+					? 'text-foreground'
+					: 'text-muted-foreground hover:text-foreground'}"
+			>
+				<PlusCircle class="h-4 w-4" />
+				New Agent
+			</a>
+
+			<a
+				href="/dashboard/integrations"
+				class="flex items-center gap-2 text-sm font-medium transition-colors {$page.url.pathname ===
+				'/dashboard/integrations'
+					? 'text-foreground'
+					: 'text-muted-foreground hover:text-foreground'}"
+			>
+				<Plug class="h-4 w-4" />
+				Integrations
+			</a>
+		</nav>
+	</header>
+
+	{#if gmailNeedsReconnect}
+		<div
+			class="flex items-center justify-between bg-destructive/15 px-6 py-3 text-sm font-medium text-destructive"
+		>
+			<p>⚠️ Your Gmail connection requires authorization to continue processing automations.</p>
+			<button
+				class="text-destructive-foreground rounded-md bg-destructive px-3 py-1.5 transition-colors hover:bg-destructive/90"
+				onclick={() => goto('/dashboard/integrations')}
+			>
+				Fix Connection
+			</button>
+		</div>
+	{/if}
+
+	<main class="flex-1 overflow-auto">
+		{@render children()}
+	</main>
+</div>
