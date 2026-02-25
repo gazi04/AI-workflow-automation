@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { api } from '$lib/api/client';
+	import { api, BASE_URL } from '$lib/api/client';
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
@@ -12,7 +12,8 @@
 		AlertCircle,
 		CheckCircle2,
 		Settings2,
-		Unplug
+		Unplug,
+		Info
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { formatLabel } from '$lib/utils';
@@ -30,15 +31,19 @@
 
 	let integrations = $state<IntegrationStatus[]>([]);
 	let isLoading = $state(true);
+	let error = $state<string | null>(null);
 	let syncingProviders = $state<Set<string>>(new Set());
 
 	async function fetchIntegrations() {
+		isLoading = true;
+		error = null;
 		try {
 			const res = await api.get<ConnectionStatusResponse>('/api/connection/status');
 			integrations = res.integrations;
-		} catch (err) {
+		} catch (err: any) {
 			console.error('Failed to load integrations', err);
-			toast.error('Failed to load connection statuses.');
+			error = err.detail || 'Failed to load connection statuses.';
+			toast.error(error);
 		} finally {
 			isLoading = false;
 		}
@@ -47,25 +52,31 @@
 	async function syncWebhook(provider: string) {
 		if (syncingProviders.has(provider)) return;
 
+		if (provider !== 'google') {
+			toast.info(`Sync is not yet supported for ${formatLabel(provider)}.`, {
+				icon: Info
+			});
+			return;
+		}
+
 		syncingProviders.add(provider);
 
 		try {
-			if (provider === 'google') {
-				await api.get('/api/webhook/listen-to-gmail');
-				toast.success('Gmail webhook synced successfully!');
-			}
-		} catch (err) {
+			await api.get('/api/webhooks/listen-to-gmail');
+			toast.success('Gmail webhook synced successfully!');
+		} catch (err: any) {
 			console.error(`Failed to sync ${provider}`, err);
-			toast.error(`Failed to sync ${formatLabel(provider)}. You may need to reconnect.`);
+			const message =
+				err.detail || `Failed to sync ${formatLabel(provider)}. You may need to reconnect.`;
+			toast.error(message);
 			await fetchIntegrations();
 		} finally {
 			syncingProviders.delete(provider);
 		}
 	}
 
-
 	function handleConnect(provider: string) {
-		window.location.href = `http://localhost:8000/api/auth/login/${provider}`;
+		window.location.href = `${BASE_URL}/api/auth/connect/${provider}`;
 	}
 
 	function getProviderIcon(provider: string) {
@@ -93,6 +104,19 @@
 	{#if isLoading}
 		<div class="flex h-64 items-center justify-center">
 			<Loader2 class="h-8 w-8 animate-spin text-muted-foreground" />
+		</div>
+	{:else if error}
+		<div class="flex h-64 flex-col items-center justify-center gap-4 text-center">
+			<div class="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+				<AlertCircle class="h-6 w-6 text-destructive" />
+			</div>
+			<div>
+				<h3 class="text-lg font-semibold">Unable to load integrations</h3>
+				<p class="text-sm text-muted-foreground">{error}</p>
+			</div>
+			<Button variant="outline" onclick={fetchIntegrations}>
+				<RefreshCw class="mr-2 h-4 w-4" /> Try Again
+			</Button>
 		</div>
 	{:else}
 		<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

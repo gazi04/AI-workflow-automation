@@ -28,6 +28,7 @@
 			workflows = await api.get<Workflow[]>('/api/workflow/get_workflows');
 		} catch (err: any) {
 			if (err.status === 401) goto('/login');
+			toast.error('Failed to load workflows.');
 			console.error('Failed to load workflows', err);
 		} finally {
 			isLoading = false;
@@ -41,7 +42,9 @@
 				status: !currentStatus
 			});
 			await fetchWorkflows();
+			toast.success('Workflow is now ', currentStatus);
 		} catch (err) {
+			toast.error('Failed to toggle workflow.');
 			console.error('Toggle failed', err);
 		}
 	}
@@ -68,8 +71,9 @@
 				}
 			});
 
-			console.log(`Workflow triggered successfully`);
+			toast.success('Workflow triggered successfully.');
 		} catch (err) {
+			toast.error('Workflow run failed.');
 			console.error('Manual run failed', err);
 		} finally {
 			setTimeout(() => {
@@ -85,9 +89,9 @@
 		if (!confirmed) return;
 
 		try {
-      await api.delete(`/api/workflow/delete?deployment_id=${id}`);
-      await fetchWorkflows();
-      toast.success(`Agent "${name}" deleted.`);
+			await api.delete(`/api/workflow/delete?deployment_id=${id}`);
+			await fetchWorkflows();
+			toast.success(`Agent "${name}" deleted.`);
 		} catch (err: any) {
 			console.error('Delete failed', err);
 			toast.error(err.detail || 'Failed to delete agent. Please try again.');
