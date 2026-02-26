@@ -21,7 +21,9 @@ class AccountService:
 
     @staticmethod
     def get_all_user_accounts(db: Session, user_id: UUID) -> List[ConnectedAccount]:
-        return db.query(ConnectedAccount).filter(ConnectedAccount.user_id == user_id).all()
+        return (
+            db.query(ConnectedAccount).filter(ConnectedAccount.user_id == user_id).all()
+        )
 
     @staticmethod
     def refresh_tokens(

@@ -15,7 +15,7 @@ class DeploymentService:
     @staticmethod
     async def run(workflow_id: UUID, config: Optional[Dict[str, Any]] = None):
         """
-            Run a prefect deployment
+        Run a prefect deployment
         """
         try:
             await run_deployment(workflow_id, parameters=config)
@@ -26,10 +26,10 @@ class DeploymentService:
 
     @staticmethod
     async def create_deployment_for_workflow(
-            user_id: UUID, workflow: WorkflowDefinition
+        user_id: UUID, workflow: WorkflowDefinition
     ) -> UUID:
         """
-            Dynamically registers a deployment with Prefect.
+        Dynamically registers a deployment with Prefect.
         """
         trigger = workflow.trigger
         trigger_type = trigger.type
@@ -64,9 +64,9 @@ class DeploymentService:
     @staticmethod
     async def toggle_workflow(deployment_id: UUID, active: bool) -> Dict:
         """
-            Toggles prefect deployments into active and not active states
-            active=True -> Resume
-            active=False -> Pause
+        Toggles prefect deployments into active and not active states
+        active=True -> Resume
+        active=False -> Pause
         """
         async with get_client() as client:
             await client.update_deployment(
@@ -78,7 +78,7 @@ class DeploymentService:
     @staticmethod
     async def update_workflow_config(deployment_id: UUID, new_params: Dict) -> Dict:
         """
-            Updates the parameters of a deployment
+        Updates the parameters of a deployment
         """
         async with get_client() as client:
             deployment = await client.read_deployment(deployment_id)
@@ -95,7 +95,7 @@ class DeploymentService:
     @staticmethod
     async def delete(id: UUID):
         """
-            Deletes deployment
+        Deletes deployment
         """
         async with get_client() as client:
             await client.delete_deployment(id)

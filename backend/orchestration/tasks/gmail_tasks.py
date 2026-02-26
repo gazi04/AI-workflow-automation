@@ -84,7 +84,7 @@ class GmailTasks:
                 create_message = {
                     "message": {
                         "raw": encoded_message,
-                        "threadId": original_email["thread_id"]
+                        "threadId": original_email["thread_id"],
                     }
                 }
 
@@ -269,12 +269,18 @@ class GmailTasks:
             raise error
 
     @staticmethod
-    def smart_draft(user_id: UUID, email_data: Dict[str, Any], context_instruction: Optional[str] = None):
+    def smart_draft(
+        user_id: UUID,
+        email_data: Dict[str, Any],
+        context_instruction: Optional[str] = None,
+    ):
         """
         Create a draft with an AI generated message
         """
-        specific_instruction = f"Instruction: {context_instruction}\n" if context_instruction else ""
-        
+        specific_instruction = (
+            f"Instruction: {context_instruction}\n" if context_instruction else ""
+        )
+
         user_input = (
             f"{specific_instruction}"
             f"Incoming Email Subject: {email_data.get('subject')}\n"
@@ -288,7 +294,7 @@ class GmailTasks:
             logger.info(f"AI response: {generated_body}")
 
             draft_result = GmailTasks.create_draft(user_id, generated_body, email_data)
-            
+
             logger.info(f"Smart Draft created successfully. ID: {draft_result['id']}")
             return draft_result
 

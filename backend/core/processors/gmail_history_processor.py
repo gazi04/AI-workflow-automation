@@ -13,6 +13,7 @@ from workflow.services.workflow_service import WorkflowService
 
 import anyio
 
+
 class GmailHistoryProcessor:
     """
     Helper class to manage the lifecycle of the Gmail service
@@ -73,7 +74,9 @@ class GmailHistoryProcessor:
             labels = full_message.get("labelIds", [])
 
             if "INBOX" not in labels or "SPAM" in labels or "TRASH" in labels:
-                self.logger.debug(f"Skipping message {message_id}. Labels {labels} do not meet criteria (Must be INBOX, not SPAM/TRASH).")
+                self.logger.debug(
+                    f"Skipping message {message_id}. Labels {labels} do not meet criteria (Must be INBOX, not SPAM/TRASH)."
+                )
                 return
 
             payload = full_message.get("payload", {})
@@ -97,7 +100,7 @@ class GmailHistoryProcessor:
                     (h["value"] for h in headers if h["name"].lower() == "references"),
                     "",
                 ),
-                "body": email_body or full_message.get("snippet", "")
+                "body": email_body or full_message.get("snippet", ""),
             }
 
             email_from = email_data["from"].lower()
@@ -106,12 +109,16 @@ class GmailHistoryProcessor:
             with db_session() as db:
                 # ⚡ todo: improve performance by caching the workflows
                 workflows = WorkflowService.get_by_user_id(db, self.user_id)
-                
+
                 active_ids = [w.id for w in workflows if w.is_active]
-                self.logger.debug(f"Processing message {message_id} against {len(active_ids)} active workflows. IDs: {active_ids}")
+                self.logger.debug(
+                    f"Processing message {message_id} against {len(active_ids)} active workflows. IDs: {active_ids}"
+                )
 
                 for workflow in workflows:
-                    self.logger.debug(f"Checking email with subject `{email_data.get("subject")}` with workflow {workflow.name}")
+                    self.logger.debug(
+                        f"Checking email with subject `{email_data.get('subject')}` with workflow {workflow.name}"
+                    )
                     if not workflow.is_active:
                         self.logger.debug(f"Skipping workflow {workflow.id} (Inactive)")
                         continue
@@ -134,7 +141,9 @@ class GmailHistoryProcessor:
                         continue
 
                     # subject condition
-                    trigger_subject = trigger_config.get("subject_contains", "").strip().lower()
+                    trigger_subject = (
+                        trigger_config.get("subject_contains", "").strip().lower()
+                    )
                     if trigger_subject and trigger_subject not in email_subject:
                         self.logger.debug(
                             f"Workflow {workflow.id} mismatch: 'Subject' condition failed. "
@@ -155,7 +164,6 @@ class GmailHistoryProcessor:
                         )
                         continue
 
-
                     self.logger.info(
                         f"✅ MATCH FOUND! Workflow ID: {workflow.id}\n"
                         f"   Reason: Matched Trigger Rules\n"
@@ -173,12 +181,12 @@ class GmailHistoryProcessor:
 
                     try:
                         anyio.from_thread.run(
-                            DeploymentService.run,
-                            workflow.id,
-                            trigger_context
+                            DeploymentService.run, workflow.id, trigger_context
                         )
                     except Exception as e:
-                        self.logger.error(f"Failed to trigger deployment for workflow {workflow.id}: {e}")
+                        self.logger.error(
+                            f"Failed to trigger deployment for workflow {workflow.id}: {e}"
+                        )
         except HttpError as e:
             if e.resp.status == 404:
                 self.logger.warning(
@@ -195,15 +203,21 @@ class GmailHistoryProcessor:
         """
         if "body" in payload and "data" in payload["body"]:
             return base64.urlsafe_b64decode(payload["body"]["data"]).decode("utf-8")
-        
+
         if "parts" in payload:
             for part in payload["parts"]:
                 mime_type = part.get("mimeType")
-                
-                if mime_type == "text/plain" and "body" in part and "data" in part["body"]:
-                    return base64.urlsafe_b64decode(part["body"]["data"]).decode("utf-8")
-                
+
+                if (
+                    mime_type == "text/plain"
+                    and "body" in part
+                    and "data" in part["body"]
+                ):
+                    return base64.urlsafe_b64decode(part["body"]["data"]).decode(
+                        "utf-8"
+                    )
+
                 if mime_type.startswith("multipart"):
                     return self._get_email_body(part)
-        
+
         return ""

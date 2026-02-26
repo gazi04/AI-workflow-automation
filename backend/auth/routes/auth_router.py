@@ -119,7 +119,9 @@ async def callback_google(
 
         user = UserService.get_or_create(db, provider_account_email)
 
-        existing_account = AccountService.get_account_by_user_and_provider(db, user.id, "google")
+        existing_account = AccountService.get_account_by_user_and_provider(
+            db, user.id, "google"
+        )
 
         if existing_account:
             existing_account.access_token = credentials.token

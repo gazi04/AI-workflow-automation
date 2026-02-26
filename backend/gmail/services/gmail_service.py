@@ -58,7 +58,7 @@ class GmailService:
     @staticmethod
     def handle_gmail_update(email_address: str, new_history_id: str):
         """
-            Runs in the background. Fetches changes since the last sync and triggers actions.
+        Runs in the background. Fetches changes since the last sync and triggers actions.
         """
         with db_session() as db:
             user = UserService.get_by_email(db, email_address)
@@ -68,7 +68,9 @@ class GmailService:
                 return
 
             user_id = user.id  # to use outside the with statment
-            connected_account = AccountService.get_account_by_user_and_provider(db, user_id, "google")
+            connected_account = AccountService.get_account_by_user_and_provider(
+                db, user_id, "google"
+            )
 
             now = datetime.now(timezone.utc)
             if connected_account.last_synced_started_at:
@@ -105,21 +107,23 @@ class GmailService:
                 connected_account = AccountService.get_account_by_user_and_provider(
                     db, user_id, "google"
                 )  # need to query the connected account again cause a SQLAlchemy model doesn't work outside the session
-                AccountService.update_history_id(
-                    db, connected_account, new_history_id
-                )
+                AccountService.update_history_id(db, connected_account, new_history_id)
 
         except HttpError as error:
             logger.error(f"Gmail History API error for {email_address}: {error}")
             with db_session() as db:
-                acc = AccountService.get_account_by_user_and_provider(db, user_id, "google")
+                acc = AccountService.get_account_by_user_and_provider(
+                    db, user_id, "google"
+                )
                 acc.last_synced_started_at = None
                 db.commit()
             return
         except Exception as e:
             logger.error(f"General processing error for {email_address}: {e}")
             with db_session() as db:
-                acc = AccountService.get_account_by_user_and_provider(db, user_id, "google")
+                acc = AccountService.get_account_by_user_and_provider(
+                    db, user_id, "google"
+                )
                 acc.last_synced_started_at = None
                 db.commit()
             return
@@ -127,16 +131,18 @@ class GmailService:
     @staticmethod
     def get_latest_message_id(user_id: UUID):
         """
-            The method is for testing purpose
+        The method is for testing purpose
         """
         with db_session() as db:
             scopes = ["https://www.googleapis.com/auth/gmail.readonly"]
             creds = AuthService.get_google_credentials(db, user_id, "google", scopes)
 
         with build("gmail", "v1", credentials=creds) as service:
-            results = service.users().messages().list(userId='me', maxResults=1).execute()
-            messages = results.get('messages', [])
+            results = (
+                service.users().messages().list(userId="me", maxResults=1).execute()
+            )
+            messages = results.get("messages", [])
             if not messages:
                 return None
-            return messages[0]['id']
+            return messages[0]["id"]
 

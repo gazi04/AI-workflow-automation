@@ -49,14 +49,18 @@ class AiService:
     @staticmethod
     def __clean_json_response(raw_response: str) -> str:
         clean_text = raw_response.replace("```json", "").replace("```", "").strip()
-        
+
         start = clean_text.find("{")
         end = clean_text.rfind("}")
 
         if start == -1 or end == -1:
-            raise ValueError("No valid JSON object (enclosed in {}) found in the response")
-            
-        return clean_text[start:end+1] # the +1 will enclude the '}' character in the return
+            raise ValueError(
+                "No valid JSON object (enclosed in {}) found in the response"
+            )
+
+        return clean_text[
+            start : end + 1
+        ]  # the +1 will enclude the '}' character in the return
 
     @staticmethod
     def create_workflow(user_input: str) -> WorkflowDefinition:

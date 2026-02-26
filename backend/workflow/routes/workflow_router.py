@@ -36,8 +36,13 @@ async def get_workflows(
             detail="An unexpected error occurred.",
         )
 
+
 @workflow_router.get("/get_workflow/{workflow_id}")
-async def get_workflow(workflow_id: UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+async def get_workflow(
+    workflow_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     try:
         return WorkflowService.get_by_id(db, workflow_id)
     except Exception as e:
@@ -48,6 +53,7 @@ async def get_workflow(workflow_id: UUID, db: Session = Depends(get_db), user: U
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred.",
         )
+
 
 @workflow_router.post("/run")
 async def run_workflow(request: RunWorkflowRequest):
@@ -66,9 +72,7 @@ async def toggle_workflow(
     Pause or Resume a Prefect deployment and updates the status of the workflow in the database.
     """
     try:
-        WorkflowService.update_is_active(
-            db, request.deployment_id, request.status
-        )
+        WorkflowService.update_is_active(db, request.deployment_id, request.status)
 
         result = await DeploymentService.toggle_workflow(
             deployment_id=request.deployment_id, active=request.status
