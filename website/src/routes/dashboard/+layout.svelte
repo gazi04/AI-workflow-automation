@@ -4,11 +4,14 @@
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { LayoutDashboard, PlusCircle, Plug } from 'lucide-svelte';
+	import { LayoutDashboard, PlusCircle, Plug, LogOut, User } from 'lucide-svelte';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 
 	let { children } = $props();
 
 	let gmailNeedsReconnect = $state(false);
+	let userEmail = $state<string | null>(null);
+	let userInitials = $state('?');
 
 	type IntegrationStatus = {
 		provider: string;
@@ -20,6 +23,32 @@
 	type ConnectionStatusResponse = {
 		integrations: IntegrationStatus[];
 	};
+
+	function decodeJwtPayload(token: string): Record<string, unknown> | null {
+		try {
+			const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+			return JSON.parse(atob(base64));
+		} catch {
+			return null;
+		}
+	}
+
+	function loadUserFromToken() {
+		if (typeof window === 'undefined') return;
+		const token = localStorage.getItem('access_token');
+		if (!token) return;
+
+		const payload = decodeJwtPayload(token);
+		if (payload && typeof payload.email === 'string') {
+			userEmail = payload.email;
+			userInitials = userEmail.slice(0, 2).toUpperCase();
+		}
+	}
+
+	function logout() {
+		localStorage.clear();
+		goto('/login');
+	}
 
 	function triggerReconnectAlert() {
 		gmailNeedsReconnect = true;
@@ -64,12 +93,12 @@
 	}
 
 	onMount(() => {
+		loadUserFromToken();
 		checkAndRecoverConnections();
 
 		const interval = setInterval(checkAndRecoverConnections, 1000 * 60 * 45);
 		return () => clearInterval(interval);
 	});
-
 </script>
 
 <div class="flex min-h-screen flex-col">
@@ -109,6 +138,38 @@
 				<Plug class="h-4 w-4" />
 				Integrations
 			</a>
+
+			<div class="ml-auto">
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger>
+						<button
+							class="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground transition-opacity hover:opacity-80"
+							title={userEmail ?? 'Profile'}
+						>
+							{#if userEmail}
+								{userInitials}
+							{:else}
+								<User class="h-4 w-4" />
+							{/if}
+						</button>
+					</DropdownMenu.Trigger>
+
+					<DropdownMenu.Content align="end" class="w-56">
+						<DropdownMenu.Label>
+							<p class="text-xs text-muted-foreground">Signed in as</p>
+							<p class="truncate text-sm font-medium">{userEmail ?? '...'}</p>
+						</DropdownMenu.Label>
+						<DropdownMenu.Separator />
+						<DropdownMenu.Item
+							class="cursor-pointer text-destructive focus:text-destructive"
+							onclick={logout}
+						>
+							<LogOut class="mr-2 h-4 w-4" />
+							Log out
+						</DropdownMenu.Item>
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
+			</div>
 		</nav>
 	</header>
 
