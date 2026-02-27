@@ -1,6 +1,8 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 from prefect import get_client
+from prefect.client.schemas import FlowRun
+from prefect.client.schemas.filters import FlowRunFilter, FlowRunFilterDeploymentId
 from prefect.deployments import run_deployment
 from prefect.client.schemas.actions import DeploymentUpdate
 from prefect.client.schemas.schedules import CronSchedule
@@ -99,3 +101,15 @@ class DeploymentService:
         """
         async with get_client() as client:
             await client.delete_deployment(id)
+
+
+    @staticmethod
+    async def get_workflow_history(id: UUID) -> List[FlowRun]:
+        async with get_client() as client:
+            return await client.read_flow_runs(
+                flow_run_filter=FlowRunFilter(
+                    deployment_id=FlowRunFilterDeploymentId(any_=[id])
+                ),
+                limit=20,
+                sort="START_TIME_DESC"
+            )
