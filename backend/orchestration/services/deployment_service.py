@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional
 from uuid import UUID
 from prefect import get_client
 from prefect.client.schemas import FlowRun
-from prefect.client.schemas.filters import FlowRunFilter, FlowRunFilterDeploymentId
+from prefect.client.schemas.filters import FlowRunFilter, FlowRunFilterDeploymentId, FlowRunFilterTags
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.deployments import run_deployment
 from prefect.client.schemas.actions import DeploymentUpdate
@@ -57,7 +57,7 @@ class DeploymentService:
             name=deployment_name,
             parameters={"user_id": str(user_id), "workflow_data": workflow_data},
             schedule=schedule,
-            tags=["user-generated"],
+            tags=["user-generated", f"user-{user_id}"],
             work_pool_name="my-process-pool",
             build=False,
         )
@@ -104,16 +104,29 @@ class DeploymentService:
         async with get_client() as client:
             await client.delete_deployment(id)
 
+    @staticmethod
+    async def get_history(user_id: UUID) -> List[WorkflowRun]:
+        async with get_client() as client:
+            flow_runs = await client.read_flow_runs(
+                flow_run_filter=FlowRunFilter(
+                    tags=FlowRunFilterTags(all_=["user-generated", f"user_{user_id}"]),
+                ),
+                limit=50,
+                sort=FlowRunSort.START_TIME_DESC,
+            )
+
+            return translate_flow_runs_schema(flow_runs)
 
     @staticmethod
     async def get_workflow_history(id: UUID) -> List[WorkflowRun]:
         async with get_client() as client:
             flow_runs = await client.read_flow_runs(
                 flow_run_filter=FlowRunFilter(
-                    deployment_id=FlowRunFilterDeploymentId(any_=[id])
+                    deployment_id=FlowRunFilterDeploymentId(any_=[id]),
+                    tags=FlowRunFilterTags(all_=["user-generated"]),
                 ),
-                limit=20,
-                sort=FlowRunSort.START_TIME_DESC
+                limit=50,
+                sort=FlowRunSort.START_TIME_DESC,
             )
 
             return translate_flow_runs_schema(flow_runs)
