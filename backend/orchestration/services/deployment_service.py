@@ -8,7 +8,8 @@ from prefect.client.schemas.actions import DeploymentUpdate
 from prefect.client.schemas.schedules import CronSchedule
 from core.setup_logging import setup_logger
 from orchestration.flows.master_flow import execute_automation_flow
-from workflow.schemas import WorkflowDefinition
+from utils.translate_workflow_runs_schema import translate_flow_runs_schema
+from workflow.schemas import WorkflowDefinition, WorkflowRun
 
 logger = setup_logger("Deployment Service")
 
@@ -104,12 +105,14 @@ class DeploymentService:
 
 
     @staticmethod
-    async def get_workflow_history(id: UUID) -> List[FlowRun]:
+    async def get_workflow_history(id: UUID) -> List[WorkflowRun]:
         async with get_client() as client:
-            return await client.read_flow_runs(
+            flow_runs = await client.read_flow_runs(
                 flow_run_filter=FlowRunFilter(
                     deployment_id=FlowRunFilterDeploymentId(any_=[id])
                 ),
                 limit=20,
                 sort="START_TIME_DESC"
             )
+
+            return translate_flow_runs_schema(flow_runs)
