@@ -9,6 +9,7 @@ from .action import (
 )
 from .trigger import Trigger
 from .workflow_definition import WorkflowDefinition
+from .workflow_run import WorkflowRun
 from .toggle_workflow_request import ToggleWorkflowRequest
 from .update_workflow_request import UpdateWorkflowRequest
 
@@ -24,4 +25,5 @@ __all__ = [
     "SmartDraftAction",
     "SendSlackMessageAction",
     "CreateDocumentAction",
+    "WorkflowRun",
 ]
