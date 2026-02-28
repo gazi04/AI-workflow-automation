@@ -3,6 +3,7 @@ from uuid import UUID
 from prefect import get_client
 from prefect.client.schemas import FlowRun
 from prefect.client.schemas.filters import FlowRunFilter, FlowRunFilterDeploymentId
+from prefect.client.schemas.sorting import FlowRunSort
 from prefect.deployments import run_deployment
 from prefect.client.schemas.actions import DeploymentUpdate
 from prefect.client.schemas.schedules import CronSchedule
@@ -112,7 +113,7 @@ class DeploymentService:
                     deployment_id=FlowRunFilterDeploymentId(any_=[id])
                 ),
                 limit=20,
-                sort="START_TIME_DESC"
+                sort=FlowRunSort.START_TIME_DESC
             )
 
             return translate_flow_runs_schema(flow_runs)
