@@ -7,11 +7,9 @@ from google.auth.transport import requests
 from sqlalchemy.orm import Session
 
 from auth.depedencies import get_current_user
-from auth.models import RefreshToken
-from auth.models import ConnectedAccount
+from auth.models import RefreshToken, ConnectedAccount
 from auth.schemas import Token, RefreshTokenRequest
-from auth.services.account_service import AccountService
-from auth.services.token_service import TokenService
+from auth.services import AccountService, TokenService
 from auth.utils import create_access_token, create_refresh_token
 from core.config_loader import settings
 from core.database import get_db
