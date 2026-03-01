@@ -134,8 +134,18 @@ async def delete_workflow(
             detail="An unexpected error occurred.",
         )
 
-@workflow_router.get("/{deployement_id}/runs")
-async def get_workflow_runs(deployement_id: UUID, user: User = Depends(get_current_user)):
+@workflow_router.get("/histories")
+async def get_workflow_histories(user: User = Depends(get_current_user)):
+    try:
+        return await DeploymentService.get_history(user.id)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unexpected error occurred: {e}"
+        )
+
+@workflow_router.get("/{deployement_id}/history")
+async def get_workflow_history(deployement_id: UUID, user: User = Depends(get_current_user)):
     try:
         return await DeploymentService.get_workflow_history(deployement_id)
     except Exception as e:
@@ -143,3 +153,4 @@ async def get_workflow_runs(deployement_id: UUID, user: User = Depends(get_curre
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Unexpected error occurred: {e}"
         )
+
