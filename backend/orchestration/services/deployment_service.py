@@ -109,7 +109,7 @@ class DeploymentService:
         async with get_client() as client:
             flow_runs = await client.read_flow_runs(
                 flow_run_filter=FlowRunFilter(
-                    tags=FlowRunFilterTags(all_=["user-generated", f"user_{user_id}"]),
+                    tags=FlowRunFilterTags(all_=["user-generated", f"user-{user_id}"]),
                 ),
                 limit=50,
                 sort=FlowRunSort.START_TIME_DESC,
