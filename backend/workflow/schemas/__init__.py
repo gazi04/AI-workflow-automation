@@ -7,6 +7,8 @@ from .action import (
     SendSlackMessageAction,
     CreateDocumentAction,
 )
+from .delete_workflow_request import DeleteWorkflowRequest
+from .run_workflow_request import RunWorkflowRequest
 from .trigger import Trigger
 from .workflow_definition import WorkflowDefinition
 from .workflow_run import WorkflowRun
@@ -15,6 +17,8 @@ from .update_workflow_request import UpdateWorkflowRequest
 
 __all__ = [
     "Action",
+    "DeleteWorkflowRequest",
+    "RunWorkflowRequest",
     "Trigger",
     "WorkflowDefinition",
     "ToggleWorkflowRequest",
