@@ -136,6 +136,7 @@ async def delete_workflow(
 
 @workflow_router.get("/histories")
 async def get_workflow_histories(user: User = Depends(get_current_user)):
+    """Fetches the history of all the deployments of the user"""
     try:
         return await DeploymentService.get_history(user.id)
     except Exception as e:
@@ -146,6 +147,7 @@ async def get_workflow_histories(user: User = Depends(get_current_user)):
 
 @workflow_router.get("/{deployement_id}/history")
 async def get_workflow_history(deployement_id: UUID, user: User = Depends(get_current_user)):
+    """Fetches only the history for a specific deployment"""
     try:
         return await DeploymentService.get_workflow_history(deployement_id)
     except Exception as e:
