@@ -6,7 +6,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Switch } from '$lib/components/ui/switch';
-	import { Loader2, Mail, Trash2, Play, Settings2, RefreshCw } from 'lucide-svelte';
+	import { Eye, Loader2, Mail, Trash2, Play, Settings2, RefreshCw } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import { formatLabel } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
@@ -184,14 +184,19 @@
 					</Card.Content>
 
 					<Card.Footer class="flex justify-between border-t bg-muted/20 pt-4">
-						<Button
-							variant="ghost"
-							size="sm"
-							class="text-destructive hover:bg-destructive/10"
-							onclick={() => deleteWorkflow(wf.id)}
-						>
-							<Trash2 class="h-4 w-4" />
-						</Button>
+						<div class="flex gap-2">
+							<Button
+								variant="ghost"
+								size="sm"
+								class="text-destructive hover:bg-destructive/10"
+								onclick={() => deleteWorkflow(wf.id)}
+							>
+								<Trash2 class="h-4 w-4" />
+							</Button>
+							<Button variant="ghost" size="sm" href="/dashboard/agent/{wf.id}/history">
+								<Eye class="mr-1 h-4 w-4" /> History
+							</Button>
+						</div>
 						<Button variant="secondary" size="sm" href="/dashboard/edit/{wf.id}">
 							<Settings2 class="mr-1 h-4 w-4" /> Config
 						</Button>
