@@ -6,11 +6,9 @@ from auth.depedencies import get_current_user
 from core.database import get_db
 from core.setup_logging import setup_logger
 from orchestration.services import DeploymentService
-from user.models.user import User
-from workflow.schemas.delete_workflow_request import DeleteWorkflowRequest
-from workflow.schemas.run_workflow_request import RunWorkflowRequest
+from user.models import User
+from workflow.schemas import RunWorkflowRequest, UpdateWorkflowRequest, ToggleWorkflowRequest
 from workflow.services import WorkflowService
-from workflow.schemas import UpdateWorkflowRequest, ToggleWorkflowRequest
 
 
 logger = setup_logger("Workflow Router")
@@ -28,12 +26,10 @@ async def get_workflows(
     try:
         return WorkflowService.get_by_user_id(db, user.id)
     except Exception as e:
-        logger.error(
-            f"Unexpected error occurred in the get_workflows endpoint with message: \n{e}"
-        )
+        logger.error(f"Error fetching workflows: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred.",
+            detail="Could not fetch the workflow.",
         )
 
 
@@ -46,12 +42,10 @@ async def get_workflow(
     try:
         return WorkflowService.get_by_id(db, workflow_id)
     except Exception as e:
-        logger.error(
-            f"Unexpected error occurred in the get_workflows endpoint with message: \n{e}"
-        )
+        logger.error(f"Error fetching workflow {workflow_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred.",
+            detail=f"Could not fetch the workflow {workflow_id}.",
         )
 
 
@@ -61,7 +55,11 @@ async def run_workflow(request: RunWorkflowRequest):
         # todo: validated the request
         return await DeploymentService.run(request.deployment_id)
     except Exception as e:
-        raise e
+        logger.error(f"Error running workflow {request.deployment_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Could not run the workflow {request.deployment_id}",
+        )
 
 
 @workflow_router.patch("/toggle")
@@ -84,7 +82,7 @@ async def toggle_workflow(
         logger.error(f"Error toggling workflow {request.deployment_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred.",
+            detail=f"Could not toggle workflow {request.deployment_id}.",
         )
 
 
@@ -110,7 +108,7 @@ async def update_workflow_config(
         logger.error(f"Error updating config for {request.deployment_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred.",
+            detail=f"Could not update the workflow {request.deployment_id}.",
         )
 
 
@@ -131,7 +129,7 @@ async def delete_workflow(
         logger.error(f"Error deleting workflow {deployment_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred.",
+            detail="Could not delete workflow.",
         )
 
 @workflow_router.get("/histories")
@@ -140,9 +138,10 @@ async def get_workflow_histories(user: User = Depends(get_current_user)):
     try:
         return await DeploymentService.get_history(user.id)
     except Exception as e:
+        logger.error(f"Error fetching deployment historeis for user {user.id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Unexpected error occurred: {e}"
+            detail="Could not fetch the workflow histories.",
         )
 
 @workflow_router.get("/{deployement_id}/history")
@@ -151,8 +150,9 @@ async def get_workflow_history(deployement_id: UUID, user: User = Depends(get_cu
     try:
         return await DeploymentService.get_workflow_history(deployement_id)
     except Exception as e:
+        logger.error(f"Error fetching history for deployment {deployement_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Unexpected error occurred: {e}"
+            detail="Could not fetch the history of the workflow.",
         )
 
