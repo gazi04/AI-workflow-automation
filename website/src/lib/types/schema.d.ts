@@ -75,6 +75,26 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/connection/status': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get Connection Status
+		 * @description Returns the connectivity status of all supported integrations for the current user.
+		 */
+		get: operations['get_connection_status_api_connection_status_get'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/ai/interpret': {
 		parameters: {
 			query?: never;
@@ -176,6 +196,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/workflow/get_workflow/{workflow_id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get Workflow */
+		get: operations['get_workflow_api_workflow_get_workflow__workflow_id__get'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/workflow/run': {
 		parameters: {
 			query?: never;
@@ -253,6 +290,88 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/workflow/histories': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get Workflow Histories
+		 * @description Fetches the history of all the deployments of the user
+		 */
+		get: operations['get_workflow_histories_api_workflow_histories_get'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/workflow/{deployement_id}/history': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get Workflow History
+		 * @description Fetches only the history for a specific deployment
+		 */
+		get: operations['get_workflow_history_api_workflow__deployement_id__history_get'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/workflow/runs/latest': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get Latest Runs
+		 * @description Lightweight endpoint for frontend polling.
+		 *     Checks the most recent runs to trigger toast notifications.
+		 */
+		get: operations['get_latest_runs_api_workflow_runs_latest_get'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/workflow/runs/{run_id}/logs': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get Run Logs
+		 * @description Fetches the full terminal logs for a specific execution.
+		 *     Used when a user clicks the 'Eye' icon or 'View Logs' button.
+		 */
+		get: operations['get_run_logs_api_workflow_runs__run_id__logs_get'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -264,6 +383,11 @@ export interface components {
 			data?: components['schemas']['WorkflowDefinition-Output'] | null;
 			/** Error */
 			error?: string | null;
+		};
+		/** ConnectionStatusResponse */
+		ConnectionStatusResponse: {
+			/** Integrations */
+			integrations: components['schemas']['IntegrationStatus'][];
 		};
 		/** CreateDocumentAction */
 		CreateDocumentAction: {
@@ -280,15 +404,6 @@ export interface components {
 			title: string;
 			/** Content */
 			content: string;
-		};
-		/** DeleteWorkflowRequest */
-		DeleteWorkflowRequest: {
-			/**
-			 * Deployment Id
-			 * Format: uuid
-			 * @description The Prefect Deployment ID
-			 */
-			deployment_id: string;
 		};
 		/** EmailReceivedConfig */
 		EmailReceivedConfig: {
@@ -325,6 +440,29 @@ export interface components {
 		HTTPValidationError: {
 			/** Detail */
 			detail?: components['schemas']['ValidationError'][];
+		};
+		/** IntegrationStatus */
+		IntegrationStatus: {
+			/**
+			 * Provider
+			 * @description The name of the integration (e.g., 'google', 'discord')
+			 */
+			provider: string;
+			/**
+			 * Is Connected
+			 * @description True if the user has connected this account
+			 */
+			is_connected: boolean;
+			/**
+			 * Email
+			 * @description The email associated with the connected account
+			 */
+			email?: string | null;
+			/**
+			 * Needs Reconnect
+			 * @description True if tokens are invalid and user must log in again
+			 */
+			needs_reconnect: boolean;
 		};
 		/** LabelColor */
 		LabelColor: {
@@ -735,6 +873,26 @@ export interface operations {
 			};
 		};
 	};
+	get_connection_status_api_connection_status_get: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Successful Response */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ConnectionStatusResponse'];
+				};
+			};
+		};
+	};
 	interpret_command_api_ai_interpret_post: {
 		parameters: {
 			query?: never;
@@ -848,6 +1006,37 @@ export interface operations {
 			};
 		};
 	};
+	get_workflow_api_workflow_get_workflow__workflow_id__get: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workflow_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Successful Response */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': unknown;
+				};
+			};
+			/** @description Validation Error */
+			422: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['HTTPValidationError'];
+				};
+			};
+		};
+	};
 	run_workflow_api_workflow_run_post: {
 		parameters: {
 			query?: never;
@@ -949,16 +1138,116 @@ export interface operations {
 	};
 	delete_workflow_api_workflow_delete_delete: {
 		parameters: {
+			query: {
+				deployment_id: string;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Successful Response */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': unknown;
+				};
+			};
+			/** @description Validation Error */
+			422: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['HTTPValidationError'];
+				};
+			};
+		};
+	};
+	get_workflow_histories_api_workflow_histories_get: {
+		parameters: {
 			query?: never;
 			header?: never;
 			path?: never;
 			cookie?: never;
 		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['DeleteWorkflowRequest'];
+		requestBody?: never;
+		responses: {
+			/** @description Successful Response */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': unknown;
+				};
 			};
 		};
+	};
+	get_workflow_history_api_workflow__deployement_id__history_get: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				deployement_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Successful Response */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': unknown;
+				};
+			};
+			/** @description Validation Error */
+			422: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['HTTPValidationError'];
+				};
+			};
+		};
+	};
+	get_latest_runs_api_workflow_runs_latest_get: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Successful Response */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': unknown;
+				};
+			};
+		};
+	};
+	get_run_logs_api_workflow_runs__run_id__logs_get: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				run_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
 		responses: {
 			/** @description Successful Response */
 			200: {
