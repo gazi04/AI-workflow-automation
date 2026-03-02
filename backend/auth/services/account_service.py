@@ -44,7 +44,7 @@ class AccountService:
         Refresh token should also be updated if it changed, even though this happens more rarely
         """
         if account is None and user_id is not None and provider is not None:
-            account = AccountService.get_account_by_id_and_provider(
+            account = AccountService.get_account_by_user_and_provider(
                 db, user_id, provider
             )
 

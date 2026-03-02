@@ -67,7 +67,7 @@ class AuthService:
     def get_google_credentials(
         db: Session, user_id: uuid.UUID, provider: str, scopes: list
     ) -> Credentials:
-        connected_account = AccountService.get_account_by_id_and_provider(
+        connected_account = AccountService.get_account_by_user_and_provider(
             db, user_id, provider
         )  # 🔴 todo: make a provider emun for cleaner code
 
