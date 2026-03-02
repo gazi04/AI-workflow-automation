@@ -2,8 +2,9 @@ from typing import Any, Dict, List, Optional
 from uuid import UUID
 from prefect import get_client
 from prefect.client.schemas import FlowRun
-from prefect.client.schemas.filters import FlowRunFilter, FlowRunFilterDeploymentId, FlowRunFilterTags
-from prefect.client.schemas.sorting import FlowRunSort
+from prefect.client.schemas.filters import FlowRunFilter, FlowRunFilterDeploymentId, FlowRunFilterTags, LogFilter, LogFilterFlowRunId
+from prefect.client.schemas.objects import Log
+from prefect.client.schemas.sorting import FlowRunSort, LogSort
 from prefect.deployments import run_deployment
 from prefect.client.schemas.actions import DeploymentUpdate
 from prefect.client.schemas.schedules import CronSchedule
@@ -129,4 +130,29 @@ class DeploymentService:
                 sort=FlowRunSort.START_TIME_DESC,
             )
 
+            return translate_flow_runs_schema(flow_runs)
+
+    @staticmethod
+    async def get_run_logs(run_id: UUID) -> List[Log]:
+        """Fetches the raw logs for a specific flow run from Prefect"""
+        async with get_client() as client:
+            return await client.read_logs(
+                log_filter=LogFilter(flow_run_id=LogFilterFlowRunId(any_=[run_id])),
+                sort=LogSort.TIMESTAMP_ASC
+            )
+
+    @staticmethod
+    async def get_latest_runs_status(user_id: UUID, limit: int = 5) -> List[WorkflowRun]:
+        """
+        A lightweight fetcher specifically for the frontend polling mechanism.
+        Used to detect status changes (like 'Failed') to trigger toasts.
+        """
+        async with get_client() as client:
+            flow_runs = await client.read_flow_runs(
+                flow_run_filter=FlowRunFilter(
+                    tags=FlowRunFilterTags(all_=["user-generated", f"user-{user_id}"]),
+                ),
+                limit=limit,
+                sort=FlowRunSort.START_TIME_DESC,
+            )
             return translate_flow_runs_schema(flow_runs)

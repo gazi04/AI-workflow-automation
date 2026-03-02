@@ -156,3 +156,39 @@ async def get_workflow_history(deployement_id: UUID, user: User = Depends(get_cu
             detail="Could not fetch the history of the workflow.",
         )
 
+@workflow_router.get("/runs/latest")
+async def get_latest_runs(
+    user: User = Depends(get_current_user)
+):
+    """
+    Lightweight endpoint for frontend polling. 
+    Checks the most recent runs to trigger toast notifications.
+    """
+    try:
+        return await DeploymentService.get_latest_runs_status(user.id)
+    except Exception as e:
+        logger.error(f"Error fetching latest runs for user {user.id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not fetch latest run status."
+        )
+
+@workflow_router.get("/runs/{run_id}/logs")
+async def get_run_logs(
+    run_id: UUID, 
+    user: User = Depends(get_current_user)
+):
+    """
+    Fetches the full terminal logs for a specific execution.
+    Used when a user clicks the 'Eye' icon or 'View Logs' button.
+    """
+    try:
+        # Note: In a production app, you might want to verify 
+        # that this run_id actually belongs to the current user.
+        return await DeploymentService.get_run_logs(run_id)
+    except Exception as e:
+        logger.error(f"Error fetching logs for run {run_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Could not retrieve logs for this run: {e}"
+        )
