@@ -4,7 +4,7 @@
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { LayoutDashboard, PlusCircle, Plug, LogOut, User } from 'lucide-svelte';
+	import { LayoutDashboard, PlusCircle, Plug, LogOut, User, History } from 'lucide-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 
 	let { children } = $props();
@@ -137,6 +137,17 @@
 			>
 				<Plug class="h-4 w-4" />
 				Integrations
+			</a>
+
+			<a
+				href="/dashboard/history"
+				class="flex items-center gap-2 text-sm font-medium transition-colors {$page.url.pathname ===
+				'/dashboard/history'
+					? 'text-foreground'
+					: 'text-muted-foreground hover:text-foreground'}"
+			>
+				<History class="h-4 w-4" />
+				History
 			</a>
 
 			<div class="ml-auto">
