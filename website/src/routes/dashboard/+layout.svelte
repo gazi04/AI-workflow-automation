@@ -92,12 +92,57 @@
 		}
 	}
 
+	type WorkflowRun = {
+		id: string;
+		name: string;
+		state_name: string;
+		deployment_name?: string;
+		deployment_id?: string;
+	};
+
+	let knownRunStates = new Map<string, string>();
+
+	async function pollLatestRuns() {
+		try {
+			const latestRuns = await api.get<WorkflowRun[]>('/api/workflow/runs/latest');
+
+			for (const run of latestRuns) {
+				const lastState = knownRunStates.get(run.id);
+
+				// Only notify if we've seen this run before AND it just transitioned to Failed
+				if (lastState && lastState !== 'Failed' && run.state_name === 'Failed') {
+					toast.error(`Agent Run Failed: ${run.name}`, {
+						description: 'The execution encountered an error.',
+						action: {
+							label: 'View Logs',
+							onClick: () => {
+								// deployment_id is crucial for the deep link
+								// If the backend doesn't provide it yet, we might need to adjust
+								const targetId = run.deployment_id || '';
+								goto(`/dashboard/agent/${targetId}/history?runId=${run.id}`);
+							}
+						}
+					});
+				}
+
+				knownRunStates.set(run.id, run.state_name);
+			}
+		} catch (err) {
+			console.error('Failure poller error', err);
+		}
+	}
+
 	onMount(() => {
 		loadUserFromToken();
 		checkAndRecoverConnections();
 
-		const interval = setInterval(checkAndRecoverConnections, 1000 * 60 * 45);
-		return () => clearInterval(interval);
+		const connInterval = setInterval(checkAndRecoverConnections, 1000 * 60 * 45);
+		const pollInterval = setInterval(pollLatestRuns, 1000 * 30); // Poll every 30s
+
+		return () => {
+			clearInterval(connInterval);
+			clearInterval(pollInterval);
+		};
 	});
 </script>
 
