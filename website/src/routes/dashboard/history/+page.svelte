@@ -19,14 +19,8 @@
 	import { toast } from 'svelte-sonner';
 	import { fly, fade } from 'svelte/transition';
 
-	type WorkflowRun = {
-		id: string;
-		name: string;
-		state_name: string;
-		start_time: string;
-		total_run_time: number;
-		deployment_name?: string; // Optional if we enrich the backend or use the name field
-	};
+	import type { components } from '$lib/types/schema';
+	type WorkflowRun = components['schemas']['WorkflowRun'];
 
 	let allRuns = $state<WorkflowRun[]>([]);
 	let filteredRuns = $state<WorkflowRun[]>([]);
@@ -83,7 +77,7 @@
 		selectedRun = null;
 	}
 
-	function formatDate(dateStr: string | null) {
+	function formatDate(dateStr: string | null | undefined) {
 		if (!dateStr) return 'N/A';
 		return new Date(dateStr).toLocaleString();
 	}
@@ -93,7 +87,7 @@
 		return `${Math.floor(seconds / 60)}m ${(seconds % 60).toFixed(0)}s`;
 	}
 
-	function getStatusVariant(status: string) {
+	function getStatusVariant(status: string | null | undefined) {
 		switch (status?.toUpperCase()) {
 			case 'COMPLETED':
 				return 'default';
