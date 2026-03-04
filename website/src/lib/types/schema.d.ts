@@ -759,6 +759,41 @@ export interface components {
 			)[];
 			ui_metadata?: components['schemas']['UIMetadata'] | null;
 		};
+		/** WorkflowRun */
+		WorkflowRun: {
+			/**
+			 * Id
+			 * Format: uuid
+			 * @description The Prefect run id.
+			 */
+			id: string;
+			/**
+			 * Name
+			 * @description The name of the flow run.
+			 */
+			name: string;
+			/**
+			 * Deployment Id
+			 * @description The ID of the associated deployment.
+			 */
+			deployment_id?: string | null;
+			/**
+			 * State Name
+			 * @description The name of the current flow run state.
+			 */
+			state_name?: string | null;
+			/**
+			 * Start Time
+			 * @description The actual start time.
+			 */
+			start_time?: string | null;
+			/**
+			 * Total Run Time
+			 * @description Total run time in seconds.
+			 * @default 0
+			 */
+			total_run_time: number;
+		};
 	};
 	responses: never;
 	parameters: never;
@@ -1182,7 +1217,7 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': unknown;
+					'application/json': components['schemas']['WorkflowRun'][];
 				};
 			};
 		};
@@ -1204,7 +1239,7 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': unknown;
+					'application/json': components['schemas']['WorkflowRun'][];
 				};
 			};
 			/** @description Validation Error */
@@ -1233,7 +1268,7 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': unknown;
+					'application/json': components['schemas']['WorkflowRun'][];
 				};
 			};
 		};
