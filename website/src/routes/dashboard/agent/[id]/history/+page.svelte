@@ -167,19 +167,19 @@
 								class="group cursor-pointer transition-colors hover:bg-muted/30"
 								onclick={() => openRunDetails(run)}
 							>
-								<td class="whitespace-nowrap px-6 py-4">
+								<td class="px-6 py-4 whitespace-nowrap">
 									<Badge variant={getStatusVariant(run.state_name)}>
 										{run.state_name || 'UNKNOWN'}
 									</Badge>
 								</td>
 								<td class="px-6 py-4 font-mono font-medium">{run.name}</td>
-								<td class="whitespace-nowrap px-6 py-4 text-muted-foreground">
+								<td class="px-6 py-4 whitespace-nowrap text-muted-foreground">
 									<div class="flex items-center">
 										<Calendar class="mr-2 h-3.5 w-3.5 opacity-70" />
 										{formatDate(run.start_time)}
 									</div>
 								</td>
-								<td class="whitespace-nowrap px-6 py-4 text-muted-foreground">
+								<td class="px-6 py-4 whitespace-nowrap text-muted-foreground">
 									<div class="flex items-center">
 										<Clock class="mr-2 h-3.5 w-3.5 opacity-70" />
 										{formatDuration(run.total_run_time)}
@@ -230,7 +230,7 @@
 				<div class="flex-1 overflow-auto p-6">
 					<div class="mb-6 grid grid-cols-2 gap-4 rounded-lg bg-muted/40 p-4 text-sm">
 						<div>
-							<span class="text-xs font-semibold uppercase text-muted-foreground">Status</span>
+							<span class="text-xs font-semibold text-muted-foreground uppercase">Status</span>
 							<div class="mt-1">
 								<Badge variant={getStatusVariant(selectedRun.state_name)}>
 									{selectedRun.state_name}
@@ -238,16 +238,16 @@
 							</div>
 						</div>
 						<div>
-							<span class="text-xs font-semibold uppercase text-muted-foreground">Time Started</span
+							<span class="text-xs font-semibold text-muted-foreground uppercase">Time Started</span
 							>
 							<p class="mt-1 font-medium">{formatDate(selectedRun.start_time)}</p>
 						</div>
 						<div>
-							<span class="text-xs font-semibold uppercase text-muted-foreground">Duration</span>
+							<span class="text-xs font-semibold text-muted-foreground uppercase">Duration</span>
 							<p class="mt-1 font-medium">{formatDuration(selectedRun.total_run_time)}</p>
 						</div>
 						<div>
-							<span class="text-xs font-semibold uppercase text-muted-foreground">Run ID</span>
+							<span class="text-xs font-semibold text-muted-foreground uppercase">Run ID</span>
 							<p class="mt-1 font-mono text-[10px] break-all">{selectedRun.id}</p>
 						</div>
 					</div>
@@ -259,7 +259,7 @@
 								<div class="h-2.5 w-2.5 rounded-full bg-yellow-500/50"></div>
 								<div class="h-2.5 w-2.5 rounded-full bg-green-500/50"></div>
 							</div>
-							<span class="text-[10px] font-bold uppercase tracking-wider text-slate-500"
+							<span class="text-[10px] font-bold tracking-wider text-slate-500 uppercase"
 								>Terminal Logs</span
 							>
 						</div>
@@ -269,9 +269,9 @@
 								<Loader2 class="h-6 w-6 animate-spin text-slate-600" />
 							</div>
 						{:else if logs}
-							<pre class="whitespace-pre-wrap leading-relaxed">{logs}</pre>
+							<pre class="leading-relaxed whitespace-pre-wrap">{logs}</pre>
 						{:else}
-							<p class="italic text-slate-600">No logs available for this run.</p>
+							<p class="text-slate-600 italic">No logs available for this run.</p>
 						{/if}
 					</div>
 				</div>
