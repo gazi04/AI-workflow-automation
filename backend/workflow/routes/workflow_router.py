@@ -1,3 +1,4 @@
+from typing import List, Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -7,6 +8,7 @@ from core.database import get_db
 from core.setup_logging import setup_logger
 from orchestration.services import DeploymentService
 from user.models import User
+from workflow.schemas.workflow_run import WorkflowRun
 from workflow.schemas import RunWorkflowRequest, UpdateWorkflowRequest, ToggleWorkflowRequest
 from workflow.services import WorkflowService
 
@@ -132,7 +134,7 @@ async def delete_workflow(
             detail="Could not delete workflow.",
         )
 
-@workflow_router.get("/histories")
+@workflow_router.get("/histories", response_model=List[WorkflowRun])
 async def get_workflow_histories(user: User = Depends(get_current_user)):
     """Fetches the history of all the deployments of the user"""
     try:
@@ -144,7 +146,7 @@ async def get_workflow_histories(user: User = Depends(get_current_user)):
             detail="Could not fetch the workflow histories.",
         )
 
-@workflow_router.get("/{deployement_id}/history")
+@workflow_router.get("/{deployement_id}/history", response_model=List[WorkflowRun])
 async def get_workflow_history(deployement_id: UUID, user: User = Depends(get_current_user)):
     """Fetches only the history for a specific deployment"""
     try:
@@ -156,7 +158,7 @@ async def get_workflow_history(deployement_id: UUID, user: User = Depends(get_cu
             detail="Could not fetch the history of the workflow.",
         )
 
-@workflow_router.get("/runs/latest")
+@workflow_router.get("/runs/latest", response_model=List[WorkflowRun])
 async def get_latest_runs(
     user: User = Depends(get_current_user)
 ):
