@@ -12,7 +12,7 @@ class NewSheetRowConfig(BaseModel):
 
 
 class ScheduleConfig(BaseModel):
-    cron: str = Field(..., example="0 9 * * *")
+    cron: str = Field(..., json_schema_extra={"example": "0 9 * * *"})
     description: str
 
 

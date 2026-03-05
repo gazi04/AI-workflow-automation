@@ -1,11 +1,13 @@
 from datetime import datetime, timedelta
 from uuid import UUID
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional
 
 
 
 class WorkflowRun(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID = Field(..., description="The Prefect run id.")
     name: str = Field(..., description="The name of the flow run.")
     deployment_id: Optional[UUID] = Field(None, description="The ID of the associated deployment.")
@@ -28,6 +30,3 @@ class WorkflowRun(BaseModel):
         if isinstance(v, timedelta):
             return v.total_seconds()
         return v
-
-    class Config:
-        from_attributes = True
