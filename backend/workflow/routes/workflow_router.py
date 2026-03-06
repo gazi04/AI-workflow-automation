@@ -210,15 +210,12 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
     await manager.connect(user_id, websocket)
     try:
         while True:
-            # Poll Prefect for the latest runs of this user
             try:
-                # We convert the user_id string to UUID if necessary for the service
                 uid = UUID(user_id)
                 latest_runs = await DeploymentService.get_latest_runs_status(uid)
                 
-                # Send the updates to the client
                 await manager.send_personal_message(
-                    {"type": "workflow_update", "data": [run.model_dump() for run in latest_runs]},
+                    {"type": "workflow_update", "data": [run.model_dump(mode="json") for run in latest_runs]},
                     websocket
                 )
             except Exception as e:
