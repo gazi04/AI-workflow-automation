@@ -220,9 +220,8 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                 )
             except Exception as e:
                 logger.error(f"Error in WebSocket loop for user {user_id}: {e}")
+                break
             
-            # Wait for some time before the next update
-            # This is much more efficient than frontend polling as it leverages the open connection
             await asyncio.sleep(5) 
     except WebSocketDisconnect:
         manager.disconnect(user_id, websocket)
