@@ -214,9 +214,10 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                 uid = UUID(user_id)
                 latest_runs = await DeploymentService.get_latest_runs_status(uid)
                 
-                await manager.send_personal_message(
+                # Makes the websocket connection available for multiple tabs open at once
+                await manager.broadcast_to_user(
+                    uid,
                     {"type": "workflow_update", "data": [run.model_dump(mode="json") for run in latest_runs]},
-                    websocket
                 )
             except Exception as e:
                 logger.error(f"Error in WebSocket loop for user {user_id}: {e}")
