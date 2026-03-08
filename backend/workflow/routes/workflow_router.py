@@ -216,7 +216,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                 
                 # Makes the websocket connection available for multiple tabs open at once
                 await manager.broadcast_to_user(
-                    uid,
+                    user_id,
                     {"type": "workflow_update", "data": [run.model_dump(mode="json") for run in latest_runs]},
                 )
             except Exception as e:
