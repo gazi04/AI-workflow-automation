@@ -11,7 +11,7 @@ from prefect.client.schemas.schedules import CronSchedule
 from core.setup_logging import setup_logger
 from orchestration.flows.master_flow import execute_automation_flow
 from utils.translate_workflow_runs_schema import translate_flow_runs_schema
-from workflow.schemas import WorkflowDefinition, WorkflowRun
+from workflow.schemas import EmailReceivedTrigger, ManualTrigger, NewSheetRowTrigger, ScheduleTrigger, WorkflowDefinition, WorkflowRun
 
 logger = setup_logger("Deployment Service")
 
@@ -37,13 +37,18 @@ class DeploymentService:
         Dynamically registers a deployment with Prefect.
         """
         trigger = workflow.trigger
-        trigger_type = trigger.type
 
         schedule = None
-        if trigger_type == "schedule":
+        if isinstance(trigger, ScheduleTrigger):
             cron_expression = trigger.config.cron
             if cron_expression:
                 schedule = CronSchedule(cron=cron_expression, timezone="UTC")
+        elif isinstance(trigger, ManualTrigger):
+            logger.info(f"Creating manual deployment for workflow: {workflow.name}")
+        elif isinstance(trigger, (EmailReceivedTrigger, NewSheetRowTrigger)):
+            # ✨ TODO: Add logic to register webhooks or polling for these event-based triggers.
+            logger.warning(f"Trigger type '{trigger.type}' is not yet fully automated.")
+        
 
         safe_name = workflow.name.replace(" ", "-").lower()
         deployment_name = f"user-{user_id}-{safe_name}"
