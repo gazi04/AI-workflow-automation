@@ -37,6 +37,6 @@ class ScheduleTrigger(BaseModel):
 
 
 Trigger = Annotated[
-    Union[EmailReceivedTrigger, NewSheetRowTrigger, ScheduleTrigger],
+    Union[EmailReceivedTrigger, ManualTrigger, NewSheetRowTrigger, ScheduleTrigger],
     Field(discriminator="type"),
 ]
