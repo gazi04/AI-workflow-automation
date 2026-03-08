@@ -1,6 +1,8 @@
 from pydantic import BaseModel, Field, EmailStr
 from typing import Literal, Union, Annotated
 
+class ManualConfig(BaseModel):
+    description: str = "Triggered manually via the UI"
 
 class EmailReceivedConfig(BaseModel):
     from_email: EmailStr = Field(..., alias="from")
@@ -15,6 +17,9 @@ class ScheduleConfig(BaseModel):
     cron: str = Field(..., json_schema_extra={"example": "0 9 * * *"})
     description: str
 
+class ManualTrigger(BaseModel):
+    type: Literal["manual"]
+    config: ManualConfig
 
 class EmailReceivedTrigger(BaseModel):
     type: Literal["email_received"]
