@@ -1,17 +1,20 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api/client';
-	import { toast } from 'svelte-sonner';
+	import { toast, Toaster } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { LayoutDashboard, PlusCircle, Plug, LogOut, User, History } from 'lucide-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { workflowStore } from '$lib/workflowStore.svelte';
 
 	let { children } = $props();
 
 	let gmailNeedsReconnect = $state(false);
 	let userEmail = $state<string | null>(null);
+	let userId = $state<string | null>(null);
 	let userInitials = $state('?');
+	let socket: WebSocket | null = null;
 
 	type IntegrationStatus = {
 		provider: string;
@@ -39,9 +42,14 @@
 		if (!token) return;
 
 		const payload = decodeJwtPayload(token);
-		if (payload && typeof payload.email === 'string') {
-			userEmail = payload.email;
-			userInitials = userEmail.slice(0, 2).toUpperCase();
+		if (payload) {
+			if (typeof payload.email === 'string') {
+				userEmail = payload.email;
+				userInitials = userEmail.slice(0, 2).toUpperCase();
+			}
+			if (typeof payload.sub === 'string') {
+				userId = payload.sub;
+			}
 		}
 	}
 
@@ -102,46 +110,65 @@
 
 	let knownRunStates = new Map<string, string>();
 
-	async function pollLatestRuns() {
-		try {
-			const latestRuns = await api.get<WorkflowRun[]>('/api/workflow/runs/latest');
+	async function initWorkflowWebSocket() {
+		if (!userId) return;
 
-			for (const run of latestRuns) {
-				const lastState = knownRunStates.get(run.id);
+		const wsUrl = `ws://localhost:8000/api/workflow/ws/workflows/${userId}`;
+		socket = new WebSocket(wsUrl);
 
-				// Only notify if we've seen this run before AND it just transitioned to Failed
-				if (lastState && lastState !== 'Failed' && run.state_name === 'Failed') {
-					toast.error(`Agent Run Failed: ${run.name}`, {
-						description: 'The execution encountered an error.',
-						action: {
-							label: 'View Logs',
-							onClick: () => {
-								// deployment_id is crucial for the deep link
-								// If the backend doesn't provide it yet, we might need to adjust
-								const targetId = run.deployment_id || '';
-								goto(`/dashboard/agent/${targetId}/history?runId=${run.id}`);
+		socket.onmessage = (event) => {
+			const message = JSON.parse(event.data);
+			if (message.type === 'workflow_update') {
+				const latestRuns: WorkflowRun[] = message.data;
+				
+				// Update the global store
+				workflowStore.setLatestRuns(latestRuns);
+
+				for (const run of latestRuns) {
+					const lastState = knownRunStates.get(run.id);
+
+					// Only notify if we've seen this run before AND it just transitioned to Failed
+					if (lastState && lastState !== 'Failed' && run.state_name === 'Failed') {
+						toast.error(`Agent Run Failed: ${run.name}`, {
+							description: 'The execution encountered an error.',
+							action: {
+								label: 'View Logs',
+								onClick: () => {
+									const targetId = run.deployment_id || '';
+									goto(`/dashboard/agent/${targetId}/history?runId=${run.id}`);
+								}
 							}
-						}
-					});
-				}
+						});
+					}
 
-				knownRunStates.set(run.id, run.state_name);
+					knownRunStates.set(run.id, run.state_name);
+				}
+			} else if (message.type === 'notification') {
+        console.log('Message  was sent from back to front.');
+				toast.success(message.message);
 			}
-		} catch (err) {
-			console.error('Failure poller error', err);
-		}
+		};
+
+		socket.onclose = () => {
+			console.log('Workflow WebSocket closed. Retrying in 5s...');
+			setTimeout(initWorkflowWebSocket, 5000);
+		};
+
+		socket.onerror = (err) => {
+			console.error('Workflow WebSocket error:', err);
+		};
 	}
 
 	onMount(() => {
 		loadUserFromToken();
 		checkAndRecoverConnections();
+		initWorkflowWebSocket();
 
 		const connInterval = setInterval(checkAndRecoverConnections, 1000 * 60 * 45);
-		const pollInterval = setInterval(pollLatestRuns, 1000 * 30); // Poll every 30s
 
 		return () => {
 			clearInterval(connInterval);
-			clearInterval(pollInterval);
+			if (socket) socket.close();
 		};
 	});
 </script>
@@ -247,3 +274,5 @@
 		{@render children()}
 	</main>
 </div>
+
+<Toaster richColors position="bottom-right" />

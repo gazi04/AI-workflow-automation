@@ -19,6 +19,8 @@
 	import { toast } from 'svelte-sonner';
 	import { fly, fade } from 'svelte/transition';
 
+	import { workflowStore } from '$lib/workflowStore.svelte';
+
 	import type { components } from '$lib/types/schema';
 	type WorkflowRun = components['schemas']['WorkflowRun'];
 
@@ -47,7 +49,22 @@
 	}
 
 	function applyFilters() {
-		filteredRuns = allRuns.filter((run) => {
+		// Merge allRuns with latest updates from the global store
+		const runMap = new Map(allRuns.map((r) => [r.id, r]));
+
+		// Update or add runs from the global store
+		for (const run of workflowStore.latestRuns) {
+			runMap.set(run.id, run);
+		}
+
+		// Convert back to array and sort by start_time DESC
+		const mergedRuns = Array.from(runMap.values()).sort((a, b) => {
+			const dateA = new Date(a.start_time || 0).getTime();
+			const dateB = new Date(b.start_time || 0).getTime();
+			return dateB - dateA;
+		});
+
+		filteredRuns = mergedRuns.filter((run) => {
 			const matchesSearch =
 				run.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
 				(run.state_name || '').toLowerCase().includes(searchQuery.toLowerCase());
@@ -101,6 +118,10 @@
 	}
 
 	$effect(() => {
+		// This will re-run applyFilters whenever allRuns, workflowStore.latestRuns,
+		// searchQuery, or statusFilter changes.
+		// Note: accessing workflowStore.latestRuns makes this effect reactive to it.
+		const _trigger = workflowStore.latestRuns;
 		applyFilters();
 	});
 
