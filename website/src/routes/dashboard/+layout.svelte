@@ -7,6 +7,7 @@
 	import { LayoutDashboard, PlusCircle, Plug, LogOut, User, History } from 'lucide-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { workflowStore } from '$lib/workflowStore.svelte';
+  import { decodeJwtPayload, logout } from '$lib/utils';
 
 	let { children } = $props();
 
@@ -27,15 +28,6 @@
 		integrations: IntegrationStatus[];
 	};
 
-	function decodeJwtPayload(token: string): Record<string, unknown> | null {
-		try {
-			const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-			return JSON.parse(atob(base64));
-		} catch {
-			return null;
-		}
-	}
-
 	function loadUserFromToken() {
 		if (typeof window === 'undefined') return;
 		const token = localStorage.getItem('access_token');
@@ -51,11 +43,6 @@
 				userId = payload.sub;
 			}
 		}
-	}
-
-	function logout() {
-		localStorage.clear();
-		goto('/login');
 	}
 
 	function triggerReconnectAlert() {
@@ -121,13 +108,11 @@
 			if (message.type === 'workflow_update') {
 				const latestRuns: WorkflowRun[] = message.data;
 				
-				// Update the global store
 				workflowStore.setLatestRuns(latestRuns);
 
 				for (const run of latestRuns) {
 					const lastState = knownRunStates.get(run.id);
 
-					// Only notify if we've seen this run before AND it just transitioned to Failed
 					if (lastState && lastState !== 'Failed' && run.state_name === 'Failed') {
 						toast.error(`Agent Run Failed: ${run.name}`, {
 							description: 'The execution encountered an error.',
