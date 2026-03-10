@@ -29,7 +29,7 @@ export function decodeJwtPayload(token: string): Record<string, unknown> | null 
   }
 }
 
-function logout() {
+export function logout() {
   localStorage.clear();
   goto('/login');
 }
