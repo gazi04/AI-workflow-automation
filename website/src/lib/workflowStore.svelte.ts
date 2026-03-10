@@ -1,11 +1,6 @@
-export type WorkflowRun = {
-    id: string;
-    name: string;
-    state_name: string;
-    deployment_id?: string;
-    start_time?: string;
-    total_run_time?: number;
-};
+import type { components } from "$lib/types/schema";
+
+type WorkflowRun = components['components']['WorkflowRun'];
 
 class WorkflowStore {
     latestRuns = $state<WorkflowRun[]>([]);
