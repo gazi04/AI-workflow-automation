@@ -1,15 +1,15 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
-	import { Chrome, Loader2, AlertCircle } from 'lucide-svelte';
-	import { page } from '$app/stores';
+	import { Chrome, Loader, CircleAlert } from 'lucide-svelte';
+	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/api/client';
 
 	let isLoading = $state(false);
 
 	// Reactively derive the error message from the URL search params
-	const errorMessage = $derived($page.url.searchParams.get('error'));
+	const errorMessage = $derived(page.url.searchParams.get('error'));
 
 	async function handleGoogleLogin() {
 		isLoading = true;
@@ -43,7 +43,7 @@
 				<div
 					class="mb-6 flex w-full animate-in items-center gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive zoom-in-95 fade-in"
 				>
-					<AlertCircle class="h-4 w-4" />
+					<CircleAlert class="h-4 w-4" />
 					<p class="font-medium">
 						{#if errorMessage === 'auth_failed'}
 							Authentication failed. Google connection was reset.
@@ -64,7 +64,7 @@
 		<Card.Footer>
 			<Button variant="outline" class="w-full" onclick={handleGoogleLogin} disabled={isLoading}>
 				{#if isLoading}
-					<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+					<Loader class="mr-2 h-4 w-4 animate-spin" />
 					Connecting...
 				{:else}
 					<Chrome class="mr-2 h-4 w-4" />
@@ -74,7 +74,7 @@
 		</Card.Footer>
 	</Card.Root>
 
-	<p class="mt-4 max-w-[280px] text-center text-xs text-muted-foreground">
+	<p class="mt-4 max-w-70 text-center text-xs text-muted-foreground">
 		By signing in, you grant the agent permission to manage selected Gmail drafts and labels.
 	</p>
 </div>

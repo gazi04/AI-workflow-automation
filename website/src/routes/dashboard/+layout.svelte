@@ -3,8 +3,8 @@
 	import { api } from '$lib/api/client';
 	import { toast, Toaster } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
-	import { LayoutDashboard, PlusCircle, Plug, LogOut, User, History } from 'lucide-svelte';
+	import { page } from '$app/state';
+	import { LayoutDashboard, CirclePlus, Plug, LogOut, User, History } from 'lucide-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { workflowStore } from '$lib/workflowStore.svelte';
   import { decodeJwtPayload, logout } from '$lib/utils';
@@ -160,12 +160,12 @@
 
 <div class="flex min-h-screen flex-col">
 	<header
-		class="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+		class="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60"
 	>
 		<nav class="flex h-14 items-center gap-6 px-6">
 			<a
 				href="/dashboard"
-				class="flex items-center gap-2 text-sm font-medium transition-colors {$page.url.pathname ===
+				class="flex items-center gap-2 text-sm font-medium transition-colors {page.url.pathname ===
 				'/dashboard'
 					? 'text-foreground'
 					: 'text-muted-foreground hover:text-foreground'}"
@@ -176,18 +176,18 @@
 
 			<a
 				href="/dashboard/new"
-				class="flex items-center gap-2 text-sm font-medium transition-colors {$page.url.pathname ===
+				class="flex items-center gap-2 text-sm font-medium transition-colors {page.url.pathname ===
 				'/dashboard/new'
 					? 'text-foreground'
 					: 'text-muted-foreground hover:text-foreground'}"
 			>
-				<PlusCircle class="h-4 w-4" />
+				<CirclePlus class="h-4 w-4" />
 				New Agent
 			</a>
 
 			<a
 				href="/dashboard/integrations"
-				class="flex items-center gap-2 text-sm font-medium transition-colors {$page.url.pathname ===
+				class="flex items-center gap-2 text-sm font-medium transition-colors {page.url.pathname ===
 				'/dashboard/integrations'
 					? 'text-foreground'
 					: 'text-muted-foreground hover:text-foreground'}"
@@ -198,7 +198,7 @@
 
 			<a
 				href="/dashboard/history"
-				class="flex items-center gap-2 text-sm font-medium transition-colors {$page.url.pathname ===
+				class="flex items-center gap-2 text-sm font-medium transition-colors {page.url.pathname ===
 				'/dashboard/history'
 					? 'text-foreground'
 					: 'text-muted-foreground hover:text-foreground'}"

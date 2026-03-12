@@ -1,6 +1,6 @@
 import type { components } from "$lib/types/schema";
 
-type WorkflowRun = components['components']['WorkflowRun'];
+type WorkflowRun = components["schemas"]["WorkflowRun"]
 
 class WorkflowStore {
     latestRuns = $state<WorkflowRun[]>([]);

@@ -6,8 +6,9 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Card from '$lib/components/ui/card';
+  import { formatDate, formatDuration } from '$lib/utils';
 	import {
-		Loader2,
+		Loader,
 		ArrowLeft,
 		Calendar,
 		Clock,
@@ -17,40 +18,29 @@
 		Terminal,
 		ExternalLink
 	} from 'lucide-svelte';
-	import { formatLabel } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
 	import { fly, fade } from 'svelte/transition';
 
-	type WorkflowRun = {
-		id: string;
-		name: string;
-		state_name: string;
-		start_time: string;
-		total_run_time: number;
-	};
+  type WorkflowRun = components["schemas"]["WorkflowRun"];
 
-	const id = page.params.id;
-	const urlRunId = page.url.searchParams.get('runId');
+	const id = $derived(page.params.id);
+	const urlRunId = $derived(page.url.searchParams.get('runId'));
 
 	let runs = $state<WorkflowRun[]>([]);
 	let workflowName = $state('');
 	let isLoading = $state(true);
 
-	// Drawer state
 	let selectedRun = $state<WorkflowRun | null>(null);
 	let logs = $state<string>('');
 	let isLoadingLogs = $state(false);
 
 	async function fetchHistory() {
 		try {
-			// Fetch workflow details to get the name
 			const wf = await api.get<any>(`/api/workflow/get_workflow/${id}`);
 			workflowName = wf.name;
 
-			// Fetch history
 			runs = await api.get<WorkflowRun[]>(`/api/workflow/${id}/history`);
 
-			// Deep-link check: Auto-open run if runId is in URL
 			if (urlRunId) {
 				const runToOpen = runs.find((r) => r.id === urlRunId);
 				if (runToOpen) {
@@ -83,19 +73,6 @@
 
 	function closeDrawer() {
 		selectedRun = null;
-	}
-
-	function formatDate(dateStr: string | null) {
-		if (!dateStr) return 'N/A';
-		const date = new Date(dateStr);
-		return date.toLocaleString();
-	}
-
-	function formatDuration(seconds: number) {
-		if (seconds < 60) return `${seconds.toFixed(1)}s`;
-		const mins = Math.floor(seconds / 60);
-		const secs = (seconds % 60).toFixed(0);
-		return `${mins}m ${secs}s`;
 	}
 
 	function getStatusVariant(status: string) {
@@ -136,7 +113,7 @@
 
 	{#if isLoading}
 		<div class="flex h-64 items-center justify-center">
-			<Loader2 class="h-8 w-8 animate-spin text-muted-foreground" />
+			<Loader class="h-8 w-8 animate-spin text-muted-foreground" />
 		</div>
 	{:else if runs.length === 0}
 		<Card.Root
@@ -208,7 +185,7 @@
 			onclick={closeDrawer}
 		>
 			<div
-				class="flex h-full w-full flex-col border-l bg-card shadow-2xl md:w-[600px] lg:w-[800px]"
+				class="flex h-full w-full flex-col border-l bg-card shadow-2xl md:w-150 lg:w-200"
 				transition:fly={{ x: 200, duration: 300 }}
 				onclick={(e) => e.stopPropagation()}
 			>
@@ -266,7 +243,7 @@
 
 						{#if isLoadingLogs}
 							<div class="flex items-center justify-center py-12">
-								<Loader2 class="h-6 w-6 animate-spin text-slate-600" />
+								<Loader class="h-6 w-6 animate-spin text-slate-600" />
 							</div>
 						{:else if logs}
 							<pre class="leading-relaxed whitespace-pre-wrap">{logs}</pre>

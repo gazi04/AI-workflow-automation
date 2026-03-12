@@ -6,8 +6,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Switch } from '$lib/components/ui/switch';
-	import { Eye, Loader2, Mail, Trash2, Play, Settings2, RefreshCw } from 'lucide-svelte';
-	import { goto } from '$app/navigation';
+	import { Eye, Loader, Mail, Trash2, Play, Settings2, RefreshCw } from 'lucide-svelte';
 	import { formatLabel } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
 
@@ -111,7 +110,7 @@
 
 	{#if isLoading}
 		<div class="flex h-64 items-center justify-center">
-			<Loader2 class="h-8 w-8 animate-spin text-muted-foreground" />
+			<Loader class="h-8 w-8 animate-spin text-muted-foreground" />
 		</div>
 	{:else if workflows.length === 0}
 		<Card.Root
@@ -189,7 +188,7 @@
 								variant="ghost"
 								size="sm"
 								class="text-destructive hover:bg-destructive/10"
-								onclick={() => deleteWorkflow(wf.id)}
+								onclick={() => deleteWorkflow(wf.id, wf.name)}
 							>
 								<Trash2 class="h-4 w-4" />
 							</Button>

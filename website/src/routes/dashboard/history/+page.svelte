@@ -6,7 +6,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import * as Card from '$lib/components/ui/card';
 	import {
-		Loader2,
+    Loader,
 		Search,
 		Calendar,
 		Clock,
@@ -30,14 +30,12 @@
 	let searchQuery = $state('');
 	let statusFilter = $state('ALL');
 
-	// Drawer state
 	let selectedRun = $state<WorkflowRun | null>(null);
 	let logs = $state<string>('');
 	let isLoadingLogs = $state(false);
 
 	async function fetchAllHistory() {
 		try {
-			// Using the 'histories' endpoint which fetches all runs for the user
 			allRuns = await api.get<WorkflowRun[]>('/api/workflow/histories');
 			applyFilters();
 		} catch (err: any) {
@@ -159,7 +157,7 @@
 
 	{#if isLoading}
 		<div class="flex h-64 items-center justify-center">
-			<Loader2 class="h-8 w-8 animate-spin text-muted-foreground" />
+			<Loader class="h-8 w-8 animate-spin text-muted-foreground" />
 		</div>
 	{:else if filteredRuns.length === 0}
 		<Card.Root
@@ -235,7 +233,7 @@
 			onclick={closeDrawer}
 		>
 			<div
-				class="flex h-full w-full flex-col border-l bg-card shadow-2xl md:w-[600px] lg:w-[800px]"
+				class="flex h-full w-full flex-col border-l bg-card shadow-2xl md:w-150 lg:w-200"
 				transition:fly={{ x: 200, duration: 300 }}
 				onclick={(e) => e.stopPropagation()}
 			>
@@ -293,7 +291,7 @@
 
 						{#if isLoadingLogs}
 							<div class="flex items-center justify-center py-12">
-								<Loader2 class="h-6 w-6 animate-spin text-slate-600" />
+								<Loader class="h-6 w-6 animate-spin text-slate-600" />
 							</div>
 						{:else if logs}
 							<pre class="leading-relaxed whitespace-pre-wrap">{logs}</pre>

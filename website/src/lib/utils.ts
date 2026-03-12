@@ -34,3 +34,15 @@ export function logout() {
   goto('/login');
 }
 
+export function formatDate(dateStr: string | null) {
+  if (!dateStr) return 'N/A';
+  const date = new Date(dateStr);
+  return date.toLocaleString();
+}
+
+export function formatDuration(seconds: number) {
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const mins = Math.floor(seconds / 60);
+  const secs = (seconds % 60).toFixed(0);
+  return `${mins}m ${secs}s`;
+}

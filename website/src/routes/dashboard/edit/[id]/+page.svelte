@@ -4,7 +4,7 @@
 	import '@xyflow/svelte/dist/style.css';
 	import { api } from '$lib/api/client';
 	import { page } from '$app/state';
-	import { Loader2, Save, X, ChevronLeft } from 'lucide-svelte';
+	import { Loader, Save, ChevronLeft } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
 	import TriggerNode from '$lib/components/editor/TriggerNode.svelte';
@@ -125,7 +125,7 @@
 </script>
 
 <div class="flex h-screen overflow-hidden bg-background">
-	<div class="flex flex-grow flex-col">
+	<div class="flex grow flex-col">
 		<header class="flex items-center justify-between border-b bg-card p-4">
 			<Button variant="ghost" size="sm" class="w-fit gap-2" onclick={() => goto('/dashboard')}>
 				<ChevronLeft class="h-4 w-4" /> Go to dashboard
@@ -135,15 +135,15 @@
 				<h1 class="text-lg font-bold">{workflow?.name || 'Loading...'}</h1>
 			</div>
 			<Button onclick={handleSave} size="sm" class="gap-2" disabled={isLoading}>
-				{#if isLoading}<Loader2 class="animate-spin" size={16} />{/if}
+				{#if isLoading}<Loader class="animate-spin" size={16} />{/if}
 				<Save class="h-4 w-4" /> Save
 			</Button>
 		</header>
 
-		<main class="relative flex-grow">
+		<main class="relative grow">
 			<SvelteFlow {nodes} {edges} {nodeTypes} onnodeclick={onNodeClick} fitView>
 				<Controls />
-				<Background color="#eee" gap={20} />
+				<Background gap={20} />
 			</SvelteFlow>
 		</main>
 	</div>

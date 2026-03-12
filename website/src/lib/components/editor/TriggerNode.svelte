@@ -17,5 +17,5 @@
 	<div class="text-sm font-medium text-slate-900">{formatLabel(data.type)}</div>
 	<div class="mt-1 text-[10px] text-slate-500 italic">Starts the workflow</div>
 
-	<Handle type="source" position={Position.Right} class="!h-3 !w-3 !bg-blue-500" />
+	<Handle type="source" position={Position.Right} class="h-3! w-3! bg-blue-500!" />
 </div>

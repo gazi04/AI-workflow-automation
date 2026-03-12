@@ -5,7 +5,7 @@
 	import { Textarea } from '$lib/components/ui/textarea';
 	import * as Card from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Loader2, Sparkles, CheckCircle2, AlertCircle, ChevronLeft, Rocket } from 'lucide-svelte';
+	import { Loader, Sparkles, CircleCheck, CircleAlert, ChevronLeft, Rocket } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 
 	type AIResponse = components['schemas']['AIResponse'];
@@ -69,7 +69,7 @@
 					<Card.Content>
 						<Textarea
 							placeholder="e.g., When I get an email about a new lead, add it to my sheet..."
-							class="min-h-[200px] text-base"
+							class="min-h-50 text-base"
 							bind:value={prompt}
 							disabled={isAnalyzing || isDeployed}
 						/>
@@ -81,9 +81,9 @@
 							onclick={interpretAndDeploy}
 						>
 							{#if isAnalyzing}
-								<Loader2 class="mr-2 h-4 w-4 animate-spin" /> Deploying Agent...
+								<Loader class="mr-2 h-4 w-4 animate-spin" /> Deploying Agent...
 							{:else if isDeployed}
-								<CheckCircle2 class="mr-2 h-4 w-4" /> Agent Active!
+								<CircleCheck class="mr-2 h-4 w-4" /> Agent Active!
 							{:else}
 								Deploy with AI <Sparkles class="ml-2 h-4 w-4" />
 							{/if}
@@ -95,7 +95,7 @@
 					<div
 						class="flex items-center gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive"
 					>
-						<AlertCircle class="h-4 w-4" />
+						<CircleAlert class="h-4 w-4" />
 						{errorMessage}
 					</div>
 				{/if}
@@ -134,15 +134,15 @@
 					</Card.Root>
 				{:else if isAnalyzing}
 					<div
-						class="flex h-[400px] flex-col items-center justify-center rounded-xl border border-dashed text-center"
+						class="flex h-100 flex-col items-center justify-center rounded-xl border border-dashed text-center"
 					>
-						<Loader2 class="mb-4 h-8 w-8 animate-spin text-primary" />
+						<Loader class="mb-4 h-8 w-8 animate-spin text-primary" />
 						<p class="text-sm font-medium">AI is architecting your workflow...</p>
 						<p class="text-xs text-muted-foreground">Provisioning triggers and actions.</p>
 					</div>
 				{:else}
 					<div
-						class="flex h-[400px] flex-col items-center justify-center rounded-xl border border-dashed text-center"
+						class="flex h-100 flex-col items-center justify-center rounded-xl border border-dashed text-center"
 					>
 						<div class="mb-4 rounded-full bg-muted p-4">
 							<Sparkles class="h-8 w-8 text-muted-foreground/50" />

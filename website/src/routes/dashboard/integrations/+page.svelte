@@ -5,12 +5,12 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import {
-		Loader2,
+		Loader,
 		Mail,
 		MessageSquare,
 		RefreshCw,
-		AlertCircle,
-		CheckCircle2,
+    CircleAlert,
+		CircleCheck,
 		Settings2,
 		Unplug,
 		Info
@@ -103,12 +103,12 @@
 
 	{#if isLoading}
 		<div class="flex h-64 items-center justify-center">
-			<Loader2 class="h-8 w-8 animate-spin text-muted-foreground" />
+			<Loader class="h-8 w-8 animate-spin text-muted-foreground" />
 		</div>
 	{:else if error}
 		<div class="flex h-64 flex-col items-center justify-center gap-4 text-center">
 			<div class="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
-				<AlertCircle class="h-6 w-6 text-destructive" />
+				<CircleAlert class="h-6 w-6 text-destructive" />
 			</div>
 			<div>
 				<h3 class="text-lg font-semibold">Unable to load integrations</h3>
@@ -137,11 +137,11 @@
 									/>
 									{#if integration.is_connected && !integration.needs_reconnect}
 										<div class="absolute -right-1 -bottom-1 rounded-full bg-background p-0.5">
-											<CheckCircle2 class="h-3 w-3 text-green-500" />
+											<CircleCheck class="h-3 w-3 text-green-500" />
 										</div>
 									{:else if integration.is_connected && integration.needs_reconnect}
 										<div class="absolute -right-1 -bottom-1 rounded-full bg-background p-0.5">
-											<AlertCircle class="h-3 w-3 text-destructive" />
+											<CircleAlert class="h-3 w-3 text-destructive" />
 										</div>
 									{/if}
 								</div>

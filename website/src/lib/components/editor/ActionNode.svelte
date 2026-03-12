@@ -7,7 +7,7 @@
 <div
 	class="w-64 rounded-xl border-2 border-slate-200 bg-white px-4 py-3 shadow-lg ring-primary/20 transition-all hover:ring-4"
 >
-	<Handle type="target" position={Position.Left} class="!h-3 !w-3 !bg-slate-400" />
+	<Handle type="target" position={Position.Left} class="h-3! w-3! bg-slate-400!" />
 
 	<div class="mb-2 flex items-center justify-between">
 		<div class="flex items-center gap-2">
@@ -25,5 +25,5 @@
 		{data.config.user_prompt || data.type}
 	</div>
 
-	<Handle type="source" position={Position.Right} class="!h-3 !w-3 !bg-slate-400" />
+	<Handle type="source" position={Position.Right} class="h-3! w-3! bg-slate-400!" />
 </div>
