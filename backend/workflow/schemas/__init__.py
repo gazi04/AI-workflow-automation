@@ -9,7 +9,13 @@ from .action import (
 )
 from .delete_workflow_request import DeleteWorkflowRequest
 from .run_workflow_request import RunWorkflowRequest
-from .trigger import EmailReceivedTrigger, ManualTrigger, NewSheetRowTrigger, ScheduleTrigger, Trigger
+from .trigger import (
+    EmailReceivedTrigger,
+    ManualTrigger,
+    NewSheetRowTrigger,
+    ScheduleTrigger,
+    Trigger,
+)
 from .workflow_definition import WorkflowDefinition
 from .workflow_run import WorkflowRun
 from .toggle_workflow_request import ToggleWorkflowRequest
