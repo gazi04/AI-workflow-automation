@@ -40,7 +40,9 @@ def _build_node_definitions(union_type) -> list[NodeDefinition]:
                     label=key.replace("_", " ").title(),
                     type=_map_annotation_to_ui_type(field_info.annotation, field_info),
                     required=field_info.is_required(),
-                    default=field_info.default if not field_info.is_required() else None,
+                    default=field_info.default
+                    if not field_info.is_required()
+                    else None,
                     description=field_info.description or "",
                 )
             )

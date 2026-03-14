@@ -1,6 +1,13 @@
 from typing import List, Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from sqlalchemy.orm import Session
 import asyncio
 
@@ -12,7 +19,11 @@ from user.models import User
 from utils.catalog_introspector import build_catalog
 from workflow.schemas.catalog import WorkflowCatalog
 from workflow.schemas.workflow_run import WorkflowRun
-from workflow.schemas import RunWorkflowRequest, UpdateWorkflowRequest, ToggleWorkflowRequest
+from workflow.schemas import (
+    RunWorkflowRequest,
+    UpdateWorkflowRequest,
+    ToggleWorkflowRequest,
+)
 from workflow.services import WorkflowService
 from core.websocket_manager import manager
 
@@ -155,6 +166,7 @@ async def delete_workflow(
             detail="Could not delete workflow.",
         )
 
+
 @workflow_router.get("/histories", response_model=List[WorkflowRun])
 async def get_workflow_histories(user: User = Depends(get_current_user)):
     """Fetches the history of all the deployments of the user"""
@@ -167,8 +179,11 @@ async def get_workflow_histories(user: User = Depends(get_current_user)):
             detail="Could not fetch the workflow histories.",
         )
 
+
 @workflow_router.get("/{deployement_id}/history", response_model=List[WorkflowRun])
-async def get_workflow_history(deployement_id: UUID, user: User = Depends(get_current_user)):
+async def get_workflow_history(
+    deployement_id: UUID, user: User = Depends(get_current_user)
+):
     """Fetches only the history for a specific deployment"""
     try:
         return await DeploymentService.get_workflow_history(deployement_id)
@@ -179,12 +194,11 @@ async def get_workflow_history(deployement_id: UUID, user: User = Depends(get_cu
             detail="Could not fetch the history of the workflow.",
         )
 
+
 @workflow_router.get("/runs/latest", response_model=List[WorkflowRun])
-async def get_latest_runs(
-    user: User = Depends(get_current_user)
-):
+async def get_latest_runs(user: User = Depends(get_current_user)):
     """
-    Lightweight endpoint for frontend polling. 
+    Lightweight endpoint for frontend polling.
     Checks the most recent runs to trigger toast notifications.
     """
     try:
@@ -193,36 +207,38 @@ async def get_latest_runs(
         logger.error(f"Error fetching latest runs for user {user.id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Could not fetch latest run status."
+            detail="Could not fetch latest run status.",
         )
 
+
 @workflow_router.get("/runs/{run_id}/logs")
-async def get_run_logs(
-    run_id: UUID, 
-    user: User = Depends(get_current_user)
-):
+async def get_run_logs(run_id: UUID, user: User = Depends(get_current_user)):
     """
     Fetches the full terminal logs for a specific execution.
     Used when a user clicks the 'Eye' icon or 'View Logs' button.
     """
     try:
-        # Note: In a production app, you might want to verify 
+        # Note: In a production app, you might want to verify
         # that this run_id actually belongs to the current user.
         return await DeploymentService.get_run_logs(run_id)
     except Exception as e:
         logger.error(f"Error fetching logs for run {run_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Could not retrieve logs for this run: {e}"
+            detail=f"Could not retrieve logs for this run: {e}",
         )
+
 
 @workflow_router.post("/test-notification/{user_id}")
 async def test_notification(user_id: str, message: str = "Test notification"):
     """
     Push a test notification to a specific user via WebSocket.
     """
-    await manager.broadcast_to_user(user_id, {"type": "notification", "message": message})
+    await manager.broadcast_to_user(
+        user_id, {"type": "notification", "message": message}
+    )
     return {"status": "success", "message_sent": message}
+
 
 @workflow_router.websocket("/ws/workflows/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: str):
@@ -232,17 +248,20 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             try:
                 uid = UUID(user_id)
                 latest_runs = await DeploymentService.get_latest_runs_status(uid)
-                
+
                 # Makes the websocket connection available for multiple tabs open at once
                 await manager.broadcast_to_user(
                     user_id,
-                    {"type": "workflow_update", "data": [run.model_dump(mode="json") for run in latest_runs]},
+                    {
+                        "type": "workflow_update",
+                        "data": [run.model_dump(mode="json") for run in latest_runs],
+                    },
                 )
             except Exception as e:
                 logger.error(f"Error in WebSocket loop for user {user_id}: {e}")
                 break
-            
-            await asyncio.sleep(5) 
+
+            await asyncio.sleep(5)
     except WebSocketDisconnect:
         manager.disconnect(user_id, websocket)
         logger.info(f"WebSocket disconnected for user {user_id}")
