@@ -1,13 +1,13 @@
-import type { components } from "$lib/types/schema";
+import type { components } from '$lib/types/schema';
 
-type WorkflowRun = components["schemas"]["WorkflowRun"]
+type WorkflowRun = components['schemas']['WorkflowRun'];
 
 class WorkflowStore {
-    latestRuns = $state<WorkflowRun[]>([]);
+	latestRuns = $state<WorkflowRun[]>([]);
 
-    setLatestRuns(runs: WorkflowRun[]) {
-        this.latestRuns = runs;
-    }
+	setLatestRuns(runs: WorkflowRun[]) {
+		this.latestRuns = runs;
+	}
 }
 
 export const workflowStore = new WorkflowStore();

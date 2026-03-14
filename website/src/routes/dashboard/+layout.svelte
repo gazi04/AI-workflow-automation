@@ -7,7 +7,7 @@
 	import { LayoutDashboard, CirclePlus, Plug, LogOut, User, History } from 'lucide-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { workflowStore } from '$lib/workflowStore.svelte';
-  import { decodeJwtPayload, logout } from '$lib/utils';
+	import { decodeJwtPayload, logout } from '$lib/utils';
 
 	let { children } = $props();
 
@@ -107,7 +107,7 @@
 			const message = JSON.parse(event.data);
 			if (message.type === 'workflow_update') {
 				const latestRuns: WorkflowRun[] = message.data;
-				
+
 				workflowStore.setLatestRuns(latestRuns);
 
 				for (const run of latestRuns) {
@@ -129,7 +129,7 @@
 					knownRunStates.set(run.id, run.state_name);
 				}
 			} else if (message.type === 'notification') {
-        console.log('Message  was sent from back to front.');
+				console.log('Message  was sent from back to front.');
 				toast.success(message.message);
 			}
 		};

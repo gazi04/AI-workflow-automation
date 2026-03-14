@@ -6,7 +6,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import * as Card from '$lib/components/ui/card';
 	import {
-    Loader,
+		Loader,
 		Search,
 		Calendar,
 		Clock,

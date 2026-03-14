@@ -21,28 +21,28 @@ export function formatLabel(text: string | undefined) {
 }
 
 export function decodeJwtPayload(token: string): Record<string, unknown> | null {
-  try {
-    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    return JSON.parse(atob(base64));
-  } catch {
-    return null;
-  }
+	try {
+		const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+		return JSON.parse(atob(base64));
+	} catch {
+		return null;
+	}
 }
 
 export function logout() {
-  localStorage.clear();
-  goto('/login');
+	localStorage.clear();
+	goto('/login');
 }
 
 export function formatDate(dateStr: string | null) {
-  if (!dateStr) return 'N/A';
-  const date = new Date(dateStr);
-  return date.toLocaleString();
+	if (!dateStr) return 'N/A';
+	const date = new Date(dateStr);
+	return date.toLocaleString();
 }
 
 export function formatDuration(seconds: number) {
-  if (seconds < 60) return `${seconds.toFixed(1)}s`;
-  const mins = Math.floor(seconds / 60);
-  const secs = (seconds % 60).toFixed(0);
-  return `${mins}m ${secs}s`;
+	if (seconds < 60) return `${seconds.toFixed(1)}s`;
+	const mins = Math.floor(seconds / 60);
+	const secs = (seconds % 60).toFixed(0);
+	return `${mins}m ${secs}s`;
 }

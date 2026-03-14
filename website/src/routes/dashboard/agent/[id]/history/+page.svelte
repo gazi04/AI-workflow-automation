@@ -6,7 +6,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Card from '$lib/components/ui/card';
-  import { formatDate, formatDuration } from '$lib/utils';
+	import { formatDate, formatDuration } from '$lib/utils';
 	import {
 		Loader,
 		ArrowLeft,
@@ -21,7 +21,7 @@
 	import { toast } from 'svelte-sonner';
 	import { fly, fade } from 'svelte/transition';
 
-  type WorkflowRun = components["schemas"]["WorkflowRun"];
+	type WorkflowRun = components['schemas']['WorkflowRun'];
 
 	const id = $derived(page.params.id);
 	const urlRunId = $derived(page.url.searchParams.get('runId'));

@@ -9,7 +9,7 @@
 		Mail,
 		MessageSquare,
 		RefreshCw,
-    CircleAlert,
+		CircleAlert,
 		CircleCheck,
 		Settings2,
 		Unplug,
