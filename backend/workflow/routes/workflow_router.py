@@ -9,6 +9,8 @@ from core.database import get_db
 from core.setup_logging import setup_logger
 from orchestration.services import DeploymentService
 from user.models import User
+from utils.catalog_introspector import build_catalog
+from workflow.schemas.catalog import WorkflowCatalog
 from workflow.schemas.workflow_run import WorkflowRun
 from workflow.schemas import RunWorkflowRequest, UpdateWorkflowRequest, ToggleWorkflowRequest
 from workflow.services import WorkflowService
@@ -18,6 +20,23 @@ from core.websocket_manager import manager
 logger = setup_logger("Workflow Router")
 
 workflow_router = APIRouter(prefix="/workflow", tags=["Workflow"])
+
+
+@workflow_router.get("/catalog", response_model=WorkflowCatalog)
+def get_catalog():
+    """
+    Returns a structured manifest of all available trigger and action nodes,
+    including their field definitions and UI metadata (category, icon).
+    Designed for the frontend catalog-driven editor to consume.
+    """
+    try:
+        return build_catalog()
+    except Exception as e:
+        logger.error(f"Failed to build workflow catalog: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate workflow catalog.",
+        )
 
 
 @workflow_router.get("/get_workflows")
