@@ -2,7 +2,13 @@ from typing import Any, Dict, List, Optional
 from uuid import UUID
 from prefect import get_client
 from prefect.client.schemas import FlowRun
-from prefect.client.schemas.filters import FlowRunFilter, FlowRunFilterDeploymentId, FlowRunFilterTags, LogFilter, LogFilterFlowRunId
+from prefect.client.schemas.filters import (
+    FlowRunFilter,
+    FlowRunFilterDeploymentId,
+    FlowRunFilterTags,
+    LogFilter,
+    LogFilterFlowRunId,
+)
 from prefect.client.schemas.objects import Log
 from prefect.client.schemas.sorting import FlowRunSort, LogSort
 from prefect.deployments import run_deployment
@@ -11,7 +17,14 @@ from prefect.client.schemas.schedules import CronSchedule
 from core.setup_logging import setup_logger
 from orchestration.flows.master_flow import execute_automation_flow
 from utils.translate_workflow_runs_schema import translate_flow_runs_schema
-from workflow.schemas import EmailReceivedTrigger, ManualTrigger, NewSheetRowTrigger, ScheduleTrigger, WorkflowDefinition, WorkflowRun
+from workflow.schemas import (
+    EmailReceivedTrigger,
+    ManualTrigger,
+    NewSheetRowTrigger,
+    ScheduleTrigger,
+    WorkflowDefinition,
+    WorkflowRun,
+)
 
 logger = setup_logger("Deployment Service")
 
@@ -48,7 +61,6 @@ class DeploymentService:
         elif isinstance(trigger, (EmailReceivedTrigger, NewSheetRowTrigger)):
             # ✨ TODO: Add logic to register webhooks or polling for these event-based triggers.
             logger.warning(f"Trigger type '{trigger.type}' is not yet fully automated.")
-        
 
         safe_name = workflow.name.replace(" ", "-").lower()
         deployment_name = f"user-{user_id}-{safe_name}"
@@ -117,7 +129,7 @@ class DeploymentService:
                 flow_run_filter=FlowRunFilter(
                     tags=FlowRunFilterTags(
                         all_=["user-generated"],
-                        any_=[f"user-{user_id}", f"user_{user_id}"]
+                        any_=[f"user-{user_id}", f"user_{user_id}"],
                     ),
                 ),
                 limit=50,
@@ -146,11 +158,13 @@ class DeploymentService:
         async with get_client() as client:
             return await client.read_logs(
                 log_filter=LogFilter(flow_run_id=LogFilterFlowRunId(any_=[run_id])),
-                sort=LogSort.TIMESTAMP_ASC
+                sort=LogSort.TIMESTAMP_ASC,
             )
 
     @staticmethod
-    async def get_latest_runs_status(user_id: UUID, limit: int = 5) -> List[WorkflowRun]:
+    async def get_latest_runs_status(
+        user_id: UUID, limit: int = 5
+    ) -> List[WorkflowRun]:
         """
         A lightweight fetcher specifically for the frontend polling mechanism.
         Used to detect status changes (like 'Failed') to trigger toasts.
@@ -160,7 +174,7 @@ class DeploymentService:
                 flow_run_filter=FlowRunFilter(
                     tags=FlowRunFilterTags(
                         all_=["user-generated"],
-                        any_=[f"user-{user_id}", f"user_{user_id}"]
+                        any_=[f"user-{user_id}", f"user_{user_id}"],
                     ),
                 ),
                 limit=limit,

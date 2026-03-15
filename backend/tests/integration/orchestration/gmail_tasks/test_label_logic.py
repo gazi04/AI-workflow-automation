@@ -7,9 +7,10 @@ from orchestration.tasks.gmail_tasks import GmailTasks
 
 REAL_USER_ID = UUID("d2b00790-dcdc-43c5-b2a0-2291aec393c0")
 
+
 async def test_label_mail_real_data():
     print(f"--- Starting Real Integration Test for User: {REAL_USER_ID} ---")
-    
+
     target_label = "Test2"
 
     try:
@@ -22,12 +23,12 @@ async def test_label_mail_real_data():
             label=target_label,
             backgroundColor="",
             textColor="",
-            original_email=dummy_email
+            original_email=dummy_email,
         )
 
         print("\n✅ API Call Successful!")
         print(f"Total Labels found in Gmail: {len(labels)}")
-        
+
         print("\nFirst 5 Labels found:")
         for l in labels[:5]:
             print(f" - {l['name']} (ID: {l['id']})")

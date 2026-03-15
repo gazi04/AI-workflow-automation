@@ -7,10 +7,10 @@ from ai.routes.ai_router import ai_router
 from workflow.routes.workflow_router import workflow_router
 
 # The models are imported as a top level to resolve some issues
-# first is the circular dependecies that the models import eachother 
-# and the other issue has to do with the SQLAchemy string resolution 
+# first is the circular dependecies that the models import eachother
+# and the other issue has to do with the SQLAchemy string resolution
 # in the mapper of defining relantionships
-import core.models # noqa: F401
+import core.models  # noqa: F401
 
 app = FastAPI(title="AI Workflow Orchestrator API")
 
@@ -22,7 +22,7 @@ app.include_router(workflow_router, prefix="/api")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173","http://127.0.0.1:5173"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -31,4 +31,5 @@ app.add_middleware(
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
