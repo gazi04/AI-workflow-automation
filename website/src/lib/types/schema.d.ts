@@ -176,6 +176,28 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/workflow/catalog': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get Catalog
+		 * @description Returns a structured manifest of all available trigger and action nodes,
+		 *     including their field definitions and UI metadata (category, icon).
+		 *     Designed for the frontend catalog-driven editor to consume.
+		 */
+		get: operations['get_catalog_api_workflow_catalog_get'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/workflow/get_workflows': {
 		parameters: {
 			query?: never;
@@ -372,6 +394,26 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/workflow/test-notification/{user_id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Test Notification
+		 * @description Push a test notification to a specific user via WebSocket.
+		 */
+		post: operations['test_notification_api_workflow_test_notification__user_id__post'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -426,6 +468,24 @@ export interface components {
 			 */
 			type: 'email_received';
 			config: components['schemas']['EmailReceivedConfig'];
+		};
+		/** FieldDefinition */
+		FieldDefinition: {
+			/** Key */
+			key: string;
+			/** Label */
+			label: string;
+			/** Type */
+			type: string;
+			/** Required */
+			required: boolean;
+			/** Default */
+			default?: unknown;
+			/**
+			 * Description
+			 * @default
+			 */
+			description: string;
 		};
 		/** GmailLabel */
 		GmailLabel: {
@@ -513,6 +573,23 @@ export interface components {
 		 * @enum {string}
 		 */
 		LabelType: 'system' | 'user';
+		/** ManualConfig */
+		ManualConfig: {
+			/**
+			 * Description
+			 * @default Triggered manually via the UI
+			 */
+			description: string;
+		};
+		/** ManualTrigger */
+		ManualTrigger: {
+			/**
+			 * @description discriminator enum property added by openapi-typescript
+			 * @enum {string}
+			 */
+			type: 'manual';
+			config: components['schemas']['ManualConfig'];
+		};
 		/**
 		 * MessageListVisibility
 		 * @enum {string}
@@ -531,6 +608,19 @@ export interface components {
 			 */
 			type: 'new_sheet_row';
 			config: components['schemas']['NewSheetRowConfig'];
+		};
+		/** NodeDefinition */
+		NodeDefinition: {
+			/** Type */
+			type: string;
+			/** Category */
+			category: string;
+			/** Label */
+			label: string;
+			/** Description */
+			description: string;
+			/** Fields */
+			fields: components['schemas']['FieldDefinition'][];
 		};
 		/** RefreshTokenRequest */
 		RefreshTokenRequest: {
@@ -703,6 +793,13 @@ export interface components {
 			/** Error Type */
 			type: string;
 		};
+		/** WorkflowCatalog */
+		WorkflowCatalog: {
+			/** Triggers */
+			triggers: components['schemas']['NodeDefinition'][];
+			/** Actions */
+			actions: components['schemas']['NodeDefinition'][];
+		};
 		/** WorkflowDefinition */
 		'WorkflowDefinition-Input': {
 			/**
@@ -718,6 +815,7 @@ export interface components {
 			/** Trigger */
 			trigger:
 				| components['schemas']['EmailReceivedTrigger']
+				| components['schemas']['ManualTrigger']
 				| components['schemas']['NewSheetRowTrigger']
 				| components['schemas']['ScheduleTrigger'];
 			/** Actions */
@@ -746,6 +844,7 @@ export interface components {
 			/** Trigger */
 			trigger:
 				| components['schemas']['EmailReceivedTrigger']
+				| components['schemas']['ManualTrigger']
 				| components['schemas']['NewSheetRowTrigger']
 				| components['schemas']['ScheduleTrigger'];
 			/** Actions */
@@ -1021,6 +1120,26 @@ export interface operations {
 			};
 		};
 	};
+	get_catalog_api_workflow_catalog_get: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Successful Response */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['WorkflowCatalog'];
+				};
+			};
+		};
+	};
 	get_workflows_api_workflow_get_workflows_get: {
 		parameters: {
 			query?: never;
@@ -1279,6 +1398,39 @@ export interface operations {
 			header?: never;
 			path: {
 				run_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Successful Response */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': unknown;
+				};
+			};
+			/** @description Validation Error */
+			422: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['HTTPValidationError'];
+				};
+			};
+		};
+	};
+	test_notification_api_workflow_test_notification__user_id__post: {
+		parameters: {
+			query?: {
+				message?: string;
+			};
+			header?: never;
+			path: {
+				user_id: string;
 			};
 			cookie?: never;
 		};
