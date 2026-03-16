@@ -1,6 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { SvelteFlow, Controls, Background, type Node, type Edge } from '@xyflow/svelte';
+	import {
+		SvelteFlow,
+		Controls,
+		Background,
+		type Node,
+		type Edge,
+		useSvelteFlow,
+		SvelteFlowProvider,
+		addEdge
+	} from '@xyflow/svelte';
 	import '@xyflow/svelte/dist/style.css';
 	import { api } from '$lib/api/client';
 	import { page } from '$app/state';
@@ -10,6 +19,8 @@
 	import TriggerNode from '$lib/components/editor/TriggerNode.svelte';
 	import ActionNode from '$lib/components/editor/ActionNode.svelte';
 	import ConfigPanel from '$lib/components/editor/ConfigPanel.svelte';
+	import Sidebar from '$lib/components/editor/Sidebar.svelte';
+	import FlowCanvas from '$lib/components/editor/FlowCanvas.svelte';
 	import type { components } from '$lib/types/schema';
 
 	type WorkflowDef = components['schemas']['WorkflowDefinition-Output'];
@@ -36,9 +47,26 @@
 	};
 
 	async function loadWorkflow() {
-		try {
-			const id = page.params.id;
+		const id = page.params.id;
+		if (id === 'new') {
+			workflow = {
+				id: 'new',
+				deployment_id: '',
+				is_active: false,
+				name: 'New Custom Agent',
+				description: 'Automate tasks with custom logic.',
+				config: {
+					trigger: { type: 'manual', config: { description: 'Triggered manually via the UI' } },
+					actions: []
+				},
+				ui_metadata: null
+			} as Workflow;
+			generateFlow(workflow.config);
+			isLoading = false;
+			return;
+		}
 
+		try {
 			const res = await api.get<Workflow>(`/api/workflow/get_workflow/${id}`);
 			workflow = res;
 
@@ -94,9 +122,8 @@
 		edges = newEdges;
 	}
 
-	function onNodeClick({ event, node }: { event: MouseEvent; node: Node }) {
+	function onNodeClick({ event, node }: { event: MouseEvent | TouchEvent; node: Node }) {
 		selectedNode = node;
-		console.log('Selected node ID:', node.id);
 	}
 
 	async function handleSave() {
@@ -104,16 +131,47 @@
 
 		try {
 			isLoading = true;
+
+			// Reconstruct config from nodes
+			const triggerNode = nodes.find((n) => n.id === 'trigger' || n.type === 'trigger');
+			const actionNodes = nodes
+				.filter((n) => n.type === 'action')
+				.sort((a, b) => a.position.x - b.position.x);
+
+			if (!triggerNode) {
+				alert('Workflow must have a trigger!');
+				return;
+			}
+
 			const updatedConfig = {
-				...workflow.config,
+				name: workflow.name,
+				description: workflow.description,
+				trigger: {
+					type: triggerNode.data.type,
+					config: triggerNode.data.config
+				},
+				actions: actionNodes.map((n) => ({
+					type: n.data.type,
+					config: n.data.config
+				})),
 				ui_metadata: { nodes, edges }
 			};
 
-			await api.patch(`/api/workflow/update-config`, {
-				deployment_id: workflow.id,
-				config: updatedConfig
-			});
-			alert('Workflow saved successfully!');
+			if (workflow.id === 'new') {
+				const res = await api.post<Workflow>(`/api/workflow/create`, {
+					name: workflow.name,
+					description: workflow.description,
+					workflow_definition: updatedConfig
+				});
+				alert('Workflow created successfully!');
+				goto(`/dashboard/edit/${res.id}`);
+			} else {
+				await api.patch(`/api/workflow/update-config`, {
+					deployment_id: workflow.id,
+					config: updatedConfig
+				});
+				alert('Workflow saved successfully!');
+			}
 		} catch (e) {
 			console.error(e);
 		} finally {
@@ -125,30 +183,47 @@
 </script>
 
 <div class="flex h-screen overflow-hidden bg-background">
-	<div class="flex grow flex-col">
-		<header class="flex items-center justify-between border-b bg-card p-4">
-			<Button variant="ghost" size="sm" class="w-fit gap-2" onclick={() => goto('/dashboard')}>
-				<ChevronLeft class="h-4 w-4" /> Go to dashboard
-			</Button>
+	{#if workflow}
+		<Sidebar />
 
-			<div>
-				<h1 class="text-lg font-bold">{workflow?.name || 'Loading...'}</h1>
-			</div>
-			<Button onclick={handleSave} size="sm" class="gap-2" disabled={isLoading}>
-				{#if isLoading}<Loader class="animate-spin" size={16} />{/if}
-				<Save class="h-4 w-4" /> Save
-			</Button>
-		</header>
+		<div class="flex grow flex-col">
+			<header class="flex items-center justify-between border-b bg-card p-4">
+				<Button variant="ghost" size="sm" class="w-fit gap-2" onclick={() => goto('/dashboard')}>
+					<ChevronLeft class="h-4 w-4" /> Go to dashboard
+				</Button>
 
-		<main class="relative grow">
-			<SvelteFlow {nodes} {edges} {nodeTypes} onnodeclick={onNodeClick} fitView>
-				<Controls />
-				<Background gap={20} />
-			</SvelteFlow>
-		</main>
-	</div>
+				<div class="flex flex-col items-center">
+					<input
+						type="text"
+						bind:value={workflow.name}
+						class="rounded bg-transparent px-2 text-center text-lg font-bold outline-none focus:ring-1 focus:ring-primary"
+					/>
+					<input
+						type="text"
+						bind:value={workflow.description}
+						class="bg-transparent text-center text-xs text-muted-foreground outline-none"
+					/>
+				</div>
 
-	{#if selectedNode}
-		<ConfigPanel bind:node={selectedNode} onClose={() => (selectedNode = null)} />
+				<Button onclick={handleSave} size="sm" class="gap-2" disabled={isLoading}>
+					{#if isLoading}<Loader class="animate-spin" size={16} />{/if}
+					<Save class="h-4 w-4" /> Save
+				</Button>
+			</header>
+
+			<main class="relative grow">
+				<SvelteFlowProvider>
+					<FlowCanvas bind:nodes bind:edges {onNodeClick} />
+				</SvelteFlowProvider>
+			</main>
+		</div>
+
+		{#if selectedNode}
+			<ConfigPanel bind:node={selectedNode} onClose={() => (selectedNode = null)} />
+		{/if}
+	{:else if isLoading}
+		<div class="flex h-full w-full items-center justify-center">
+			<Loader class="animate-spin text-primary" size={48} />
+		</div>
 	{/if}
 </div>
