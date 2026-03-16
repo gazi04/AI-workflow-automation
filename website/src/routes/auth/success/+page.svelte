@@ -4,8 +4,8 @@
 	import { page } from '$app/state';
 	import { Loader } from 'lucide-svelte';
 
-  const accessToken = $derived(page.url.searchParams.get('access_token'));
-  const refreshToken = $derived(page.url.searchParams.get('refresh_token'));
+	const accessToken = $derived(page.url.searchParams.get('access_token'));
+	const refreshToken = $derived(page.url.searchParams.get('refresh_token'));
 
 	onMount(() => {
 		if (accessToken && refreshToken) {

@@ -18,10 +18,9 @@
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { fly, fade } from 'svelte/transition';
-
-	import { workflowStore } from '$lib/workflowStore.svelte';
-
+	import { workflowStore } from '$lib/store/workflowStore.svelte';
 	import type { components } from '$lib/types/schema';
+
 	type WorkflowRun = components['schemas']['WorkflowRun'];
 
 	let allRuns = $state<WorkflowRun[]>([]);

@@ -6,7 +6,7 @@
 	import { page } from '$app/state';
 	import { LayoutDashboard, CirclePlus, Plug, LogOut, User, History } from 'lucide-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { workflowStore } from '$lib/workflowStore.svelte';
+	import { workflowStore } from '$lib/store/workflowStore.svelte';
 	import { decodeJwtPayload, logout } from '$lib/utils';
 
 	let { children } = $props();

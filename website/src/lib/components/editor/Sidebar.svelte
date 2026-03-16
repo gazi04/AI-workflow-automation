@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { catalogStore } from '$lib/catalogStore.svelte';
+	import { catalogStore } from '$lib/store/catalogStore.svelte';
 	import type { components } from '$lib/types/schema';
 
 	type NodeDefinition = components['schemas']['NodeDefinition'];
@@ -20,7 +20,9 @@
 
 	const DEFAULT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>`;
 
-	let { onDragStart }: { onDragStart?: (node: NodeDefinition, nodeType: 'trigger' | 'action') => void } = $props();
+	let {
+		onDragStart
+	}: { onDragStart?: (node: NodeDefinition, nodeType: 'trigger' | 'action') => void } = $props();
 
 	const grouped = $derived.by(() => {
 		if (!catalogStore.catalog) return { triggers: {}, actions: {} };
@@ -50,7 +52,7 @@
 
 <aside class="flex h-full w-64 shrink-0 flex-col border-r bg-card">
 	<div class="border-b px-4 py-3">
-		<h2 class="text-xs font-bold uppercase tracking-widest text-muted-foreground">Node Catalog</h2>
+		<h2 class="text-xs font-bold tracking-widest text-muted-foreground uppercase">Node Catalog</h2>
 	</div>
 
 	<div class="flex-1 overflow-y-auto p-3">
@@ -68,7 +70,7 @@
 		{:else}
 			<!-- Triggers -->
 			<div class="mb-4">
-				<p class="mb-2 px-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+				<p class="mb-2 px-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
 					Triggers
 				</p>
 				{#each Object.entries(grouped.triggers) as [category, nodes]}
@@ -82,7 +84,9 @@
 								ondragstart={(e) => handleDragStart(e, node, 'trigger')}
 								class="mb-1 flex cursor-grab items-center gap-2 rounded-md border border-transparent px-2 py-2 text-sm transition-colors hover:border-border hover:bg-accent active:cursor-grabbing"
 							>
-								<span class="text-primary opacity-80">{@html ICON_MAP[node.type] ?? DEFAULT_ICON}</span>
+								<span class="text-primary opacity-80"
+									>{@html ICON_MAP[node.type] ?? DEFAULT_ICON}</span
+								>
 								<span class="font-medium">{node.label}</span>
 							</div>
 						{/each}
@@ -94,7 +98,7 @@
 
 			<!-- Actions -->
 			<div>
-				<p class="mb-2 px-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+				<p class="mb-2 px-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
 					Actions
 				</p>
 				{#each Object.entries(grouped.actions) as [category, nodes]}
@@ -108,7 +112,9 @@
 								ondragstart={(e) => handleDragStart(e, node, 'action')}
 								class="mb-1 flex cursor-grab items-center gap-2 rounded-md border border-transparent px-2 py-2 text-sm transition-colors hover:border-border hover:bg-accent active:cursor-grabbing"
 							>
-								<span class="text-primary opacity-80">{@html ICON_MAP[node.type] ?? DEFAULT_ICON}</span>
+								<span class="text-primary opacity-80"
+									>{@html ICON_MAP[node.type] ?? DEFAULT_ICON}</span
+								>
 								<span class="font-medium">{node.label}</span>
 							</div>
 						{/each}
