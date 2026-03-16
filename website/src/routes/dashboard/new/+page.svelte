@@ -5,7 +5,15 @@
 	import { Textarea } from '$lib/components/ui/textarea';
 	import * as Card from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Loader, Sparkles, CircleCheck, CircleAlert, ChevronLeft, Rocket } from 'lucide-svelte';
+	import {
+		Pencil,
+		Loader,
+		Sparkles,
+		CircleCheck,
+		CircleAlert,
+		ChevronLeft,
+		Rocket
+	} from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 
 	type AIResponse = components['schemas']['AIResponse'];
@@ -48,9 +56,20 @@
 <div class="min-h-screen bg-background p-6 lg:p-12">
 	<div class="mx-auto max-w-5xl space-y-6">
 		<div class="flex flex-col gap-4">
-			<Button variant="ghost" size="sm" class="w-fit gap-2" onclick={() => goto('/dashboard')}>
-				<ChevronLeft class="h-4 w-4" /> Back to Fleet
-			</Button>
+			<div class="flex flex-row justify-between">
+				<Button variant="ghost" size="sm" class="w-fit gap-2" onclick={() => goto('/dashboard')}>
+					<ChevronLeft class="h-4 w-4" /> Back to Fleet
+				</Button>
+				<Button
+					variant="outline"
+					class="w-fit gap-2"
+					disabled={isAnalyzing || isDeployed}
+					onclick={() => goto('/dashboard/edit/new')}
+				>
+					<Pencil class="h-4 w-4" /> Design from Scratch
+				</Button>
+			</div>
+
 			<div>
 				<h1 class="text-3xl font-bold tracking-tight">Create New Agent</h1>
 				<p class="text-muted-foreground">
