@@ -9,6 +9,7 @@ from core.setup_logging import setup_logger
 from orchestration.services.deployment_service import DeploymentService
 from user.models.user import User
 from user.schemas.user_request import UserRequest
+from workflow.schemas.workflow_definition import WorkflowDefinition
 from workflow.services.workflow_service import WorkflowService
 
 logger = setup_logger("AI Router")
@@ -19,7 +20,6 @@ ai_router = APIRouter(prefix="/ai", tags=["AI"])
 @ai_router.post("/interpret", response_model=AIResponse)
 async def interpret_command(
     user_request: UserRequest,
-    db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """
@@ -27,29 +27,7 @@ async def interpret_command(
     and returns a structured workflow definition or an error.
     """
     try:
-        workflow_definition = AiService.create_workflow(user_request.text)
-
-        ai_generated_definition_dict = {
-            "trigger": workflow_definition.trigger.model_dump(by_alias=True),
-            "actions": [
-                action.model_dump(by_alias=True)
-                for action in workflow_definition.actions
-            ],
-        }
-
-        deployment_id = await DeploymentService.create_deployment_for_workflow(
-            user.id, workflow_definition
-        )
-
-        WorkflowService.create(
-            db,
-            deployment_id,
-            user.id,
-            workflow_definition.name,
-            workflow_definition.description,
-            ai_generated_definition_dict,
-        )
-
+        workflow_definition = AiService.generate_workflow(user_request.text)
         return AIResponse(success=True, data=workflow_definition)
     except ValueError as e:
         logger.debug(f"Ai router, interpret_command value error: \n{e}")
@@ -62,6 +40,31 @@ async def interpret_command(
         return AIResponse(
             success=False, error=f"An unexpected error occurred: {str(e)}"
         )
+
+
+@ai_router.post("/deploy")
+async def deploy_workflow(
+    workflow: WorkflowDefinition,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    ai_generated_definition_dict = {
+        "trigger": workflow.trigger.model_dump(by_alias=True),
+        "actions": [action.model_dump(by_alias=True) for action in workflow.actions],
+    }
+
+    deployment_id = await DeploymentService.create_deployment_for_workflow(
+        user.id, workflow
+    )
+
+    WorkflowService.create(
+        db,
+        deployment_id,
+        user.id,
+        workflow.name,
+        workflow.description,
+        ai_generated_definition_dict,
+    )
 
 
 @ai_router.get("/health")

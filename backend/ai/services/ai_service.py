@@ -63,7 +63,7 @@ class AiService:
         ]  # the +1 will enclude the '}' character in the return
 
     @staticmethod
-    def create_workflow(user_input: str) -> WorkflowDefinition:
+    def generate_workflow(user_input: str) -> WorkflowDefinition:
         """
         Make a request to create a workflow, parses the response
         Returns the parsed workflow definition
