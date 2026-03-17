@@ -15,6 +15,7 @@ class NodeDefinition(BaseModel):
     type: str
     category: str
     label: str
+    icon: str
     description: str
     fields: List[FieldDefinition]
 

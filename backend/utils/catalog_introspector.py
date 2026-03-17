@@ -51,6 +51,7 @@ def _build_node_definitions(union_type) -> list[NodeDefinition]:
             NodeDefinition(
                 type=type_literal,
                 category=schema_extra.get("category", "General"),
+                icon=schema_extra.get("icon", "lucide-help-circle"),
                 label=type_literal.replace("_", " ").title(),
                 description="",
                 fields=fields,
