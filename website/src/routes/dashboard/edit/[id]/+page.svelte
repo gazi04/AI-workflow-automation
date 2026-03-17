@@ -178,23 +178,6 @@
 		};
 	}
 
-	async function handleDeploy() {
-		const config = getUpdatedConfig();
-		if (!config) return;
-
-		try {
-			isLoading = true;
-			await api.post('/api/ai/deploy', config);
-			sessionStorage.removeItem('ai_blueprint');
-			alert('Workflow deployed successfully!');
-			goto('/dashboard?created=success');
-		} catch (e: any) {
-			alert(`Deployment failed: ${e.message}`);
-		} finally {
-			isLoading = false;
-		}
-	}
-
 	async function handleSave() {
 		const config = getUpdatedConfig();
 		if (!config || !workflow) return;
@@ -208,7 +191,10 @@
 					description: workflow.description,
 					workflow_definition: config
 				});
-				alert('Workflow created successfully!');
+
+				sessionStorage.removeItem('ai_blueprint');
+
+				alert('Workflow deployed successfully!');
 				goto(`/dashboard/edit/${res.id}`);
 			} else {
 				await api.patch(`/api/workflow/update-config`, {
@@ -253,7 +239,7 @@
 				<div class="flex items-center gap-2">
 					{#if workflow.id === 'new'}
 						<Button
-							onclick={handleDeploy}
+							onclick={handleSave}
 							size="sm"
 							class="gap-2"
 							variant="default"
@@ -262,18 +248,18 @@
 							{#if isLoading}<Loader class="animate-spin" size={16} />{/if}
 							<Rocket class="h-4 w-4" /> Deploy
 						</Button>
+					{:else}
+						<Button
+							onclick={handleSave}
+							size="sm"
+							class="gap-2"
+							variant="outline"
+							disabled={isLoading}
+						>
+							{#if isLoading}<Loader class="animate-spin" size={16} />{/if}
+							<Save class="h-4 w-4" /> Save
+						</Button>
 					{/if}
-
-					<Button
-						onclick={handleSave}
-						size="sm"
-						class="gap-2"
-						variant="outline"
-						disabled={isLoading}
-					>
-						{#if isLoading}<Loader class="animate-spin" size={16} />{/if}
-						<Save class="h-4 w-4" /> Save
-					</Button>
 				</div>
 			</header>
 
