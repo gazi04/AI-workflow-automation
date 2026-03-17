@@ -20,6 +20,7 @@ from .workflow_definition import WorkflowDefinition
 from .workflow_run import WorkflowRun
 from .toggle_workflow_request import ToggleWorkflowRequest
 from .update_workflow_request import UpdateWorkflowRequest
+from .create_workflow_request import CreateWorkflowRequest
 
 __all__ = [
     "Action",
@@ -33,6 +34,7 @@ __all__ = [
     "WorkflowDefinition",
     "ToggleWorkflowRequest",
     "UpdateWorkflowRequest",
+    "CreateWorkflowRequest",
     "SendEmailAction",
     "ReplyEmailAction",
     "LabelEmailAction",

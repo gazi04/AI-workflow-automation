@@ -23,6 +23,7 @@ from workflow.schemas import (
     RunWorkflowRequest,
     UpdateWorkflowRequest,
     ToggleWorkflowRequest,
+    CreateWorkflowRequest,
 )
 from workflow.services import WorkflowService
 from core.websocket_manager import manager
@@ -117,6 +118,38 @@ async def toggle_workflow(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Could not toggle workflow {request.deployment_id}.",
+        )
+
+
+@workflow_router.post("/create")
+async def create_workflow(
+    request: CreateWorkflowRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    Register a new workflow in Prefect and save it to the local database.
+    """
+    try:
+        deployment_id = await DeploymentService.create_deployment_for_workflow(
+            user.id, request.workflow_definition
+        )
+
+        new_workflow = WorkflowService.create(
+            db=db,
+            workflow_id=deployment_id,
+            user_id=user.id,
+            name=request.name,
+            description=request.description,
+            workflow_definition=request.workflow_definition.model_dump(),
+        )
+
+        return new_workflow
+    except Exception as e:
+        logger.error(f"Error creating workflow: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Could not create the workflow: {e}",
         )
 
 

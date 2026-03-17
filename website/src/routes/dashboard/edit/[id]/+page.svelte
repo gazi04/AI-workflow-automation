@@ -13,7 +13,7 @@
 	import '@xyflow/svelte/dist/style.css';
 	import { api } from '$lib/api/client';
 	import { page } from '$app/state';
-	import { Loader, Save, ChevronLeft } from 'lucide-svelte';
+	import { Loader, Save, ChevronLeft, Rocket } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
 	import TriggerNode from '$lib/components/editor/TriggerNode.svelte';
@@ -48,7 +48,31 @@
 
 	async function loadWorkflow() {
 		const id = page.params.id;
+		const source = page.url.searchParams.get('source');
+
 		if (id === 'new') {
+			if (source === 'ai') {
+				const blueprint = sessionStorage.getItem('ai_blueprint');
+				if (blueprint) {
+					const data = JSON.parse(blueprint);
+					workflow = {
+						id: 'new',
+						deployment_id: '',
+						is_active: false,
+						name: data.name || 'AI Generated Agent',
+						description: data.description || '',
+						config: {
+							trigger: data.trigger,
+							actions: data.actions
+						},
+						ui_metadata: null
+					} as Workflow;
+					generateFlow(workflow.config);
+					isLoading = false;
+					return;
+				}
+			}
+
 			workflow = {
 				id: 'new',
 				deployment_id: '',
@@ -126,49 +150,70 @@
 		selectedNode = node;
 	}
 
-	async function handleSave() {
-		if (!workflow) return;
+	function getUpdatedConfig() {
+		if (!workflow) return null;
+
+		const triggerNode = nodes.find((n) => n.id === 'trigger' || n.type === 'trigger');
+		const actionNodes = nodes
+			.filter((n) => n.type === 'action')
+			.sort((a, b) => a.position.x - b.position.x);
+
+		if (!triggerNode) {
+			alert('Workflow must have a trigger!');
+			return null;
+		}
+
+		return {
+			name: workflow.name,
+			description: workflow.description,
+			trigger: {
+				type: triggerNode.data.type,
+				config: triggerNode.data.config
+			},
+			actions: actionNodes.map((n) => ({
+				type: n.data.type,
+				config: n.data.config
+			})),
+			ui_metadata: { nodes, edges }
+		};
+	}
+
+	async function handleDeploy() {
+		const config = getUpdatedConfig();
+		if (!config) return;
 
 		try {
 			isLoading = true;
+			await api.post('/api/ai/deploy', config);
+			sessionStorage.removeItem('ai_blueprint');
+			alert('Workflow deployed successfully!');
+			goto('/dashboard?created=success');
+		} catch (e: any) {
+			alert(`Deployment failed: ${e.message}`);
+		} finally {
+			isLoading = false;
+		}
+	}
 
-			// Reconstruct config from nodes
-			const triggerNode = nodes.find((n) => n.id === 'trigger' || n.type === 'trigger');
-			const actionNodes = nodes
-				.filter((n) => n.type === 'action')
-				.sort((a, b) => a.position.x - b.position.x);
+	async function handleSave() {
+		const config = getUpdatedConfig();
+		if (!config || !workflow) return;
 
-			if (!triggerNode) {
-				alert('Workflow must have a trigger!');
-				return;
-			}
-
-			const updatedConfig = {
-				name: workflow.name,
-				description: workflow.description,
-				trigger: {
-					type: triggerNode.data.type,
-					config: triggerNode.data.config
-				},
-				actions: actionNodes.map((n) => ({
-					type: n.data.type,
-					config: n.data.config
-				})),
-				ui_metadata: { nodes, edges }
-			};
+		try {
+			isLoading = true;
 
 			if (workflow.id === 'new') {
 				const res = await api.post<Workflow>(`/api/workflow/create`, {
 					name: workflow.name,
 					description: workflow.description,
-					workflow_definition: updatedConfig
+					workflow_definition: config
 				});
 				alert('Workflow created successfully!');
 				goto(`/dashboard/edit/${res.id}`);
 			} else {
 				await api.patch(`/api/workflow/update-config`, {
 					deployment_id: workflow.id,
-					config: updatedConfig
+					config: config
 				});
 				alert('Workflow saved successfully!');
 			}
@@ -205,10 +250,31 @@
 					/>
 				</div>
 
-				<Button onclick={handleSave} size="sm" class="gap-2" disabled={isLoading}>
-					{#if isLoading}<Loader class="animate-spin" size={16} />{/if}
-					<Save class="h-4 w-4" /> Save
-				</Button>
+				<div class="flex items-center gap-2">
+					{#if workflow.id === 'new'}
+						<Button
+							onclick={handleDeploy}
+							size="sm"
+							class="gap-2"
+							variant="default"
+							disabled={isLoading}
+						>
+							{#if isLoading}<Loader class="animate-spin" size={16} />{/if}
+							<Rocket class="h-4 w-4" /> Deploy
+						</Button>
+					{/if}
+
+					<Button
+						onclick={handleSave}
+						size="sm"
+						class="gap-2"
+						variant="outline"
+						disabled={isLoading}
+					>
+						{#if isLoading}<Loader class="animate-spin" size={16} />{/if}
+						<Save class="h-4 w-4" /> Save
+					</Button>
+				</div>
 			</header>
 
 			<main class="relative grow">

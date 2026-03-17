@@ -41,32 +41,6 @@ async def interpret_command(
             success=False, error=f"An unexpected error occurred: {str(e)}"
         )
 
-
-@ai_router.post("/deploy")
-async def deploy_workflow(
-    workflow: WorkflowDefinition,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    ai_generated_definition_dict = {
-        "trigger": workflow.trigger.model_dump(by_alias=True),
-        "actions": [action.model_dump(by_alias=True) for action in workflow.actions],
-    }
-
-    deployment_id = await DeploymentService.create_deployment_for_workflow(
-        user.id, workflow
-    )
-
-    WorkflowService.create(
-        db,
-        deployment_id,
-        user.id,
-        workflow.name,
-        workflow.description,
-        ai_generated_definition_dict,
-    )
-
-
 @ai_router.get("/health")
 async def health():
     """Health check endpoint to verify Azure connection"""

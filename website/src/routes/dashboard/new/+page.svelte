@@ -4,15 +4,12 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import * as Card from '$lib/components/ui/card';
-	import { Badge } from '$lib/components/ui/badge';
 	import {
 		Pencil,
 		Loader,
 		Sparkles,
-		CircleCheck,
 		CircleAlert,
 		ChevronLeft,
-		Rocket
 	} from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 
@@ -25,7 +22,7 @@
 	let generatedWorkflow = $state<WorkflowDef | null>(null);
 	let errorMessage = $state('');
 
-	async function interpretAndDeploy() {
+	async function interpretCommand() {
 		if (!prompt) return;
 
 		isAnalyzing = true;
@@ -36,12 +33,8 @@
 			const result = await api.post<AIResponse>('/api/ai/interpret', { text: prompt });
 
 			if (result.success && result.data) {
-				generatedWorkflow = result.data;
-				isDeployed = true;
-
-				setTimeout(() => {
-					goto('/dashboard?created=success');
-				}, 2500);
+				sessionStorage.setItem('ai_blueprint', JSON.stringify(result.data));
+				goto('/dashboard/edit/new?source=ai');
 			} else {
 				errorMessage = result.error || 'AI could not structure that request.';
 			}
@@ -76,10 +69,7 @@
 					Describe your automation goal. AI will build and deploy it instantly.
 				</p>
 			</div>
-		</div>
-
-		<div class="grid items-start gap-8 lg:grid-cols-2">
-			<section class="space-y-4">
+      <section class="space-y-4">
 				<Card.Root>
 					<Card.Header>
 						<Card.Title class="text-lg">Instructions</Card.Title>
@@ -97,14 +87,12 @@
 						<Button
 							class="w-full"
 							disabled={isAnalyzing || !prompt || isDeployed}
-							onclick={interpretAndDeploy}
+							onclick={interpretCommand}
 						>
 							{#if isAnalyzing}
-								<Loader class="mr-2 h-4 w-4 animate-spin" /> Deploying Agent...
-							{:else if isDeployed}
-								<CircleCheck class="mr-2 h-4 w-4" /> Agent Active!
+								<Loader class="mr-2 h-4 w-4 animate-spin" /> Generating Agent...
 							{:else}
-								Deploy with AI <Sparkles class="ml-2 h-4 w-4" />
+								Generate Blueprint <Sparkles class="ml-2 h-4 w-4" />
 							{/if}
 						</Button>
 					</Card.Footer>
@@ -116,59 +104,6 @@
 					>
 						<CircleAlert class="h-4 w-4" />
 						{errorMessage}
-					</div>
-				{/if}
-			</section>
-
-			<section>
-				{#if isDeployed && generatedWorkflow}
-					<Card.Root class="animate-in border-primary/50 bg-primary/5 duration-500 zoom-in-95">
-						<Card.Header class="text-center">
-							<div
-								class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground"
-							>
-								<Rocket class="h-6 w-6" />
-							</div>
-							<Card.Title class="text-2xl">Agent Deployed!</Card.Title>
-							<Card.Description>
-								<strong>{generatedWorkflow.name}</strong> is now monitoring your workspace.
-							</Card.Description>
-						</Card.Header>
-						<Card.Content>
-							<div class="space-y-4 rounded-lg border bg-background p-4">
-								<div class="flex items-center gap-2 text-sm font-medium">
-									<Badge>Active</Badge>
-									<span class="text-muted-foreground"
-										>Trigger: {generatedWorkflow.trigger.type}</span
-									>
-								</div>
-								<p class="text-sm text-muted-foreground italic">
-									"{generatedWorkflow.description}"
-								</p>
-							</div>
-							<p class="mt-4 animate-pulse text-center text-xs text-muted-foreground">
-								Redirecting to Control Center...
-							</p>
-						</Card.Content>
-					</Card.Root>
-				{:else if isAnalyzing}
-					<div
-						class="flex h-100 flex-col items-center justify-center rounded-xl border border-dashed text-center"
-					>
-						<Loader class="mb-4 h-8 w-8 animate-spin text-primary" />
-						<p class="text-sm font-medium">AI is architecting your workflow...</p>
-						<p class="text-xs text-muted-foreground">Provisioning triggers and actions.</p>
-					</div>
-				{:else}
-					<div
-						class="flex h-100 flex-col items-center justify-center rounded-xl border border-dashed text-center"
-					>
-						<div class="mb-4 rounded-full bg-muted p-4">
-							<Sparkles class="h-8 w-8 text-muted-foreground/50" />
-						</div>
-						<p class="text-sm text-muted-foreground">
-							Your agent's blueprint will appear here after deployment.
-						</p>
 					</div>
 				{/if}
 			</section>
