@@ -48,7 +48,7 @@ class WorkflowService:
         workflow = db.query(Workflow).filter(Workflow.id == id).first()
 
         if workflow:
-            ui_metadata = config.pop("ui_metadata")
+            ui_metadata = config.pop("ui_metadata", None)
             workflow.config = config
 
             if ui_metadata is not None:
