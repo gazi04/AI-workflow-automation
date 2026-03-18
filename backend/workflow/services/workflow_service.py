@@ -15,12 +15,16 @@ class WorkflowService:
         description: str,
         workflow_definition: dict,
     ) -> Workflow:
+        # Extract ui_metadata from the definition if it exists
+        ui_metadata = workflow_definition.get("ui_metadata")
+
         new_workflow = Workflow(
             id=workflow_id,
             user_id=user_id,
             name=name,
             description=description,
             config=workflow_definition,
+            ui_metadata=ui_metadata,
         )
         db.add(new_workflow)
         db.commit()
@@ -38,12 +42,18 @@ class WorkflowService:
 
         return workflow
 
+    # ♻️ todo: use pydantic schema for the config instead of python dictionaries
     @staticmethod
     def update_config(db: Session, id: UUID, config: Dict) -> Workflow:
         workflow = db.query(Workflow).filter(Workflow.id == id).first()
 
         if workflow:
+            ui_metadata = config.pop("ui_metadata")
             workflow.config = config
+
+            if ui_metadata is not None:
+                workflow.ui_metadata = ui_metadata
+
             # we use flush because workflow and deployment services are sequantially dependent
             db.flush()  # in the workflow router the changes are commited
 

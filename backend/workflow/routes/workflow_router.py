@@ -163,10 +163,11 @@ async def update_workflow_config(
     Update the parameters/config of a specific Prefect deployment and also it's workflow corresponding entity.
     """
     try:
-        WorkflowService.update_config(db, request.deployment_id, request.config)
+        workflow_config_dict = request.config.model_dump(by_alias=True, exclude_none=True)
+        WorkflowService.update_config(db, request.deployment_id, workflow_config_dict)
 
         result = await DeploymentService.update_workflow_config(
-            deployment_id=request.deployment_id, new_params=request.config
+            deployment_id=request.deployment_id, new_params=workflow_config_dict
         )
 
         db.commit()  # we commit the config update here because of sequential dependencies between service and manager
