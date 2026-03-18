@@ -153,8 +153,11 @@
 	function getUpdatedConfig() {
 		if (!workflow) return null;
 
-		const triggerNode = nodes.find((n) => n.id === 'trigger' || n.type === 'trigger');
-		const actionNodes = nodes
+    const currentNodes = $state.snapshot(nodes);
+    const currentEdges = $state.snapshot(edges);
+
+		const triggerNode = currentNodes.find((n) => n.id === 'trigger' || n.type === 'trigger');
+		const actionNodes = currentNodes
 			.filter((n) => n.type === 'action')
 			.sort((a, b) => a.position.x - b.position.x);
 
@@ -174,7 +177,10 @@
 				type: n.data.type,
 				config: n.data.config
 			})),
-			ui_metadata: { nodes, edges }
+			ui_metadata: {
+        nodes: currentNodes,
+        edges: currentEdges
+      }
 		};
 	}
 

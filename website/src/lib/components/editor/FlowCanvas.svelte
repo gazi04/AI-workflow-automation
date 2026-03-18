@@ -52,8 +52,8 @@
 
 <div class="h-full w-full" ondragover={onDragOver} ondrop={onDrop} role="presentation">
 	<SvelteFlow
-		{nodes}
-		{edges}
+		bind:nodes
+		bind:edges
 		{nodeTypes}
 		onnodeclick={onNodeClick}
 		onconnect={(params) => (edges = addEdge(params, edges))}
