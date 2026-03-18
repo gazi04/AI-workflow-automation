@@ -18,7 +18,7 @@
 		Terminal,
 		ExternalLink
 	} from 'lucide-svelte';
-	import { toast } from 'svelte-sonner';
+	import { toast, Toaster } from 'svelte-sonner';
 	import { fly, fade } from 'svelte/transition';
 
 	type WorkflowRun = components['schemas']['WorkflowRun'];

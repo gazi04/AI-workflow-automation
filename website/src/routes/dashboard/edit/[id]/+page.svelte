@@ -18,6 +18,7 @@
 	import { goto } from '$app/navigation';
 	import TriggerNode from '$lib/components/editor/TriggerNode.svelte';
 	import ActionNode from '$lib/components/editor/ActionNode.svelte';
+  import { toast, Toaster } from 'svelte-sonner';
 	import ConfigPanel from '$lib/components/editor/ConfigPanel.svelte';
 	import Sidebar from '$lib/components/editor/Sidebar.svelte';
 	import FlowCanvas from '$lib/components/editor/FlowCanvas.svelte';
@@ -107,6 +108,7 @@
 				}
 			}
 		} catch (err: any) {
+      toast.error('Failed to load workflow.');
 			console.error('Failed to load workflow:', err);
 		} finally {
 			isLoading = false;
@@ -162,7 +164,7 @@
 			.sort((a, b) => a.position.x - b.position.x);
 
 		if (!triggerNode) {
-			alert('Workflow must have a trigger!');
+      toast.success('Workflow must have a trigger!');
 			return null;
 		}
 
@@ -200,16 +202,17 @@
 
 				sessionStorage.removeItem('ai_blueprint');
 
-				alert('Workflow deployed successfully!');
+        toast.success('Workflow deployed successfully!');
 				goto(`/dashboard/edit/${res.id}`);
 			} else {
 				await api.patch(`/api/workflow/update-config`, {
 					deployment_id: workflow.id,
 					config: config
 				});
-				alert('Workflow saved successfully!');
+        toast.success('Workflow saved successfully!');
 			}
 		} catch (e) {
+      toast.error('Failed to save the workflow.');
 			console.error(e);
 		} finally {
 			isLoading = false;

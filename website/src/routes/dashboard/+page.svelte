@@ -8,7 +8,7 @@
 	import { Switch } from '$lib/components/ui/switch';
 	import { Eye, Loader, Mail, Trash2, Play, Settings2, RefreshCw } from 'lucide-svelte';
 	import { formatLabel } from '$lib/utils';
-	import { toast } from 'svelte-sonner';
+	import { toast, Toaster } from 'svelte-sonner';
 
 	type WorkflowDef = components['schemas']['WorkflowDefinition-Output'];
 

@@ -16,7 +16,7 @@
 		Terminal,
 		ExternalLink
 	} from 'lucide-svelte';
-	import { toast } from 'svelte-sonner';
+	import { toast, Toaster } from 'svelte-sonner';
 	import { fly, fade } from 'svelte/transition';
 	import { workflowStore } from '$lib/store/workflowStore.svelte';
 	import type { components } from '$lib/types/schema';
