@@ -4,13 +4,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import * as Card from '$lib/components/ui/card';
-	import {
-		Pencil,
-		Loader,
-		Sparkles,
-		CircleAlert,
-		ChevronLeft,
-	} from 'lucide-svelte';
+	import { Pencil, Loader, Sparkles, CircleAlert, ChevronLeft } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 
 	type AIResponse = components['schemas']['AIResponse'];
@@ -69,7 +63,7 @@
 					Describe your automation goal. AI will build and deploy it instantly.
 				</p>
 			</div>
-      <section class="space-y-4">
+			<section class="space-y-4">
 				<Card.Root>
 					<Card.Header>
 						<Card.Title class="text-lg">Instructions</Card.Title>

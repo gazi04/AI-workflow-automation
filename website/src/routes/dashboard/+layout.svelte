@@ -260,4 +260,4 @@
 	</main>
 </div>
 
-<Toaster richColors position="bottom-right" />
+<Toaster richColors position="top-right" />

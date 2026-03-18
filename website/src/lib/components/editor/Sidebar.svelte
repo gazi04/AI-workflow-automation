@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-  import { catalogStore } from '$lib/store/catalogStore.svelte';
+	import { catalogStore } from '$lib/store/catalogStore.svelte';
 	import type { components } from '$lib/types/schema';
 
 	import {

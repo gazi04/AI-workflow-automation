@@ -15,7 +15,7 @@
 		Unplug,
 		Info
 	} from 'lucide-svelte';
-	import { toast } from 'svelte-sonner';
+	import { toast, Toaster } from 'svelte-sonner';
 	import { formatLabel } from '$lib/utils';
 
 	type IntegrationStatus = {

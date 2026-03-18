@@ -1,24 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import {
-		SvelteFlow,
-		Controls,
-		Background,
-		type Node,
-		type Edge,
-		useSvelteFlow,
-		SvelteFlowProvider,
-		addEdge
-	} from '@xyflow/svelte';
+	import { type Node, type Edge, SvelteFlowProvider } from '@xyflow/svelte';
 	import '@xyflow/svelte/dist/style.css';
 	import { api } from '$lib/api/client';
 	import { page } from '$app/state';
 	import { Loader, Save, ChevronLeft, Rocket } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
-	import TriggerNode from '$lib/components/editor/TriggerNode.svelte';
-	import ActionNode from '$lib/components/editor/ActionNode.svelte';
-  import { toast, Toaster } from 'svelte-sonner';
+	import { toast, Toaster } from 'svelte-sonner';
 	import ConfigPanel from '$lib/components/editor/ConfigPanel.svelte';
 	import Sidebar from '$lib/components/editor/Sidebar.svelte';
 	import FlowCanvas from '$lib/components/editor/FlowCanvas.svelte';
@@ -41,11 +30,6 @@
 	let nodes = $state<Node[]>([]);
 	let edges = $state<Edge[]>([]);
 	let selectedNode = $state<Node | null>(null);
-
-	const nodeTypes = {
-		trigger: TriggerNode,
-		action: ActionNode
-	};
 
 	async function loadWorkflow() {
 		const id = page.params.id;
@@ -108,7 +92,7 @@
 				}
 			}
 		} catch (err: any) {
-      toast.error('Failed to load workflow.');
+			toast.error('Failed to load workflow.');
 			console.error('Failed to load workflow:', err);
 		} finally {
 			isLoading = false;
@@ -155,8 +139,8 @@
 	function getUpdatedConfig() {
 		if (!workflow) return null;
 
-    const currentNodes = $state.snapshot(nodes);
-    const currentEdges = $state.snapshot(edges);
+		const currentNodes = $state.snapshot(nodes);
+		const currentEdges = $state.snapshot(edges);
 
 		const triggerNode = currentNodes.find((n) => n.id === 'trigger' || n.type === 'trigger');
 		const actionNodes = currentNodes
@@ -164,7 +148,7 @@
 			.sort((a, b) => a.position.x - b.position.x);
 
 		if (!triggerNode) {
-      toast.success('Workflow must have a trigger!');
+			toast.success('Workflow must have a trigger!');
 			return null;
 		}
 
@@ -180,9 +164,9 @@
 				config: n.data.config
 			})),
 			ui_metadata: {
-        nodes: currentNodes,
-        edges: currentEdges
-      }
+				nodes: currentNodes,
+				edges: currentEdges
+			}
 		};
 	}
 
@@ -202,17 +186,17 @@
 
 				sessionStorage.removeItem('ai_blueprint');
 
-        toast.success('Workflow deployed successfully!');
+				toast.success('Workflow deployed successfully!');
 				goto(`/dashboard/edit/${res.id}`);
 			} else {
 				await api.patch(`/api/workflow/update-config`, {
 					deployment_id: workflow.id,
 					config: config
 				});
-        toast.success('Workflow saved successfully!');
+				toast.success('Workflow saved successfully!');
 			}
 		} catch (e) {
-      toast.error('Failed to save the workflow.');
+			toast.error('Failed to save the workflow.');
 			console.error(e);
 		} finally {
 			isLoading = false;
