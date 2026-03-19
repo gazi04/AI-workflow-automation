@@ -30,15 +30,15 @@ async def interpret_command(
         workflow_definition = AiService.generate_workflow(user_request.text)
         return AIResponse(success=True, data=workflow_definition)
     except ValueError as e:
-        logger.debug(f"Ai router, interpret_command value error: \n{e}")
-        return AIResponse(success=False, error=str(e))
+        logger.error(f"AI Router: Interpret command value error: {e}")
+        return AIResponse(success=False, error="I couldn't understand that command. Please try rephrasing it.")
     except HTTPException as e:
-        logger.debug(f"Ai router, interpret_command HTTP exception: \n{e}")
-        return AIResponse(success=False, error=f"An HTTP error occurred: {str(e)}")
+        logger.error(f"AI Router: HTTP exception: {e}")
+        return AIResponse(success=False, error="There was a problem connecting to the AI service. Please try again later.")
     except Exception as e:
-        logger.debug(f"Ai router, interpret_command exception: \n{e}")
+        logger.error(f"AI Router: Unexpected exception: {e}")
         return AIResponse(
-            success=False, error=f"An unexpected error occurred: {str(e)}"
+            success=False, error="An unexpected error occurred while processing your request."
         )
 
 @ai_router.get("/health")
@@ -49,5 +49,5 @@ async def health():
     except Exception as e:
         logger.error(f"Ai model connection failed: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Azure connection failed: {str(e)}"
+            status_code=500, detail="The AI service is currently unavailable. Please try again later."
         )
