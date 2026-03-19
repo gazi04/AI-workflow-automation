@@ -35,11 +35,19 @@
 		if (!nodeType || !catalogType) return;
 
 		const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+		const config: Record<string, any> = {};
+		if (catalogType === 'label_email') {
+			config.label_info = {
+				name: '',
+				color: { backgroundColor: '#ffffff', textColor: '#000000' }
+			};
+		}
+
 		const newNode: Node = {
 			id: `${nodeType}-${Date.now()}`,
 			type: nodeType,
 			position,
-			data: { type: catalogType, config: {} }
+			data: { type: catalogType, config }
 		};
 
 		if (nodeType === 'trigger') {

@@ -24,6 +24,14 @@
 				delete config.from_email;
 			}
 		}
+
+		if (node.data.type === 'label_email' && config && !config.label_info) {
+			console.log('Healing workflow config: initializing label_info');
+			config.label_info = {
+				name: '',
+				color: { backgroundColor: '#ffffff', textColor: '#000000' }
+			};
+		}
 	});
 
 	function handleTypeChange(newType: string) {
@@ -101,7 +109,7 @@
 			{/each}
 		{/if}
 
-		{#if currentType === 'label_email'}
+		{#if currentType === 'label_email' && node.data.config.label_info}
 			<div class="space-y-4">
 				<div class="space-y-2">
 					<Label>Label Name</Label>
