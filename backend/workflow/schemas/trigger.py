@@ -13,7 +13,7 @@ class EmailReceivedConfig(BaseModel):
     @model_validator(mode="after")
     def at_least_one_is_required(self) -> "EmailReceivedConfig":
         if self.from_email is None and self.subject_contains is None:
-            return ValueError("At least one of the attributes should be provided.")
+            raise ValueError("At least one of the attributes should be provided.")
         return self
 
 
