@@ -1,5 +1,5 @@
-from pydantic import BaseModel, ConfigDict, Field, EmailStr
-from typing import Literal, Union, Annotated
+from pydantic import BaseModel, ConfigDict, Field, EmailStr, model_validator
+from typing import Literal, Optional, Union, Annotated
 
 
 class ManualConfig(BaseModel):
@@ -7,8 +7,14 @@ class ManualConfig(BaseModel):
 
 
 class EmailReceivedConfig(BaseModel):
-    from_email: EmailStr = Field(..., alias="from")
-    subject_contains: str = ""
+    from_email: Optional[EmailStr] = Field(None, alias="from")
+    subject_contains: Optional[str] = None
+
+    @model_validator(mode="after")
+    def at_least_one_is_required(self) -> "EmailReceivedConfig":
+        if self.from_email is None and self.subject_contains is None:
+            return ValueError("At least one of the attributes should be provided.")
+        return self
 
 
 class NewSheetRowConfig(BaseModel):
