@@ -26,15 +26,23 @@ async def interpret_command(
         return AIResponse(success=True, data=workflow_definition)
     except ValueError as e:
         logger.error(f"AI Router: Interpret command value error: {e}")
-        return AIResponse(success=False, error="I couldn't understand that command. Please try rephrasing it.")
+        return AIResponse(
+            success=False,
+            error="I couldn't understand that command. Please try rephrasing it.",
+        )
     except HTTPException as e:
         logger.error(f"AI Router: HTTP exception: {e}")
-        return AIResponse(success=False, error="There was a problem connecting to the AI service. Please try again later.")
+        return AIResponse(
+            success=False,
+            error="There was a problem connecting to the AI service. Please try again later.",
+        )
     except Exception as e:
         logger.error(f"AI Router: Unexpected exception: {e}")
         return AIResponse(
-            success=False, error="An unexpected error occurred while processing your request."
+            success=False,
+            error="An unexpected error occurred while processing your request.",
         )
+
 
 @ai_router.get("/health")
 async def health():
@@ -44,5 +52,6 @@ async def health():
     except Exception as e:
         logger.error(f"Ai model connection failed: {e}")
         raise HTTPException(
-            status_code=500, detail="The AI service is currently unavailable. Please try again later."
+            status_code=500,
+            detail="The AI service is currently unavailable. Please try again later.",
         )
