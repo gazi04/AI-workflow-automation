@@ -149,7 +149,7 @@ async def create_workflow(
         logger.error(f"Error creating workflow: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Could not create the workflow: {e}",
+            detail=f"Could not create the workflow.",
         )
 
 
@@ -261,7 +261,7 @@ async def get_run_logs(run_id: UUID, user: User = Depends(get_current_user)):
         logger.error(f"Error fetching logs for run {run_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Could not retrieve logs for this run: {e}",
+            detail=f"Could not retrieve logs for this run.",
         )
 
 

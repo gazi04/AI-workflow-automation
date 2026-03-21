@@ -9,6 +9,7 @@ from core.database import db_session
 from core.setup_logging import setup_logger
 from orchestration.services.deployment_service import DeploymentService
 from processed_messages.services import ProcessedMessageService
+from workflow.schemas.workflow_definition import WorkflowDefinition
 from workflow.services.workflow_service import WorkflowService
 
 import anyio
@@ -117,41 +118,43 @@ class GmailHistoryProcessor:
 
                 for workflow in workflows:
                     self.logger.debug(
-                        f"Checking email with subject `{email_data.get('subject')}` with workflow {workflow.name}"
+                        f"Checking email with subject `{email_data.get('subject')}` against workflow {workflow.name}"
                     )
                     if not workflow.is_active:
                         self.logger.debug(f"Skipping workflow {workflow.id} (Inactive)")
                         continue
 
-                    config = workflow.config or {}
-                    trigger = config.get("trigger")
+                    workflow_definition = WorkflowDefinition.model_validate_json(workflow.config)
+                    start_node_ids = workflow_definition.start_node_ids
+                    nodes = workflow_definition.nodes
 
-                    if not trigger or trigger.get("type") != "email_received":
+                    matched_trigger_node_id = None
+
+                    for node_id in start_node_ids:
+                        node = nodes.get(node_id)
+                        if not node:
+                            continue
+
+                        node_type = node.type
+                        node_config = node.config
+
+                        if node_type == "trigger" and node_config.type == "email_received":
+                            trigger_from = node_config.config.from_email.strip().lower()
+                            if trigger_from and trigger_from not in email_from:
+                                self.logger.debug(f"Node {node_id} mismatch: 'From' condition failed.")
+                                continue
+
+                            trigger_subject = node_config.config.subject_contains.strip().lower()
+                            if trigger_subject and trigger_subject not in email_subject:
+                                self.logger.debug(f"Node {node_id} mismatch: 'Subject' condition failed.")
+                                continue
+
+                            matched_trigger_node_id = node_id
+                            break
+
+                    if not matched_trigger_node_id:
                         continue
 
-                    trigger_config = trigger.get("config", {})
-
-                    # from condition
-                    trigger_from = trigger_config.get("from", "").strip().lower()
-                    if trigger_from and trigger_from not in email_from:
-                        self.logger.debug(
-                            f"Workflow {workflow.id} mismatch: 'From' condition failed. "
-                            f"Expected '{trigger_from}' in '{email_from}'"
-                        )
-                        continue
-
-                    # subject condition
-                    trigger_subject = (
-                        trigger_config.get("subject_contains", "").strip().lower()
-                    )
-                    if trigger_subject and trigger_subject not in email_subject:
-                        self.logger.debug(
-                            f"Workflow {workflow.id} mismatch: 'Subject' condition failed. "
-                            f"Expected '{trigger_subject}' in '{email_subject}'"
-                        )
-                        continue
-
-                    # check if message was processed
                     exists_processed_message = (
                         ProcessedMessageService.get_by_message_id_and_workflow_id(
                             db, email_data["message_id"], workflow.id
@@ -166,13 +169,17 @@ class GmailHistoryProcessor:
 
                     self.logger.info(
                         f"✅ MATCH FOUND! Workflow ID: {workflow.id}\n"
-                        f"   Reason: Matched Trigger Rules\n"
+                        f"   Matched Node ID: {matched_trigger_node_id}\n"
                         f"   Email Subject: {email_data['subject']}\n"
                         f"   Email From: {email_data['from']}"
                     )
 
+                    # We pass matched_trigger_node_id so the master flow knows where to start
                     trigger_context = {
-                        "trigger_context": {"original_email": email_data}
+                        "trigger_context": {
+                            "original_email": email_data,
+                            "matched_trigger_node_id": matched_trigger_node_id
+                        }
                     }
 
                     ProcessedMessageService.create(
