@@ -124,7 +124,7 @@ class GmailHistoryProcessor:
                         self.logger.debug(f"Skipping workflow {workflow.id} (Inactive)")
                         continue
 
-                    workflow_definition = WorkflowDefinition.model_validate_json(workflow.config)
+                    workflow_definition = WorkflowDefinition.model_validate(workflow.config)
                     start_node_ids = workflow_definition.start_node_ids
                     nodes = workflow_definition.nodes
 
