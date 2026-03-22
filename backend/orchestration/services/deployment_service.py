@@ -48,19 +48,38 @@ class DeploymentService:
     ) -> UUID:
         """
         Dynamically registers a deployment with Prefect.
+        Supports multiple triggers (DAG architecture).
         """
-        trigger = workflow.trigger
-
         schedule = None
-        if isinstance(trigger, ScheduleTrigger):
-            cron_expression = trigger.config.cron
-            if cron_expression:
-                schedule = CronSchedule(cron=cron_expression, timezone="UTC")
-        elif isinstance(trigger, ManualTrigger):
-            logger.info(f"Creating manual deployment for workflow: {workflow.name}")
-        elif isinstance(trigger, (EmailReceivedTrigger, NewSheetRowTrigger)):
+        has_manual = False
+        unautomated_triggers = []
+
+        for node_id in workflow.start_node_ids:
+            node = workflow.nodes.get(node_id)
+            if not node or node.type != "trigger":
+                continue
+
+            trigger = node.config
+
+            if trigger.type == "schedule":
+                cron_expression = getattr(trigger, "config", trigger).cron if hasattr(getattr(trigger, "config", trigger), "cron") else getattr(trigger, "cron", None)
+                
+                if cron_expression and schedule is None:
+                    # Note: Prefect deploy() param 'schedule' takes a single schedule.
+                    # If a user adds multiple schedule nodes, we use the first one here.
+                    schedule = CronSchedule(cron=cron_expression, timezone="UTC")
+            
+            elif trigger.type == "manual":
+                has_manual = True
+                
+            elif trigger.type in ["email_received", "new_sheet_row"]:
+                unautomated_triggers.append(trigger.type)
+
+        if has_manual:
+            logger.info(f"Creating manual deployment capabilities for workflow: {workflow.name}")
+        if unautomated_triggers:
             # ✨ TODO: Add logic to register webhooks or polling for these event-based triggers.
-            logger.warning(f"Trigger type '{trigger.type}' is not yet fully automated.")
+            logger.warning(f"Triggers {unautomated_triggers} in workflow '{workflow.name}' are not yet fully automated.")
 
         safe_name = workflow.name.replace(" ", "-").lower()
         deployment_name = f"user-{user_id}-{safe_name}"
