@@ -139,12 +139,12 @@ class GmailHistoryProcessor:
                         node_config = node.config
 
                         if node_type == "trigger" and node_config.type == "email_received":
-                            trigger_from = node_config.config.from_email.strip().lower()
+                            trigger_from = (node_config.config.from_email or "").strip().lower()
                             if trigger_from and trigger_from not in email_from:
                                 self.logger.debug(f"Node {node_id} mismatch: 'From' condition failed.")
                                 continue
 
-                            trigger_subject = node_config.config.subject_contains.strip().lower()
+                            trigger_subject = (node_config.config.subject_contains or "").strip().lower()
                             if trigger_subject and trigger_subject not in email_subject:
                                 self.logger.debug(f"Node {node_id} mismatch: 'Subject' condition failed.")
                                 continue
