@@ -446,6 +446,21 @@ export interface components {
 			/** Error */
 			error?: string | null;
 		};
+		/** ConditionRule */
+		ConditionRule: {
+			/**
+			 * Variable
+			 * @description e.g., '{{trigger_1.subject}}'
+			 */
+			variable: string;
+			/**
+			 * Operator
+			 * @enum {string}
+			 */
+			operator: 'equals' | 'contains' | 'exists' | 'greater_than';
+			/** Value */
+			value: unknown;
+		};
 		/** ConnectionStatusResponse */
 		ConnectionStatusResponse: {
 			/** Integrations */
@@ -480,6 +495,22 @@ export interface components {
 			 */
 			description: string;
 			workflow_definition: components['schemas']['WorkflowDefinition-Input'];
+		};
+		/** Edge */
+		Edge: {
+			/** Id */
+			id: string;
+			/** Source */
+			source: string;
+			/** Target */
+			target: string;
+			/**
+			 * Sourcehandle
+			 * @description Used for Condition Nodes to route logic (e.g., 'true_path', 'false_path')
+			 */
+			sourceHandle?: string | null;
+			/** Targethandle */
+			targetHandle?: string | null;
 		};
 		/** EmailReceivedConfig */
 		EmailReceivedConfig: {
@@ -528,6 +559,22 @@ export interface components {
 		HTTPValidationError: {
 			/** Detail */
 			detail?: components['schemas']['ValidationError'][];
+		};
+		/** IfConditionConfig */
+		IfConditionConfig: {
+			/**
+			 * @description discriminator enum property added by openapi-typescript
+			 * @enum {string}
+			 */
+			type: 'if_condition';
+			/** Rules */
+			rules: components['schemas']['ConditionRule'][];
+			/**
+			 * Match Type
+			 * @default ALL
+			 * @enum {string}
+			 */
+			match_type: 'ANY' | 'ALL';
 		};
 		/** IntegrationStatus */
 		IntegrationStatus: {
@@ -842,21 +889,23 @@ export interface components {
 			 * @description A one-sentence summary of the workflow's purpose
 			 */
 			description: string;
-			/** Trigger */
-			trigger:
-				| components['schemas']['EmailReceivedTrigger']
-				| components['schemas']['ManualTrigger']
-				| components['schemas']['NewSheetRowTrigger']
-				| components['schemas']['ScheduleTrigger'];
-			/** Actions */
-			actions: (
-				| components['schemas']['SendSlackMessageAction']
-				| components['schemas']['SendEmailAction']
-				| components['schemas']['ReplyEmailAction']
-				| components['schemas']['LabelEmailAction-Input']
-				| components['schemas']['SmartDraftAction']
-				| components['schemas']['CreateDocumentAction']
-			)[];
+			/**
+			 * Start Node Ids
+			 * @description List of Node IDs that represent triggers capable of starting this graph.
+			 */
+			start_node_ids: string[];
+			/**
+			 * Nodes
+			 * @description A dictionary mapping node_id to the Node object for O(1) lookups.
+			 */
+			nodes: {
+				[key: string]: components['schemas']['WorkflowNode-Input'];
+			};
+			/**
+			 * Edges
+			 * @description Flat list of edges connecting the nodes.
+			 */
+			edges?: components['schemas']['Edge'][];
 			ui_metadata?: components['schemas']['UIMetadata'] | null;
 		};
 		/** WorkflowDefinition */
@@ -871,22 +920,74 @@ export interface components {
 			 * @description A one-sentence summary of the workflow's purpose
 			 */
 			description: string;
-			/** Trigger */
-			trigger:
+			/**
+			 * Start Node Ids
+			 * @description List of Node IDs that represent triggers capable of starting this graph.
+			 */
+			start_node_ids: string[];
+			/**
+			 * Nodes
+			 * @description A dictionary mapping node_id to the Node object for O(1) lookups.
+			 */
+			nodes: {
+				[key: string]: components['schemas']['WorkflowNode-Output'];
+			};
+			/**
+			 * Edges
+			 * @description Flat list of edges connecting the nodes.
+			 */
+			edges?: components['schemas']['Edge'][];
+			ui_metadata?: components['schemas']['UIMetadata'] | null;
+		};
+		/** WorkflowNode */
+		'WorkflowNode-Input': {
+			/** Id */
+			id: string;
+			/** Name */
+			name?: string | null;
+			/**
+			 * Type
+			 * @enum {string}
+			 */
+			type: 'trigger' | 'action' | 'condition';
+			/** Config */
+			config:
 				| components['schemas']['EmailReceivedTrigger']
 				| components['schemas']['ManualTrigger']
 				| components['schemas']['NewSheetRowTrigger']
-				| components['schemas']['ScheduleTrigger'];
-			/** Actions */
-			actions: (
+				| components['schemas']['ScheduleTrigger']
+				| components['schemas']['SendSlackMessageAction']
+				| components['schemas']['SendEmailAction']
+				| components['schemas']['ReplyEmailAction']
+				| components['schemas']['LabelEmailAction-Input']
+				| components['schemas']['SmartDraftAction']
+				| components['schemas']['CreateDocumentAction']
+				| components['schemas']['IfConditionConfig'];
+		};
+		/** WorkflowNode */
+		'WorkflowNode-Output': {
+			/** Id */
+			id: string;
+			/** Name */
+			name?: string | null;
+			/**
+			 * Type
+			 * @enum {string}
+			 */
+			type: 'trigger' | 'action' | 'condition';
+			/** Config */
+			config:
+				| components['schemas']['EmailReceivedTrigger']
+				| components['schemas']['ManualTrigger']
+				| components['schemas']['NewSheetRowTrigger']
+				| components['schemas']['ScheduleTrigger']
 				| components['schemas']['SendSlackMessageAction']
 				| components['schemas']['SendEmailAction']
 				| components['schemas']['ReplyEmailAction']
 				| components['schemas']['LabelEmailAction-Output']
 				| components['schemas']['SmartDraftAction']
 				| components['schemas']['CreateDocumentAction']
-			)[];
-			ui_metadata?: components['schemas']['UIMetadata'] | null;
+				| components['schemas']['IfConditionConfig'];
 		};
 		/** WorkflowRun */
 		WorkflowRun: {
