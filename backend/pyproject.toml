@@ -21,6 +21,8 @@ dependencies = [
   "prefect",
   "alembic>=1.17.2",
   "pytest>=9.0.2",
+  "pyright>=1.1.408",
+  "ipython>=9.11.0",
 ]
 
 [tool.pyright]
