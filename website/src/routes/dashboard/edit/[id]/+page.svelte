@@ -15,12 +15,13 @@
 
 	type WorkflowDef = components['schemas']['WorkflowDefinition-Output'];
 
-	type Workflow = WorkflowDef & {
-		deployment_id: string;
+	type Workflow = {
 		id: string;
+		deployment_id: string;
 		is_active: boolean;
 		name: string;
-		config: any;
+		description: string;
+		config: WorkflowDef;
 		ui_metadata?: { nodes: Node[]; edges: Edge[] } | null;
 	};
 
@@ -39,38 +40,61 @@
 			if (source === 'ai') {
 				const blueprint = sessionStorage.getItem('ai_blueprint');
 				if (blueprint) {
-					const data = JSON.parse(blueprint);
+					const data: WorkflowDef = JSON.parse(blueprint);
 					workflow = {
 						id: 'new',
 						deployment_id: '',
 						is_active: false,
 						name: data.name || 'AI Generated Agent',
 						description: data.description || '',
-						config: {
-							trigger: data.trigger,
-							actions: data.actions
-						},
+						config: data,
 						ui_metadata: null
 					} as Workflow;
-					generateFlow(workflow.config);
+ 
+					if (data.nodes) {
+						// Transform new schema Nodes Map to SvelteFlow Node[]
+						const newNodes: Node[] = [];
+						Object.entries(data.nodes).forEach(([id, node], index) => {
+							newNodes.push({
+								id,
+								type: node.type as 'trigger' | 'action',
+								data: node.config,
+								position: { x: index * 350, y: 0 }
+							});
+						});
+						nodes = newNodes;
+						edges = data.edges || [];
+					} else {
+						// Fallback for legacy format if any
+						generateFlow(data);
+					}
 					isLoading = false;
 					return;
 				}
 			}
 
+			const config: WorkflowDef = {
+				name: 'New Custom Agent',
+				description: 'Automate tasks with custom logic.',
+				nodes: {},
+				edges: [],
+				start_node_ids: []
+			};
+ 
 			workflow = {
 				id: 'new',
 				deployment_id: '',
 				is_active: false,
-				name: 'New Custom Agent',
-				description: 'Automate tasks with custom logic.',
-				config: {
-					trigger: { type: 'manual', config: { description: 'Triggered manually via the UI' } },
-					actions: []
-				},
+				name: config.name,
+				description: config.description,
+				config: config,
 				ui_metadata: null
 			} as Workflow;
-			generateFlow(workflow.config);
+ 
+			generateFlow({
+				trigger: { type: 'manual', config: { description: 'Triggered manually via the UI' } },
+				actions: []
+			});
 			isLoading = false;
 			return;
 		}
@@ -85,8 +109,31 @@
 					workflow.ui_metadata.nodes &&
 					workflow.ui_metadata.nodes.length > 0
 				) {
-					nodes = workflow.ui_metadata.nodes;
+					// Use saved UI positions but sync with latest config data
+					nodes = workflow.ui_metadata.nodes.map((uiNode) => {
+						const backendNode = workflow?.config.nodes[uiNode.id];
+						return {
+							...uiNode,
+							data: backendNode ? backendNode.config : uiNode.data
+						};
+					});
 					edges = workflow.ui_metadata.edges;
+				} else if (workflow.config && workflow.config.nodes) {
+					// New schema structure without UI metadata or fallback
+					const newNodes: Node[] = [];
+					const workflowNodes = workflow.config.nodes;
+ 
+					Object.entries(workflowNodes).forEach(([id, node], index) => {
+						newNodes.push({
+							id,
+							type: node.type as 'trigger' | 'action',
+							data: node.config,
+							position: { x: index * 350, y: 0 }
+						});
+					});
+ 
+					nodes = newNodes;
+					edges = workflow.config.edges || [];
 				} else if (workflow.config) {
 					generateFlow(workflow.config);
 				}
@@ -100,14 +147,15 @@
 	}
 
 	function generateFlow(config: any) {
-		const newNodes: Node[] = [
-			{
+		const newNodes: Node[] = [];
+		if (config.trigger) {
+			newNodes.push({
 				id: 'trigger',
 				type: 'trigger',
 				data: { type: config.trigger.type, config: config.trigger.config },
 				position: { x: 0, y: 0 }
-			}
-		];
+			});
+		}
 
 		const newEdges: Edge[] = [];
 
@@ -136,33 +184,44 @@
 		selectedNode = node;
 	}
 
-	function getUpdatedConfig() {
+	function getUpdatedConfig(): WorkflowDef | null {
 		if (!workflow) return null;
 
 		const currentNodes = $state.snapshot(nodes);
 		const currentEdges = $state.snapshot(edges);
 
-		const triggerNode = currentNodes.find((n) => n.id === 'trigger' || n.type === 'trigger');
-		const actionNodes = currentNodes
-			.filter((n) => n.type === 'action')
-			.sort((a, b) => a.position.x - b.position.x);
+		const nodesDict: Record<string, components['schemas']['WorkflowNode-Input']> = {};
+		const startNodeIds: string[] = [];
 
-		if (!triggerNode) {
-			toast.success('Workflow must have a trigger!');
+		currentNodes.forEach((node) => {
+			nodesDict[node.id] = {
+				id: node.id,
+				type: node.type as 'trigger' | 'action' | 'condition',
+				config: node.data as any
+			};
+
+			if (node.type === 'trigger') {
+				startNodeIds.push(node.id);
+			}
+		});
+
+		if (startNodeIds.length === 0) {
+			toast.error('Workflow must have at least one trigger!');
 			return null;
 		}
 
 		return {
 			name: workflow.name,
 			description: workflow.description,
-			trigger: {
-				type: triggerNode.data.type,
-				config: triggerNode.data.config
-			},
-			actions: actionNodes.map((n) => ({
-				type: n.data.type,
-				config: n.data.config
+			nodes: nodesDict,
+			edges: currentEdges.map((e) => ({
+				id: e.id,
+				source: e.source,
+				target: e.target,
+				sourceHandle: e.sourceHandle,
+				targetHandle: e.targetHandle
 			})),
+			start_node_ids: startNodeIds,
 			ui_metadata: {
 				nodes: currentNodes,
 				edges: currentEdges
