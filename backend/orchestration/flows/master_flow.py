@@ -3,21 +3,11 @@ from prefect import flow
 from typing import Dict, Any, Optional
 from core.setup_logging import setup_logger
 from orchestration.tasks import GmailTasks
-from workflow.schemas import (
-    WorkflowDefinition,
-    Action,
-    SendEmailAction,
-    ReplyEmailAction,
-    LabelEmailAction,
-    SmartDraftAction,
-    SendSlackMessageAction,
-    CreateDocumentAction,
-)
+from workflow.schemas import WorkflowDefinition
 
 # Loading the models ensuring that the SQLAlchemy Base registry is fully populated before any database operation
 import core.models  # F401
 import anyio
-
 
 @flow(name="Master Automation Executor")
 async def execute_automation_flow(
@@ -26,8 +16,7 @@ async def execute_automation_flow(
     trigger_context: Optional[Dict[str, Any]] = None,
 ):
     """
-    This flow is generic. It doesn't know what it does until it receives
-    the 'workflow_data' JSON at runtime.
+    Executes a DAG-based workflow using a Breadth-First Search (BFS) queue.
     """
     logger = setup_logger("Master flow")
 
@@ -39,63 +28,101 @@ async def execute_automation_flow(
 
     print(f"🚀 Starting Workflow: {workflow.name}")
 
-    original_email: Optional[Dict[str, Any]] = (
-        trigger_context.get("original_email") if trigger_context else None
-    )
+    # 1. Unpack the Trigger Context
+    # We normalized this to a flat dictionary, but we'll support nested for backwards compatibility
+    if trigger_context and "trigger_context" in trigger_context:
+        ctx_data = trigger_context["trigger_context"]
+    else:
+        ctx_data = trigger_context or {}
+ 
+    original_email = ctx_data.get("original_email")
+    matched_trigger_node_id = ctx_data.get("matched_trigger_node_id")
 
-    def requires_email_context(action: Action) -> bool:
-        return isinstance(
-            action, (ReplyEmailAction, LabelEmailAction, SmartDraftAction)
-        )
+    # Fallback for manual or scheduled triggers where the node ID might not be explicitly passed yet
+    if not matched_trigger_node_id:
+        matched_trigger_node_id = workflow.start_node_ids[0] if workflow.start_node_ids else None
 
-    for action in workflow.actions:
-        try:
-            if requires_email_context(action) and not original_email:
-                logger.error(
-                    f"Action '{action.type}' requires an email trigger context but none was provided."
-                )
-                continue
+    if not matched_trigger_node_id:
+        logger.error("No valid starting node found for this workflow.")
+        return
 
-            if isinstance(action, SendEmailAction):
-                await anyio.to_thread.run_sync(
-                    GmailTasks.send_message,
-                    user_id,
-                    action.config.to,
-                    action.config.subject,
-                    action.config.body,
-                )
+    # 2. Setup Graph Traversal (BFS Queue)
+    queue = [matched_trigger_node_id]
+    visited = set() # To prevent infinite loops if the user accidentally created a cycle
+    
+    email_dependent_actions = {"reply_email", "label_email", "smart_draft"}
 
-            elif isinstance(action, ReplyEmailAction):
-                await anyio.to_thread.run_sync(
-                    GmailTasks.reply_email,
-                    user_id,
-                    action.config.body,
-                    original_email,
-                )
+    # 3. Process the Queue
+    while queue:
+        current_node_id = queue.pop(0)
 
-            elif isinstance(action, LabelEmailAction):
-                await anyio.to_thread.run_sync(
-                    GmailTasks.label_mail,
-                    user_id,
-                    action.config.label_info,
-                    original_email,
-                )
+        if current_node_id in visited:
+            continue
+        visited.add(current_node_id)
 
-            elif isinstance(action, SmartDraftAction):
-                await anyio.to_thread.run_sync(
-                    GmailTasks.smart_draft,
-                    user_id,
-                    original_email,
-                    action.config.user_prompt,
-                )
+        node = workflow.nodes.get(current_node_id)
+        if not node:
+            continue
 
-            elif isinstance(action, SendSlackMessageAction):
-                print(f"Send slack message to {action.config.channel}")
+        # 4. Execute Action Nodes
+        if node.type == "action":
+            # node.config is the Action model, node.config.config is the actual action data
+            action_type = node.config.type
+            action_data = node.config.config
 
-            elif isinstance(action, CreateDocumentAction):
-                print(f"Create document '{action.config.title}'")
+            try:
+                if action_type in email_dependent_actions and not original_email:
+                    logger.error(f"Action '{action_type}' on node '{current_node_id}' requires an email trigger context but none was provided.")
+                    continue # Skip this node but allow the rest of the graph to continue
 
-        except Exception as e:
-            # todo: ✨ send a notification to the user here
-            print(f"❌ Error executing action '{action.type}': {e}")
-            logger.error(f"Unexpected error occurred on action '{action.type}': {e}")
+                if action_type == "send_email":
+                    await anyio.to_thread.run_sync(
+                        GmailTasks.send_message,
+                        user_id,
+                        action_data.to,
+                        action_data.subject,
+                        action_data.body,
+                    )
+
+                elif action_type == "reply_email":
+                    await anyio.to_thread.run_sync(
+                        GmailTasks.reply_email,
+                        user_id,
+                        action_data.body,
+                        original_email,
+                    )
+
+                elif action_type == "label_email":
+                    await anyio.to_thread.run_sync(
+                        GmailTasks.label_mail,
+                        user_id,
+                        action_data.label_info,
+                        original_email,
+                    )
+
+                elif action_type == "smart_draft":
+                    await anyio.to_thread.run_sync(
+                        GmailTasks.smart_draft,
+                        user_id,
+                        original_email,
+                        action_data.user_prompt,
+                    )
+
+                elif action_type == "send_slack_message":
+                    print(f"Send slack message to {action_data.channel}")
+
+                elif action_type == "create_document":
+                    print(f"Create document '{action_data.title}'")
+
+            except Exception as e:
+                # todo: ✨ send a notification to the user here
+                print(f"❌ Error executing action '{action_type}' on node '{current_node_id}': {e}")
+                logger.error(f"Unexpected error occurred on action '{action_type}': {e}")
+
+        # 5. Enqueue Child Nodes
+        # Look through all edges and find the ones where the current node is the source
+        for edge in workflow.edges:
+            if edge.source == current_node_id:
+                queue.append(edge.target)
+
+    print(f"✅ Workflow '{workflow.name}' execution completed.")
