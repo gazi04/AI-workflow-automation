@@ -7,6 +7,7 @@ class ConditionRule(BaseModel):
     operator: Literal["equals", "contains", "exists", "greater_than"]
     value: Any
 
+
 class IfConditionConfig(BaseModel):
     type: Literal["if_condition"] = "if_condition"
     rules: List[ConditionRule]

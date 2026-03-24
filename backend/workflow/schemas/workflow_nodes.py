@@ -1,19 +1,40 @@
 from typing import Annotated, Literal, Optional, Union
 from pydantic import BaseModel, Field
 
-from workflow.schemas.action import CreateDocumentAction, LabelEmailAction, ReplyEmailAction, SendEmailAction, SendSlackMessageAction, SmartDraftAction
+from workflow.schemas.action import (
+    CreateDocumentAction,
+    LabelEmailAction,
+    ReplyEmailAction,
+    SendEmailAction,
+    SendSlackMessageAction,
+    SmartDraftAction,
+)
 from workflow.schemas.condition_nodes import IfConditionConfig
-from workflow.schemas.trigger import EmailReceivedTrigger, ManualTrigger, NewSheetRowTrigger, ScheduleTrigger
+from workflow.schemas.trigger import (
+    EmailReceivedTrigger,
+    ManualTrigger,
+    NewSheetRowTrigger,
+    ScheduleTrigger,
+)
 
 
 NodeConfig = Annotated[
     Union[
-        EmailReceivedTrigger, ManualTrigger, NewSheetRowTrigger, ScheduleTrigger,
-        SendSlackMessageAction, SendEmailAction, ReplyEmailAction, LabelEmailAction, SmartDraftAction, CreateDocumentAction,
-        IfConditionConfig
+        EmailReceivedTrigger,
+        ManualTrigger,
+        NewSheetRowTrigger,
+        ScheduleTrigger,
+        SendSlackMessageAction,
+        SendEmailAction,
+        ReplyEmailAction,
+        LabelEmailAction,
+        SmartDraftAction,
+        CreateDocumentAction,
+        IfConditionConfig,
     ],
-    Field(discriminator="type")
+    Field(discriminator="type"),
 ]
+
 
 class WorkflowNode(BaseModel):
     id: str

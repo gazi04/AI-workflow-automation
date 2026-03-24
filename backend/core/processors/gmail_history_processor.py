@@ -124,7 +124,9 @@ class GmailHistoryProcessor:
                         self.logger.debug(f"Skipping workflow {workflow.id} (Inactive)")
                         continue
 
-                    workflow_definition = WorkflowDefinition.model_validate(workflow.config)
+                    workflow_definition = WorkflowDefinition.model_validate(
+                        workflow.config
+                    )
                     start_node_ids = workflow_definition.start_node_ids
                     nodes = workflow_definition.nodes
 
@@ -138,15 +140,28 @@ class GmailHistoryProcessor:
                         node_type = node.type
                         node_config = node.config
 
-                        if node_type == "trigger" and node_config.type == "email_received":
-                            trigger_from = (node_config.config.from_email or "").strip().lower()
+                        if (
+                            node_type == "trigger"
+                            and node_config.type == "email_received"
+                        ):
+                            trigger_from = (
+                                (node_config.config.from_email or "").strip().lower()
+                            )
                             if trigger_from and trigger_from not in email_from:
-                                self.logger.debug(f"Node {node_id} mismatch: 'From' condition failed.")
+                                self.logger.debug(
+                                    f"Node {node_id} mismatch: 'From' condition failed."
+                                )
                                 continue
 
-                            trigger_subject = (node_config.config.subject_contains or "").strip().lower()
+                            trigger_subject = (
+                                (node_config.config.subject_contains or "")
+                                .strip()
+                                .lower()
+                            )
                             if trigger_subject and trigger_subject not in email_subject:
-                                self.logger.debug(f"Node {node_id} mismatch: 'Subject' condition failed.")
+                                self.logger.debug(
+                                    f"Node {node_id} mismatch: 'Subject' condition failed."
+                                )
                                 continue
 
                             matched_trigger_node_id = node_id
@@ -174,11 +189,11 @@ class GmailHistoryProcessor:
                         f"   Email From: {email_data['from']}"
                     )
 
-                    # We pass matched_trigger_node_id so the master flow knows where to start
+                    # We pass the context directly to the deployment run
                     trigger_context = {
                         "trigger_context": {
                             "original_email": email_data,
-                            "matched_trigger_node_id": matched_trigger_node_id
+                            "matched_trigger_node_id": matched_trigger_node_id,
                         }
                     }
 

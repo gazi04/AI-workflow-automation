@@ -9,6 +9,7 @@ from workflow.schemas import WorkflowDefinition
 import core.models  # F401
 import anyio
 
+
 @flow(name="Master Automation Executor")
 async def execute_automation_flow(
     user_id: UUID,
@@ -28,31 +29,32 @@ async def execute_automation_flow(
 
     print(f"🚀 Starting Workflow: {workflow.name}")
 
-    # 1. Unpack the Trigger Context
-    # We normalized this to a flat dictionary, but we'll support nested for backwards compatibility
+    # ♻️ todo: refactor the trigger context into a pydantic schema
     if trigger_context and "trigger_context" in trigger_context:
         ctx_data = trigger_context["trigger_context"]
     else:
         ctx_data = trigger_context or {}
- 
+
     original_email = ctx_data.get("original_email")
     matched_trigger_node_id = ctx_data.get("matched_trigger_node_id")
 
     # Fallback for manual or scheduled triggers where the node ID might not be explicitly passed yet
     if not matched_trigger_node_id:
-        matched_trigger_node_id = workflow.start_node_ids[0] if workflow.start_node_ids else None
+        matched_trigger_node_id = (
+            workflow.start_node_ids[0] if workflow.start_node_ids else None
+        )
 
     if not matched_trigger_node_id:
         logger.error("No valid starting node found for this workflow.")
         return
 
-    # 2. Setup Graph Traversal (BFS Queue)
     queue = [matched_trigger_node_id]
-    visited = set() # To prevent infinite loops if the user accidentally created a cycle
-    
+    visited = (
+        set()
+    )  # To prevent infinite loops if the user accidentally created a cycle
+
     email_dependent_actions = {"reply_email", "label_email", "smart_draft"}
 
-    # 3. Process the Queue
     while queue:
         current_node_id = queue.pop(0)
 
@@ -64,7 +66,6 @@ async def execute_automation_flow(
         if not node:
             continue
 
-        # 4. Execute Action Nodes
         if node.type == "action":
             # node.config is the Action model, node.config.config is the actual action data
             action_type = node.config.type
@@ -72,8 +73,10 @@ async def execute_automation_flow(
 
             try:
                 if action_type in email_dependent_actions and not original_email:
-                    logger.error(f"Action '{action_type}' on node '{current_node_id}' requires an email trigger context but none was provided.")
-                    continue # Skip this node but allow the rest of the graph to continue
+                    logger.error(
+                        f"Action '{action_type}' on node '{current_node_id}' requires an email trigger context but none was provided."
+                    )
+                    continue
 
                 if action_type == "send_email":
                     await anyio.to_thread.run_sync(
@@ -115,12 +118,14 @@ async def execute_automation_flow(
                     print(f"Create document '{action_data.title}'")
 
             except Exception as e:
-                # todo: ✨ send a notification to the user here
-                print(f"❌ Error executing action '{action_type}' on node '{current_node_id}': {e}")
-                logger.error(f"Unexpected error occurred on action '{action_type}': {e}")
+                # ✨ todo: send a notification to the user here
+                print(
+                    f"❌ Error executing action '{action_type}' on node '{current_node_id}': {e}"
+                )
+                logger.error(
+                    f"Unexpected error occurred on action '{action_type}': {e}"
+                )
 
-        # 5. Enqueue Child Nodes
-        # Look through all edges and find the ones where the current node is the source
         for edge in workflow.edges:
             if edge.source == current_node_id:
                 queue.append(edge.target)

@@ -13,11 +13,13 @@ class WorkflowDefinition(BaseModel):
     )
 
     start_node_ids: List[str] = Field(
-        ..., description="List of Node IDs that represent triggers capable of starting this graph."
+        ...,
+        description="List of Node IDs that represent triggers capable of starting this graph.",
     )
-    
+
     nodes: Dict[str, WorkflowNode] = Field(
-        ..., description="A dictionary mapping node_id to the Node object for O(1) lookups."
+        ...,
+        description="A dictionary mapping node_id to the Node object for O(1) lookups.",
     )
     edges: List[Edge] = Field(
         default_factory=list, description="Flat list of edges connecting the nodes."
