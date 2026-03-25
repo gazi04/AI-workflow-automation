@@ -3,6 +3,7 @@ from prefect import flow
 from typing import Dict, Any, Optional
 from core.setup_logging import setup_logger
 from orchestration.tasks import GmailTasks
+from utils.resolve_variables import resolve_variables
 from workflow.schemas import WorkflowDefinition
 
 # Loading the models ensuring that the SQLAlchemy Base registry is fully populated before any database operation
@@ -53,6 +54,11 @@ async def execute_automation_flow(
         set()
     )  # To prevent infinite loops if the user accidentally created a cycle
 
+    run_context = {
+        "trigger": ctx_data,
+        "node_outputs": {}
+    }
+
     email_dependent_actions = {"reply_email", "label_email", "smart_draft"}
 
     while queue:
@@ -69,7 +75,10 @@ async def execute_automation_flow(
         if node.type == "action":
             # node.config is the Action model, node.config.config is the actual action data
             action_type = node.config.type
-            action_data = node.config.config
+            raw_action_data = node.config.config
+
+            resolved_dict = resolve_variables(raw_action_data.model_dump(), run_context)
+            action_data = type(raw_action_data)(**resolved_dict)
 
             try:
                 if action_type in email_dependent_actions and not original_email:
@@ -78,8 +87,10 @@ async def execute_automation_flow(
                     )
                     continue
 
+                result = None
+
                 if action_type == "send_email":
-                    await anyio.to_thread.run_sync(
+                    result = await anyio.to_thread.run_sync(
                         GmailTasks.send_message,
                         user_id,
                         action_data.to,
@@ -88,7 +99,7 @@ async def execute_automation_flow(
                     )
 
                 elif action_type == "reply_email":
-                    await anyio.to_thread.run_sync(
+                    result = await anyio.to_thread.run_sync(
                         GmailTasks.reply_email,
                         user_id,
                         action_data.body,
@@ -96,7 +107,7 @@ async def execute_automation_flow(
                     )
 
                 elif action_type == "label_email":
-                    await anyio.to_thread.run_sync(
+                    result = await anyio.to_thread.run_sync(
                         GmailTasks.label_mail,
                         user_id,
                         action_data.label_info,
@@ -104,7 +115,7 @@ async def execute_automation_flow(
                     )
 
                 elif action_type == "smart_draft":
-                    await anyio.to_thread.run_sync(
+                    result = await anyio.to_thread.run_sync(
                         GmailTasks.smart_draft,
                         user_id,
                         original_email,
@@ -112,10 +123,13 @@ async def execute_automation_flow(
                     )
 
                 elif action_type == "send_slack_message":
-                    print(f"Send slack message to {action_data.channel}")
+                    result = {"status": "sent", "channel": action_data.channel}
 
                 elif action_type == "create_document":
                     print(f"Create document '{action_data.title}'")
+                    result = {"document_id": "doc_123", "title": action_data.title}
+
+                run_context["node_outputs"][current_node_id] = result
 
             except Exception as e:
                 # ✨ todo: send a notification to the user here
@@ -125,6 +139,7 @@ async def execute_automation_flow(
                 logger.error(
                     f"Unexpected error occurred on action '{action_type}': {e}"
                 )
+                run_context["node_outputs"][current_node_id] = {"error": str(e)}
 
         for edge in workflow.edges:
             if edge.source == current_node_id:
