@@ -61,12 +61,7 @@
 		try {
 			await api.post('/api/workflow/run', {
 				deployment_id: id,
-				config: wf.config || {
-					name: wf.name,
-					description: wf.description,
-					trigger: wf.trigger,
-					actions: wf.actions
-				}
+				config: {}
 			});
 
 			toast.success('Workflow triggered successfully.');
@@ -143,7 +138,11 @@
 					</Card.Header>
 
 					<Card.Content class="space-y-4">
-						{#if wf.config?.trigger?.type === 'schedule'}
+						{@const triggerNodeId = wf.config?.start_node_ids?.[0]}
+						{@const triggerNode = triggerNodeId ? wf.config?.nodes?.[triggerNodeId] : null}
+						{@const triggerType = triggerNode?.config?.type}
+ 
+						{#if triggerType === 'schedule' || triggerType === 'manual'}
 							<button
 								onclick={() => runWorkflow(wf)}
 								disabled={runningIds.has(wf.id)}
@@ -157,7 +156,7 @@
 											class="mr-2 h-3.5 w-3.5 text-primary transition-transform group-hover:scale-110"
 										/>
 									{/if}
-									TRIGGER: {formatLabel(wf.config.trigger.type)}
+									TRIGGER: {formatLabel(triggerType)}
 								</div>
 								<span class="text-[10px] text-primary opacity-70">RUN NOW</span>
 							</button>
@@ -166,16 +165,16 @@
 								class="flex items-center rounded-md border bg-muted/50 p-2 text-xs font-semibold text-muted-foreground"
 							>
 								<Play class="mr-2 h-3.5 w-3.5 opacity-50" />
-								TRIGGER: {formatLabel(wf.config?.trigger?.type?)}
+								TRIGGER: {formatLabel(triggerType || 'Unknown')}
 							</div>
 						{/if}
-
+ 
 						<div class="space-y-2">
 							<p class="text-[10px] font-bold text-muted-foreground uppercase">Automation Steps</p>
 							<div class="flex flex-wrap gap-2">
-								{#each wf.config?.actions || [] as action}
+								{#each Object.values(wf.config?.nodes || {}).filter((n) => n.type === 'action') as action}
 									<Badge variant="outline" class="font-mono text-[10px] uppercase">
-										{formatLabel(action.type)}
+										{formatLabel(action.config.type)}
 									</Badge>
 								{/each}
 							</div>

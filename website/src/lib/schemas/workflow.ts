@@ -1,4 +1,8 @@
 export const TRIGGER_DEFINITIONS = {
+	manual: {
+		label: 'Manual',
+		fields: [{ key: 'description', label: 'Description', type: 'text' }]
+	},
 	schedule: {
 		label: 'Schedule',
 		fields: [
