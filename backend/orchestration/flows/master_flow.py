@@ -3,6 +3,7 @@ from prefect import flow
 from typing import Dict, Any, Optional
 from core.setup_logging import setup_logger
 from orchestration.tasks import GmailTasks
+from utils.build_adjacency_list import build_adjacency_list
 from utils.resolve_variables import resolve_variables
 from workflow.schemas import WorkflowDefinition
 
@@ -60,6 +61,7 @@ async def execute_automation_flow(
     }
 
     email_dependent_actions = {"reply_email", "label_email", "smart_draft"}
+    adjacency_list = build_adjacency_list(workflow.edges)
 
     while queue:
         current_node_id = queue.pop(0)
@@ -141,8 +143,8 @@ async def execute_automation_flow(
                 )
                 run_context["node_outputs"][current_node_id] = {"error": str(e)}
 
-        for edge in workflow.edges:
-            if edge.source == current_node_id:
-                queue.append(edge.target)
+        outgoing_edges = adjacency_list.get(current_node_id, [])
+        for edge in outgoing_edges:
+            queue.append(edge.target)
 
     print(f"✅ Workflow '{workflow.name}' execution completed.")
