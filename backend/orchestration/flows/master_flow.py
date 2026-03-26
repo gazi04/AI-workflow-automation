@@ -26,7 +26,7 @@ async def execute_automation_flow(
         workflow = WorkflowDefinition.model_validate(workflow_data)
     except Exception as e:
         logger.error(f"Invalid workflow data for user {user_id}: {e}")
-        raise
+        raise Exception("Invalid workflow data.")
 
     print(f"🚀 Starting Workflow: {workflow.name}")
 
@@ -85,7 +85,7 @@ async def execute_automation_flow(
                     logger.error(
                         f"Action '{action_type}' on node '{current_node_id}' requires an email trigger context but none was provided."
                     )
-                    continue
+                    raise ValueError("Action requires an email trigger context, but none was provided.")
 
                 result = None
 
