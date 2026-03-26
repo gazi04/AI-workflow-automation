@@ -1,5 +1,6 @@
-from .gmail_tasks import GmailTasks
+from .gmail_tasks import send_message, reply_email, label_mail, smart_draft
 
 __all__ = [
-    "GmailTasks",
+    "send_message",
+    "reply_email", "label_mail", "smart_draft"
 ]
