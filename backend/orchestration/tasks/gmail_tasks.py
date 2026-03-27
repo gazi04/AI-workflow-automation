@@ -194,51 +194,38 @@ def reply_email(user_id: UUID, body: str, original_email: Dict[str, Any]):
 @task(name="Label email", retries=2, log_prints=True)
 def label_mail(
     user_id: UUID,
-    label: str,
-    backgroundColor: Optional[str],
-    textColor: Optional[str],
+    label_info: GmailLabel,
     original_email: Dict[str, Any],
 ):
     """
-    Label emails with an existing label or with a new (non-exsiting) label
+    Label emails with an existing label or with a new (non-existing) label
     original_email contains: subject, from, header_message_id, references, thread_id
     """
 
     try:
         with _get_gmail_service(user_id) as (service, db):
             response = service.users().labels().list(userId="me").execute()
-
             labels = response.get("labels", [])
-
-            label_exists = next((l for l in labels if l["name"] == label), None)
+            label_exists = next((l for l in labels if l["name"] == label_info.name), None)
 
             if not label_exists:
-                logger.info(
-                    f"Label {label} doesn't exists, we're creating the label..."
-                )
-                print(f"Label doesn't exists, we're creating the label...")
-                request = {
-                    "name": label,
-                    "labelListVisibility": LabelListVisibility.LABEL_SHOW,
-                    "messageListVisibility": MessageListVisibility.SHOW,
-                    "type": LabelType.USER,
-                }
+                logger.info(f"Label {label_info.name} doesn't exists, we're creating it...")
+                print(f"Label doesn't exists, we're creating it...")
 
-                request = GmailLabel(**request)
-
-                if backgroundColor and textColor:
-                    color = LabelColor(
-                        backgroundColor=backgroundColor, textColor=textColor
-                    )
-                    request.color = color
+                if not label_info.labelListVisibility:
+                    label_info.labelListVisibility = LabelListVisibility.LABEL_SHOW
+                if not label_info.messageListVisibility:
+                    label_info.messageListVisibility = MessageListVisibility.SHOW
+                if not label_info.type:
+                    label_info.type = LabelType.USER
 
                 label_exists = (
                     service.users()
                     .labels()
                     .create(
                         userId="me",
-                        body=request.model_dump(mode="json", exclude_none=True),
-                    )
+                        body=label_info.model_dump(mode="json", exclude_none=True),
+                        )
                     .execute()
                 )
 
