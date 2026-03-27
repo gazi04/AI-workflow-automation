@@ -2,18 +2,17 @@ from uuid import UUID
 from prefect import flow
 from typing import Dict, Any, Optional
 from core.setup_logging import setup_logger
-from orchestration.tasks import GmailTasks
+from orchestration.tasks import send_message, reply_email, label_mail, smart_draft
 from utils.build_adjacency_list import build_adjacency_list
 from utils.resolve_variables import resolve_variables
 from workflow.schemas import WorkflowDefinition
 
 # Loading the models ensuring that the SQLAlchemy Base registry is fully populated before any database operation
-import anyio
 import core.models  # noqa: F401
 
 
 @flow(name="Master Automation Executor")
-async def execute_automation_flow(
+def execute_automation_flow(
     user_id: UUID,
     workflow_data: Dict[str, Any],
     trigger_context: Optional[Dict[str, Any]] = None,
@@ -92,37 +91,16 @@ async def execute_automation_flow(
                 result = None
 
                 if action_type == "send_email":
-                    result = await anyio.to_thread.run_sync(
-                        GmailTasks.send_message,
-                        user_id,
-                        action_data.to,
-                        action_data.subject,
-                        action_data.body,
-                    )
+                    result = send_message.submit(user_id, action_data.to, action_data.subject, action_data.body).result()
 
                 elif action_type == "reply_email":
-                    result = await anyio.to_thread.run_sync(
-                        GmailTasks.reply_email,
-                        user_id,
-                        action_data.body,
-                        original_email,
-                    )
+                    result = reply_email.submit(user_id, action_data.body, original_email).result()
 
                 elif action_type == "label_email":
-                    result = await anyio.to_thread.run_sync(
-                        GmailTasks.label_mail,
-                        user_id,
-                        action_data.label_info,
-                        original_email,
-                    )
+                    result = label_mail.submit(user_id, action_data.label_info, original_email).result()
 
                 elif action_type == "smart_draft":
-                    result = await anyio.to_thread.run_sync(
-                        GmailTasks.smart_draft,
-                        user_id,
-                        original_email,
-                        action_data.user_prompt,
-                    )
+                    result = smart_draft.submit(user_id, original_email, action_data.user_prompt).result()
 
                 elif action_type == "send_slack_message":
                     result = {"status": "sent", "channel": action_data.channel}
