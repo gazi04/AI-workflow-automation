@@ -8,8 +8,8 @@ from utils.resolve_variables import resolve_variables
 from workflow.schemas import WorkflowDefinition
 
 # Loading the models ensuring that the SQLAlchemy Base registry is fully populated before any database operation
-import core.models  # F401
 import anyio
+import core.models  # noqa: F401
 
 
 @flow(name="Master Automation Executor")
