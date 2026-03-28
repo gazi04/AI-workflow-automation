@@ -1,13 +1,14 @@
 from typing import Any, Dict
 from utils.resolve_variables import resolve_variables
+from workflow.schemas.condition_nodes import IfCondition
 
 
-def evaluate_condition(condition_config: Any, run_context: Dict[str, Any]) -> bool:
+def evaluate_condition(condition: IfCondition, run_context: Dict[str, Any]) -> bool:
     """
     Evaluates an IfConditionConfig against the current run_context.
     """
-    rules = condition_config.rules
-    match_type = condition_config.match_type
+    rules = condition.config.rules
+    match_type = condition.config.match_type
 
     results = []
     for rule in rules:
