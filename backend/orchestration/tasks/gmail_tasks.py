@@ -14,7 +14,6 @@ from core.database import db_session
 from core.setup_logging import setup_logger
 from gmail.schemas.label import (
     GmailLabel,
-    LabelColor,
     LabelListVisibility,
     LabelType,
     MessageListVisibility,
@@ -206,11 +205,11 @@ def label_mail(
         with _get_gmail_service(user_id) as (service, db):
             response = service.users().labels().list(userId="me").execute()
             labels = response.get("labels", [])
-            label_exists = next((l for l in labels if l["name"] == label_info.name), None)
+            label_exists = next((label for label in labels if label["name"] == label_info.name), None)
 
             if not label_exists:
                 logger.info(f"Label {label_info.name} doesn't exists, we're creating it...")
-                print(f"Label doesn't exists, we're creating it...")
+                print("Label doesn't exists, we're creating it...")
 
                 if not label_info.labelListVisibility:
                     label_info.labelListVisibility = LabelListVisibility.LABEL_SHOW
@@ -229,13 +228,13 @@ def label_mail(
                     .execute()
                 )
 
-                print(f"The label is created with success")
+                print("The label is created with success")
 
             label_id = label_exists.get("id", None)
             message_id = original_email.get("message_id", None)
 
             if not message_id or not label_id:
-                raise ValueError(f"Either label id or message id is none.")
+                raise ValueError("Either label id or message id is none.")
 
             request = {"addLabelIds": [label_id]}
 

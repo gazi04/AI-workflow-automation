@@ -1,7 +1,6 @@
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 from prefect import get_client
-from prefect.client.schemas import FlowRun
 from prefect.client.schemas.filters import (
     FlowRunFilter,
     FlowRunFilterDeploymentId,
@@ -18,10 +17,6 @@ from core.setup_logging import setup_logger
 from orchestration.flows.master_flow import execute_automation_flow
 from utils.translate_workflow_runs_schema import translate_flow_runs_schema
 from workflow.schemas import (
-    EmailReceivedTrigger,
-    ManualTrigger,
-    NewSheetRowTrigger,
-    ScheduleTrigger,
     WorkflowDefinition,
     WorkflowRun,
 )

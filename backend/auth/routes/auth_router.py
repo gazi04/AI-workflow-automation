@@ -34,7 +34,7 @@ async def refresh_access_token(
     """Refreshes the Access Token using a valid Refresh Token."""
     new_tokens = TokenService.refresh_token(db, request.refresh_token)
     if not new_tokens:
-        logger.warning(f"Invalid refresh token")
+        logger.warning("Invalid refresh token")
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
     return {**new_tokens, "token_type": "bearer"}
