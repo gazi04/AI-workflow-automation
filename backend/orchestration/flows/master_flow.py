@@ -4,6 +4,7 @@ from typing import Dict, Any, Optional
 from core.setup_logging import setup_logger
 from orchestration.tasks import send_message, reply_email, label_mail, smart_draft
 from utils.build_adjacency_list import build_adjacency_list
+from utils.evaluate_condition import evaluate_condition
 from utils.resolve_variables import resolve_variables
 from workflow.schemas import WorkflowDefinition
 
@@ -73,7 +74,12 @@ def execute_automation_flow(
         if not node:
             continue
 
-        if node.type == "action":
+        condition_result = None
+
+        if node.type == "condition":
+            condition_result = evaluate_condition(node.config, run_context)
+            run_context["node_outputs"][current_node_id] = {"result": condition_result}
+        elif node.type == "action":
             # node.config is the Action model, node.config.config is the actual action data
             action_type = node.config.type
             raw_action_data = node.config.config
@@ -120,8 +126,19 @@ def execute_automation_flow(
                     f"Unexpected error occurred on action '{action_type}': {e}"
                 )
                 run_context["node_outputs"][current_node_id] = {"error": str(e)}
+                continue
 
         outgoing_edges = adjacency_list.get(current_node_id, [])
+
+        if node.type == "condition":
+            expected_handle = "true_path" if condition_result else "false_path"
+            
+            for edge in outgoing_edges:
+                if edge.sourceHandle == expected_handle:
+                    queue.append(edge.target)
+
+            continue
+
         for edge in outgoing_edges:
             queue.append(edge.target)
 
