@@ -560,13 +560,26 @@ export interface components {
 			/** Detail */
 			detail?: components['schemas']['ValidationError'][];
 		};
-		/** IfConditionConfig */
-		IfConditionConfig: {
+		/** IfCondition */
+		'IfCondition-Input': {
 			/**
 			 * @description discriminator enum property added by openapi-typescript
 			 * @enum {string}
 			 */
 			type: 'if_condition';
+			config: components['schemas']['IfConditionConfig'];
+		};
+		/** IfCondition */
+		'IfCondition-Output': {
+			/**
+			 * @description discriminator enum property added by openapi-typescript
+			 * @enum {string}
+			 */
+			type: 'if_condition';
+			config: components['schemas']['IfConditionConfig'];
+		};
+		/** IfConditionConfig */
+		IfConditionConfig: {
 			/** Rules */
 			rules: components['schemas']['ConditionRule'][];
 			/**
@@ -730,7 +743,7 @@ export interface components {
 			 * Config
 			 * @description Workflow parameters
 			 */
-			config: {
+			config?: {
 				[key: string]: unknown;
 			};
 		};
@@ -876,6 +889,8 @@ export interface components {
 			triggers: components['schemas']['NodeDefinition'][];
 			/** Actions */
 			actions: components['schemas']['NodeDefinition'][];
+			/** Conditions */
+			conditions: components['schemas']['NodeDefinition'][];
 		};
 		/** WorkflowDefinition */
 		'WorkflowDefinition-Input': {
@@ -962,7 +977,7 @@ export interface components {
 				| components['schemas']['LabelEmailAction-Input']
 				| components['schemas']['SmartDraftAction']
 				| components['schemas']['CreateDocumentAction']
-				| components['schemas']['IfConditionConfig'];
+				| components['schemas']['IfCondition-Input'];
 		};
 		/** WorkflowNode */
 		'WorkflowNode-Output': {
@@ -987,7 +1002,7 @@ export interface components {
 				| components['schemas']['LabelEmailAction-Output']
 				| components['schemas']['SmartDraftAction']
 				| components['schemas']['CreateDocumentAction']
-				| components['schemas']['IfConditionConfig'];
+				| components['schemas']['IfCondition-Output'];
 		};
 		/** WorkflowRun */
 		WorkflowRun: {
