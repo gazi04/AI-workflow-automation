@@ -9,7 +9,7 @@ from workflow.schemas.action import (
     SendSlackMessageAction,
     SmartDraftAction,
 )
-from workflow.schemas.condition_nodes import IfConditionConfig
+from workflow.schemas.condition_nodes import IfCondition
 from workflow.schemas.trigger import (
     EmailReceivedTrigger,
     ManualTrigger,
@@ -30,7 +30,7 @@ NodeConfig = Annotated[
         LabelEmailAction,
         SmartDraftAction,
         CreateDocumentAction,
-        IfConditionConfig,
+        IfCondition,
     ],
     Field(discriminator="type"),
 ]

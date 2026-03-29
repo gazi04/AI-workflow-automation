@@ -1,5 +1,5 @@
-from typing import Any, List, Literal
-from pydantic import BaseModel, Field
+from typing import Annotated, Any, List, Literal, Union
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ConditionRule(BaseModel):
@@ -9,6 +9,20 @@ class ConditionRule(BaseModel):
 
 
 class IfConditionConfig(BaseModel):
-    type: Literal["if_condition"] = "if_condition"
     rules: List[ConditionRule]
     match_type: Literal["ANY", "ALL"] = "ALL"
+
+
+class IfCondition(BaseModel):
+    type: Literal["if_condition"]
+    config: IfConditionConfig
+
+    model_config = ConfigDict(
+        json_schema_extra={"category": "Logic", "icon": "lucide-split"}
+    )
+
+
+Condition = Annotated[
+    Union[IfCondition],
+    Field(discriminator="type"),
+]
