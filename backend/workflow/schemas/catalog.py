@@ -23,3 +23,4 @@ class NodeDefinition(BaseModel):
 class WorkflowCatalog(BaseModel):
     triggers: List[NodeDefinition]
     actions: List[NodeDefinition]
+    conditions: List[NodeDefinition]

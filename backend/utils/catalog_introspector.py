@@ -5,6 +5,7 @@ from pydantic.fields import FieldInfo
 
 from workflow.schemas.action import Action
 from workflow.schemas.catalog import FieldDefinition, NodeDefinition, WorkflowCatalog
+from workflow.schemas.condition_nodes import Condition
 from workflow.schemas.trigger import Trigger
 
 
@@ -25,7 +26,9 @@ def _map_annotation_to_ui_type(annotation, field_info: FieldInfo) -> str:
 
 def _build_node_definitions(union_type) -> list[NodeDefinition]:
     nodes = []
-    for cls in typing.get_args(union_type):
+    # If the union has only one member, typing.get_args returns an empty tuple
+    clss = typing.get_args(union_type) or [union_type]
+    for cls in clss:
         schema_extra = cls.model_config.get("json_schema_extra", {})
         config_cls = cls.model_fields["config"].annotation
         # Literal["email_received"] -> get_args returns ("email_received",)
@@ -67,7 +70,10 @@ def build_catalog() -> WorkflowCatalog:
     """
     trigger_union = typing.get_args(Trigger)[0]  # unwrap Annotated[Union[...], ...]
     action_union = typing.get_args(Action)[0]
+    condition_union = typing.get_args(Condition)[0]
+ 
     return WorkflowCatalog(
         triggers=_build_node_definitions(trigger_union),
         actions=_build_node_definitions(action_union),
+        conditions=_build_node_definitions(condition_union),
     )
