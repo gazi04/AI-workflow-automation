@@ -50,7 +50,7 @@
 						config: data,
 						ui_metadata: null
 					} as Workflow;
- 
+
 					if (data.nodes) {
 						// Transform new schema Nodes Map to SvelteFlow Node[]
 						const newNodes: Node[] = [];
@@ -80,7 +80,7 @@
 				edges: [],
 				start_node_ids: []
 			};
- 
+
 			workflow = {
 				id: 'new',
 				deployment_id: '',
@@ -90,7 +90,7 @@
 				config: config,
 				ui_metadata: null
 			} as Workflow;
- 
+
 			generateFlow({
 				trigger: { type: 'manual', config: { description: 'Triggered manually via the UI' } },
 				actions: []
@@ -122,7 +122,7 @@
 					// New schema structure without UI metadata or fallback
 					const newNodes: Node[] = [];
 					const workflowNodes = workflow.config.nodes;
- 
+
 					Object.entries(workflowNodes).forEach(([id, node], index) => {
 						newNodes.push({
 							id,
@@ -131,7 +131,7 @@
 							position: { x: index * 350, y: 0 }
 						});
 					});
- 
+
 					nodes = newNodes;
 					edges = workflow.config.edges || [];
 				} else if (workflow.config) {

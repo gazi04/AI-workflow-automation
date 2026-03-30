@@ -141,7 +141,7 @@
 						{@const triggerNodeId = wf.config?.start_node_ids?.[0]}
 						{@const triggerNode = triggerNodeId ? wf.config?.nodes?.[triggerNodeId] : null}
 						{@const triggerType = triggerNode?.config?.type}
- 
+
 						{#if triggerType === 'schedule' || triggerType === 'manual'}
 							<button
 								onclick={() => runWorkflow(wf)}
@@ -168,7 +168,7 @@
 								TRIGGER: {formatLabel(triggerType || 'Unknown')}
 							</div>
 						{/if}
- 
+
 						<div class="space-y-2">
 							<p class="text-[10px] font-bold text-muted-foreground uppercase">Automation Steps</p>
 							<div class="flex flex-wrap gap-2">
