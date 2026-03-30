@@ -23,7 +23,11 @@ class CatalogStore {
 
 	// Look up a single node definition by type across triggers and actions
 	getNodeDef(type: string): NodeDefinition | undefined {
-		const all = [...(this.catalog?.triggers ?? []), ...(this.catalog?.actions ?? [])];
+		const all = [
+			...(this.catalog?.triggers ?? []),
+			...(this.catalog?.actions ?? []),
+			...(this.catalog?.conditions ?? [])
+		];
 		return all.find((n) => n.type === type);
 	}
 }

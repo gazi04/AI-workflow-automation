@@ -39,7 +39,7 @@
 	}: { onDragStart?: (node: NodeDefinition, nodeType: 'trigger' | 'action') => void } = $props();
 
 	const grouped = $derived.by(() => {
-		if (!catalogStore.catalog) return { triggers: {}, actions: {} };
+		if (!catalogStore.catalog) return { triggers: {}, actions: {}, conditions: {} };
 
 		const group = (nodes: NodeDefinition[]) =>
 			nodes.reduce<Record<string, NodeDefinition[]>>((acc, node) => {
@@ -49,7 +49,8 @@
 
 		return {
 			triggers: group(catalogStore.catalog.triggers),
-			actions: group(catalogStore.catalog.actions)
+			actions: group(catalogStore.catalog.actions),
+			conditions: group(catalogStore.catalog.conditions ?? [])
 		};
 	});
 
@@ -82,6 +83,7 @@
 			</div>
 		{:else}
 			{#snippet nodeItem(node, type)}
+				{@const Icon = ICON_MAP[node.icon] ?? DEFAULT_ICON}
 				<div
 					role="button"
 					tabindex="0"
@@ -90,11 +92,7 @@
 					class="mb-1 flex cursor-grab items-center gap-2 rounded-md border border-transparent px-2 py-2 text-sm transition-colors hover:border-border hover:bg-accent active:cursor-grabbing"
 				>
 					<span class="text-primary opacity-80">
-						<svelte:component
-							this={ICON_MAP[node.icon] ?? DEFAULT_ICON}
-							size={16}
-							strokeWidth={2}
-						/>
+						<Icon size={16} strokeWidth={2} />
 					</span>
 					<span class="font-medium">{node.label}</span>
 				</div>
@@ -109,6 +107,20 @@
 						<p class="mb-1 px-1 text-[10px] text-muted-foreground/70">{category}</p>
 						{#each nodes as node}
 							{@render nodeItem(node, 'trigger')}
+						{/each}
+					</div>
+				{/each}
+			</div>
+
+			<div class="mb-4">
+				<p class="mb-2 px-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+					Conditions
+				</p>
+				{#each Object.entries(grouped.conditions) as [category, nodes]}
+					<div class="mb-3">
+						<p class="mb-1 px-1 text-[10px] text-muted-foreground/70">{category}</p>
+						{#each nodes as node}
+							{@render nodeItem(node, 'condition')}
 						{/each}
 					</div>
 				{/each}
