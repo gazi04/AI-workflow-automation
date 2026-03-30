@@ -16,6 +16,7 @@ from .trigger import (
     ScheduleTrigger,
     Trigger,
 )
+from .condition_nodes import Condition
 from .workflow_definition import WorkflowDefinition
 from .workflow_run import WorkflowRun
 from .toggle_workflow_request import ToggleWorkflowRequest
@@ -31,6 +32,7 @@ __all__ = [
     "NewSheetRowTrigger",
     "ScheduleTrigger",
     "Trigger",
+    "Condition",
     "WorkflowDefinition",
     "ToggleWorkflowRequest",
     "UpdateWorkflowRequest",
