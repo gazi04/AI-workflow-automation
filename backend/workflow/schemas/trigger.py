@@ -10,12 +10,6 @@ class EmailReceivedConfig(BaseModel):
     from_email: Optional[EmailStr] = Field(None, alias="from")
     subject_contains: Optional[str] = None
 
-    @model_validator(mode="after")
-    def at_least_one_is_required(self) -> "EmailReceivedConfig":
-        if self.from_email is None and self.subject_contains is None:
-            raise ValueError("At least one of the attributes should be provided.")
-        return self
-
 
 class NewSheetRowConfig(BaseModel):
     spreadsheet_id: str
