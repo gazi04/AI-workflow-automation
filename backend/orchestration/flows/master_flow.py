@@ -132,12 +132,25 @@ def execute_automation_flow(
 
         if node.type == "condition":
             expected_handle = "true_path" if condition_result else "false_path"
+            path_continued = False
             
             for edge in outgoing_edges:
                 if edge.sourceHandle == expected_handle:
                     queue.append(edge.target)
+                    path_continued = True
+
+            if not path_continued:
+                logger.info(
+                    f"🚦 Path stopped at condition node '{current_node_id}'. "
+                    f"Evaluated to '{expected_handle}', but no edges are connected to this path."
+                )
+                print(f"🚦 Flow path naturally stopped: Condition '{current_node_id}' routed to an empty '{expected_handle}'.")
 
             continue
+
+        if not outgoing_edges:
+            logger.info(f"🏁 Path stopped at node '{current_node_id}'. No further outgoing edges found.")
+            print(f"🏁 Flow path naturally stopped: Node '{current_node_id}' is the end of the line.")
 
         for edge in outgoing_edges:
             queue.append(edge.target)
