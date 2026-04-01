@@ -10,6 +10,7 @@ def resolve_variables(value: Any, context: Dict[str, Any]) -> Any:
     if isinstance(value, str):
         def repl(match):
             # E.g., extracts "node_1.summary" and splits into ["node_1", "summary"]
+            raw_match = match.group(0)
             path = match.group(1).strip().split('.')
             current = context
             try:
@@ -18,8 +19,10 @@ def resolve_variables(value: Any, context: Dict[str, Any]) -> Any:
                     current = current[p] if isinstance(current, dict) else getattr(current, p)
                 return str(current)
             except (KeyError, AttributeError, TypeError):
-                # If the variable isn't found in the context, leave it unresolved (or handle the error)
-                return match.group(0) 
+                raise Exception(
+                    f"Could not resolve variable '{raw_match}'. "
+                    f"The path '{path}' does not exist in the current context."
+                )
         
         # Regex to find {{ anything }}
         return re.sub(r"\{\{\s*(.*?)\s*\}\}", repl, value)
