@@ -4,10 +4,11 @@
 	import '@xyflow/svelte/dist/style.css';
 	import { api } from '$lib/api/client';
 	import { page } from '$app/state';
-	import { Loader, Save, ChevronLeft, Rocket } from 'lucide-svelte';
+	import { Loader, Save, ChevronLeft, Rocket, LayoutDashboard } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
 	import { toast, Toaster } from 'svelte-sonner';
+	import { getLayoutedElements } from '$lib/utils/layout';
 	import ConfigPanel from '$lib/components/editor/ConfigPanel.svelte';
 	import Sidebar from '$lib/components/editor/Sidebar.svelte';
 	import FlowCanvas from '$lib/components/editor/FlowCanvas.svelte';
@@ -32,6 +33,51 @@
 	let edges = $state<Edge[]>([]);
 	let selectedNode = $state<Node | null>(null);
 
+	function syncFlowState(config: WorkflowDef, uiMetadata?: any) {
+		if (!config || !config.nodes) return;
+
+		let newNodes: Node[] = [];
+		let newEdges: Edge[] = [];
+
+		if (uiMetadata && uiMetadata.nodes && uiMetadata.nodes.length > 0) {
+			// Restore from UI metadata (positions preserved)
+			newNodes = uiMetadata.nodes.map((uiNode: any) => {
+				const backendNode = config.nodes[uiNode.id];
+				return {
+					...uiNode,
+					type: backendNode?.type || uiNode.type,
+					data: backendNode ? backendNode.config : uiNode.data
+				};
+			});
+			newEdges = uiMetadata.edges || [];
+		} else {
+			// Generate from scratch from the backend nodes map
+			newNodes = Object.entries(config.nodes).map(([id, node]) => ({
+				id,
+				type: node.type as any,
+				data: node.config,
+				position: { x: 0, y: 0 }
+			}));
+
+			newEdges = (config.edges || []).map((edge, index) => ({
+				id: edge.id || `e-${index}`,
+				source: edge.source,
+				target: edge.target,
+				sourceHandle: edge.sourceHandle || null,
+				targetHandle: edge.targetHandle || null,
+				animated: true
+			}));
+		}
+
+		nodes = newNodes;
+		edges = newEdges;
+
+		// If no UI metadata, automatically apply layout
+		if (!uiMetadata && nodes.length > 0) {
+			setTimeout(() => onLayout('LR'), 50);
+		}
+	}
+
 	async function loadWorkflow() {
 		const id = page.params.id;
 		const source = page.url.searchParams.get('source');
@@ -51,23 +97,7 @@
 						ui_metadata: null
 					} as Workflow;
 
-					if (data.nodes) {
-						// Transform new schema Nodes Map to SvelteFlow Node[]
-						const newNodes: Node[] = [];
-						Object.entries(data.nodes).forEach(([id, node], index) => {
-							newNodes.push({
-								id,
-								type: node.type as 'trigger' | 'action',
-								data: node.config,
-								position: { x: index * 350, y: 0 }
-							});
-						});
-						nodes = newNodes;
-						edges = data.edges || [];
-					} else {
-						// Fallback for legacy format if any
-						generateFlow(data);
-					}
+					syncFlowState(data);
 					isLoading = false;
 					return;
 				}
@@ -76,9 +106,18 @@
 			const config: WorkflowDef = {
 				name: 'New Custom Agent',
 				description: 'Automate tasks with custom logic.',
-				nodes: {},
+				nodes: {
+					trigger: {
+						id: 'trigger',
+						type: 'trigger',
+						config: {
+							type: 'manual',
+							config: { description: 'Triggered manually via the UI' }
+						}
+					}
+				},
 				edges: [],
-				start_node_ids: []
+				start_node_ids: ['trigger']
 			};
 
 			workflow = {
@@ -91,10 +130,7 @@
 				ui_metadata: null
 			} as Workflow;
 
-			generateFlow({
-				trigger: { type: 'manual', config: { description: 'Triggered manually via the UI' } },
-				actions: []
-			});
+			syncFlowState(config);
 			isLoading = false;
 			return;
 		}
@@ -104,39 +140,7 @@
 			workflow = res;
 
 			if (workflow) {
-				if (
-					workflow.ui_metadata &&
-					workflow.ui_metadata.nodes &&
-					workflow.ui_metadata.nodes.length > 0
-				) {
-					// Use saved UI positions but sync with latest config data
-					nodes = workflow.ui_metadata.nodes.map((uiNode) => {
-						const backendNode = workflow?.config.nodes[uiNode.id];
-						return {
-							...uiNode,
-							data: backendNode ? backendNode.config : uiNode.data
-						};
-					});
-					edges = workflow.ui_metadata.edges;
-				} else if (workflow.config && workflow.config.nodes) {
-					// New schema structure without UI metadata or fallback
-					const newNodes: Node[] = [];
-					const workflowNodes = workflow.config.nodes;
-
-					Object.entries(workflowNodes).forEach(([id, node], index) => {
-						newNodes.push({
-							id,
-							type: node.type as 'trigger' | 'action',
-							data: node.config,
-							position: { x: index * 350, y: 0 }
-						});
-					});
-
-					nodes = newNodes;
-					edges = workflow.config.edges || [];
-				} else if (workflow.config) {
-					generateFlow(workflow.config);
-				}
+				syncFlowState(workflow.config, workflow.ui_metadata);
 			}
 		} catch (err: any) {
 			toast.error('Failed to load workflow.');
@@ -146,39 +150,12 @@
 		}
 	}
 
-	function generateFlow(config: any) {
-		const newNodes: Node[] = [];
-		if (config.trigger) {
-			newNodes.push({
-				id: 'trigger',
-				type: 'trigger',
-				data: { type: config.trigger.type, config: config.trigger.config },
-				position: { x: 0, y: 0 }
-			});
-		}
-
-		const newEdges: Edge[] = [];
-
-		config.actions.forEach((action: any, index: number) => {
-			const nodeId = `action-${index}`;
-			newNodes.push({
-				id: nodeId,
-				type: 'action',
-				data: { type: action.type, config: action.config },
-				position: { x: (index + 1) * 350, y: 0 }
-			});
-
-			newEdges.push({
-				id: `e-${index}`,
-				source: index === 0 ? 'trigger' : `action-${index - 1}`,
-				target: nodeId,
-				animated: true
-			});
-		});
-
-		nodes = newNodes;
-		edges = newEdges;
+	function onLayout(direction = 'LR') {
+		const layouted = getLayoutedElements(nodes, edges, direction);
+		nodes = [...layouted.nodes];
+		edges = [...layouted.edges];
 	}
+
 
 	function onNodeClick({ event, node }: { event: MouseEvent | TouchEvent; node: Node }) {
 		selectedNode = node;
@@ -289,6 +266,16 @@
 				</div>
 
 				<div class="flex items-center gap-2">
+					<Button
+						variant="ghost"
+						size="sm"
+						class="gap-2"
+						onclick={() => onLayout('LR')}
+						disabled={isLoading}
+					>
+						<LayoutDashboard class="h-4 w-4" /> Layout
+					</Button>
+
 					{#if workflow.id === 'new'}
 						<Button
 							onclick={handleSave}
