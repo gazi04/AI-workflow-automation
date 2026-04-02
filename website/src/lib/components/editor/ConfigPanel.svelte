@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { TRIGGER_DEFINITIONS, ACTION_DEFINITIONS } from '$lib/schemas/workflow';
+	import { catalogStore } from '$lib/store/catalogStore.svelte';
 	import { X } from 'lucide-svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -7,13 +7,16 @@
 
 	let { node = $bindable(), onClose } = $props();
 
-	let nodeCategory = $derived(node.type as 'trigger' | 'action');
-	let availableDefinitions = $derived(
-		nodeCategory === 'trigger' ? TRIGGER_DEFINITIONS : ACTION_DEFINITIONS
-	);
+	let nodeCategory = $derived(node.type as 'trigger' | 'action' | 'condition');
+	let availableDefinitions = $derived.by(() => {
+		if (!catalogStore.catalog) return [];
+		if (nodeCategory === 'trigger') return catalogStore.catalog.triggers;
+		if (nodeCategory === 'action') return catalogStore.catalog.actions;
+		if (nodeCategory === 'condition') return catalogStore.catalog.conditions;
+		return [];
+	});
 
-	let currentType = $derived(node.data.type);
-	let definition = $derived(availableDefinitions[currentType as keyof typeof availableDefinitions]);
+	let definition = $derived(catalogStore.getNodeDef(node.data.type));
 
 	$effect(() => {
 		const config = node.data.config;
@@ -35,7 +38,7 @@
 	});
 
 	function handleTypeChange(newType: string) {
-		const def = availableDefinitions[newType as keyof typeof availableDefinitions];
+		const def = catalogStore.getNodeDef(newType);
 		if (!def) return;
 
 		node.data.type = newType;
@@ -72,11 +75,11 @@
 			<Label>{nodeCategory === 'trigger' ? 'Trigger Event' : 'Action Type'}</Label>
 			<select
 				class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
-				value={currentType}
+				value={node.data.type}
 				onchange={(e) => handleTypeChange(e.currentTarget.value)}
 			>
-				{#each Object.entries(availableDefinitions) as [key, def]}
-					<option value={key}>{def.label}</option>
+				{#each availableDefinitions as def}
+					<option value={def.type}>{def.label}</option>
 				{/each}
 			</select>
 		</div>
@@ -109,7 +112,7 @@
 			{/each}
 		{/if}
 
-		{#if currentType === 'label_email' && node.data.config.label_info}
+		{#if node.data.type === 'label_email' && node.data.config.label_info}
 			<div class="space-y-4">
 				<div class="space-y-2">
 					<Label>Label Name</Label>
@@ -136,13 +139,13 @@
 			</div>
 		{/if}
 
-		{#if definition && definition.fields.length === 0 && currentType !== 'label_email'}
+		{#if definition && definition.fields.length === 0 && node.data.type !== 'label_email'}
 			<div class="rounded bg-yellow-50 p-3 text-sm text-yellow-600">
 				⚠️ No configuration fields defined for this type.
 			</div>
 		{:else if !definition}
 			<div class="rounded bg-red-50 p-3 text-sm text-red-600">
-				⚠️ Unrecognized node type: <code class="font-bold">{currentType}</code>. Please select a
+				⚠️ Unrecognized node type: <code class="font-bold">{node.data.type}</code>. Please select a
 				valid type from the list above.
 			</div>
 		{/if}
