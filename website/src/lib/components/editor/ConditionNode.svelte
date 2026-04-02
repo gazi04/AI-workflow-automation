@@ -31,7 +31,7 @@
 	<div class="absolute -right-3 top-1/4 flex items-center gap-1">
 		<span class="text-[8px] font-bold text-green-600">TRUE</span>
 		<Handle
-			id="true"
+			id="true_path"
 			type="source"
 			position={Position.Right}
 			class="!h-3 !w-3 !bg-green-500"
@@ -43,7 +43,7 @@
 	<div class="absolute -right-3 bottom-1/4 flex items-center gap-1">
 		<span class="text-[8px] font-bold text-red-600">FALSE</span>
 		<Handle
-			id="false"
+			id="false_path"
 			type="source"
 			position={Position.Right}
 			class="!h-3 !w-3 !bg-red-500"
