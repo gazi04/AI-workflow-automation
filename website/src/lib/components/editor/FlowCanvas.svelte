@@ -9,12 +9,14 @@
 	} from '@xyflow/svelte';
 	import ActionNode from './ActionNode.svelte';
 	import TriggerNode from './TriggerNode.svelte';
+	import ConditionNode from './ConditionNode.svelte';
 
 	let { nodes = $bindable(), edges = $bindable(), onNodeClick } = $props();
 
-	const nodeTypes = {
+	const nodeTypes: any = {
 		trigger: TriggerNode,
-		action: ActionNode
+		action: ActionNode,
+		condition: ConditionNode
 	};
 
 	const { screenToFlowPosition } = useSvelteFlow();
@@ -27,7 +29,7 @@
 	function onDrop(event: DragEvent) {
 		event.preventDefault();
 		const nodeType = (event.dataTransfer?.getData('application/reactflow-type') ||
-			event.dataTransfer?.getData('application/svelteflow-type')) as 'trigger' | 'action';
+			event.dataTransfer?.getData('application/svelteflow-type')) as 'trigger' | 'action' | 'condition';
 		const catalogType =
 			event.dataTransfer?.getData('application/reactflow-nodetype') ||
 			event.dataTransfer?.getData('application/svelteflow-nodetype');
