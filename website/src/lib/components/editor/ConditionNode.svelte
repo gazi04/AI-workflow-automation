@@ -6,7 +6,7 @@
 </script>
 
 <div
-	class="min-w-[180px] rounded-lg border-2 border-orange-500 bg-card p-3 shadow-lg transition-all hover:shadow-xl"
+	class="min-w-45 rounded-lg border-2 border-orange-500 bg-card p-3 shadow-lg transition-all hover:shadow-xl"
 >
 	<div class="mb-2 flex items-center gap-2 border-b border-orange-100 pb-2">
 		<div class="rounded-md bg-orange-100 p-1.5 text-orange-600">
@@ -25,7 +25,7 @@
 	</div>
 
 	<!-- Input Handle -->
-	<Handle type="target" position={Position.Left} class="!h-3 !w-3 !bg-orange-500" />
+	<Handle type="target" position={Position.Left} class="h-3! w-3! bg-orange-500!" />
 
 	<!-- True Output Handle (Top Right) -->
 	<div class="absolute top-1/4 -right-3 flex items-center gap-1">
@@ -34,7 +34,7 @@
 			id="true_path"
 			type="source"
 			position={Position.Right}
-			class="!h-3 !w-3 !bg-green-500"
+			class="h-3! w-3! bg-green-500!"
 			style="top: 0;"
 		/>
 	</div>
@@ -46,7 +46,7 @@
 			id="false_path"
 			type="source"
 			position={Position.Right}
-			class="!h-3 !w-3 !bg-red-500"
+			class="h-3! w-3! bg-red-500!"
 			style="top: 0;"
 		/>
 	</div>
