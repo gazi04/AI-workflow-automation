@@ -21,7 +21,7 @@ def evaluate_condition(condition: IfCondition, run_context: Dict[str, Any]) -> b
         elif operator == "contains":
             res = str(expected_value).lower() in str(actual_value).lower()
         elif operator == "exists":
-            res = (actual_value != rule.variable)
+            res = actual_value != rule.variable
         elif operator == "greater_than":
             try:
                 res = float(actual_value) > float(expected_value)
@@ -34,7 +34,7 @@ def evaluate_condition(condition: IfCondition, run_context: Dict[str, Any]) -> b
                 res = False
         else:
             res = False
-            
+
         results.append(res)
 
     if match_type == "ANY":

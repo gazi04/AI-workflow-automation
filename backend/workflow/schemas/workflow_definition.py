@@ -31,7 +31,7 @@ class WorkflowDefinition(BaseModel):
     @model_validator(mode="after")
     def check_for_cycles(self) -> "WorkflowDefinition":
         """
-        Uses Depth-First Search to ensure the graph is a 
+        Uses Depth-First Search to ensure the graph is a
         Directed Acyclic Graph (DAG).
         """
         if not self.edges:
@@ -39,8 +39,8 @@ class WorkflowDefinition(BaseModel):
 
         adj_list = build_adjacency_list(self.edges)
 
-        visited = set()      # Nodes fully processed
-        rec_stack = set()    # Nodes currently in the recursion stack
+        visited = set()  # Nodes fully processed
+        rec_stack = set()  # Nodes currently in the recursion stack
 
         def has_cycle(node_id: str) -> bool:
             visited.add(node_id)
@@ -65,5 +65,5 @@ class WorkflowDefinition(BaseModel):
                         f"Circular dependency detected starting from node '{start_node}'. "
                         "Workflows must be Directed Acyclic Graphs (DAGs)."
                     )
-        
+
         return self

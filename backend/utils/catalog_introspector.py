@@ -71,7 +71,7 @@ def build_catalog() -> WorkflowCatalog:
     trigger_union = typing.get_args(Trigger)[0]  # unwrap Annotated[Union[...], ...]
     action_union = typing.get_args(Action)[0]
     condition_union = typing.get_args(Condition)[0]
- 
+
     return WorkflowCatalog(
         triggers=_build_node_definitions(trigger_union),
         actions=_build_node_definitions(action_union),

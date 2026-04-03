@@ -55,10 +55,7 @@ def execute_automation_flow(
         set()
     )  # To prevent infinite loops if the user accidentally created a cycle
 
-    run_context = {
-        "trigger": ctx_data,
-        "node_outputs": {}
-    }
+    run_context = {"trigger": ctx_data, "node_outputs": {}}
 
     email_dependent_actions = {"reply_email", "label_email", "smart_draft"}
     adjacency_list = build_adjacency_list(workflow.edges)
@@ -92,23 +89,34 @@ def execute_automation_flow(
                     logger.error(
                         f"Action '{action_type}' on node '{current_node_id}' requires an email trigger context but none was provided."
                     )
-                    raise ValueError("Action requires an email trigger context, but none was provided.")
+                    raise ValueError(
+                        "Action requires an email trigger context, but none was provided."
+                    )
 
                 result = None
 
                 if action_type == "send_email":
-                    result = send_message.submit(user_id, action_data.to, action_data.subject, action_data.body).result()
+                    result = send_message.submit(
+                        user_id, action_data.to, action_data.subject, action_data.body
+                    ).result()
 
                 elif action_type == "reply_email":
-                    result = reply_email.submit(user_id, action_data.body, original_email).result()
+                    result = reply_email.submit(
+                        user_id, action_data.body, original_email
+                    ).result()
 
                 elif action_type == "label_email":
-                    result = label_mail.submit(user_id, action_data.label_info, original_email).result()
+                    result = label_mail.submit(
+                        user_id, action_data.label_info, original_email
+                    ).result()
 
                 elif action_type == "smart_draft":
-                    result = smart_draft.submit(user_id, original_email, action_data.user_prompt).result()
+                    result = smart_draft.submit(
+                        user_id, original_email, action_data.user_prompt
+                    ).result()
 
                 elif action_type == "send_slack_message":
+                    print(f"Sent a message to channel {action_data.channel}")
                     result = {"status": "sent", "channel": action_data.channel}
 
                 elif action_type == "create_document":
@@ -133,7 +141,7 @@ def execute_automation_flow(
         if node.type == "condition":
             expected_handle = "true_path" if condition_result else "false_path"
             path_continued = False
-            
+
             for edge in outgoing_edges:
                 if edge.sourceHandle == expected_handle:
                     queue.append(edge.target)
@@ -144,13 +152,19 @@ def execute_automation_flow(
                     f"🚦 Path stopped at condition node '{current_node_id}'. "
                     f"Evaluated to '{expected_handle}', but no edges are connected to this path."
                 )
-                print(f"🚦 Flow path naturally stopped: Condition '{current_node_id}' routed to an empty '{expected_handle}'.")
+                print(
+                    f"🚦 Flow path naturally stopped: Condition '{current_node_id}' routed to an empty '{expected_handle}'."
+                )
 
             continue
 
         if not outgoing_edges:
-            logger.info(f"🏁 Path stopped at node '{current_node_id}'. No further outgoing edges found.")
-            print(f"🏁 Flow path naturally stopped: Node '{current_node_id}' is the end of the line.")
+            logger.info(
+                f"🏁 Path stopped at node '{current_node_id}'. No further outgoing edges found."
+            )
+            print(
+                f"🏁 Flow path naturally stopped: Node '{current_node_id}' is the end of the line."
+            )
 
         for edge in outgoing_edges:
             queue.append(edge.target)

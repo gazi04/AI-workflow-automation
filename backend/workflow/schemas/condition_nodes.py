@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class ConditionRule(BaseModel):
     variable: str = Field(..., description="e.g., '{{trigger_1.subject}}'")
-    operator: Literal["equals", "contains", "exists", "greater_than"]
+    operator: Literal["equals", "contains", "exists", "greater_than", "less_than"]
     value: Any
 
 

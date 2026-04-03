@@ -33,6 +33,7 @@ DEFAULT_SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
 ]
 
+
 @contextmanager
 def _get_gmail_service(user_id: UUID):
     """
@@ -46,6 +47,7 @@ def _get_gmail_service(user_id: UUID):
         # Service build as a context manager (supported by google-api-python-client)
         with build("gmail", "v1", credentials=creds) as service:
             yield service, db
+
 
 def create_draft(user_id: UUID, body: str, original_email: Dict[str, Any]):
     """
@@ -99,6 +101,7 @@ def create_draft(user_id: UUID, body: str, original_email: Dict[str, Any]):
 
     return draft
 
+
 @task(name="Send email message", retries=2, log_prints=True)
 def send_message(user_id: UUID, to: str, subject: str, body: str):
     """
@@ -139,6 +142,7 @@ def send_message(user_id: UUID, to: str, subject: str, body: str):
         raise error
 
     return send_message
+
 
 @task(name="Replay email", retries=2, log_prints=True)
 def reply_email(user_id: UUID, body: str, original_email: Dict[str, Any]):
@@ -190,6 +194,7 @@ def reply_email(user_id: UUID, body: str, original_email: Dict[str, Any]):
         logger.error(f"Unhandled error occurred: \n {error}")
         raise error
 
+
 @task(name="Label email", retries=2, log_prints=True)
 def label_mail(
     user_id: UUID,
@@ -205,10 +210,14 @@ def label_mail(
         with _get_gmail_service(user_id) as (service, db):
             response = service.users().labels().list(userId="me").execute()
             labels = response.get("labels", [])
-            label_exists = next((label for label in labels if label["name"] == label_info.name), None)
+            label_exists = next(
+                (label for label in labels if label["name"] == label_info.name), None
+            )
 
             if not label_exists:
-                logger.info(f"Label {label_info.name} doesn't exists, we're creating it...")
+                logger.info(
+                    f"Label {label_info.name} doesn't exists, we're creating it..."
+                )
                 print("Label doesn't exists, we're creating it...")
 
                 if not label_info.labelListVisibility:
@@ -224,7 +233,7 @@ def label_mail(
                     .create(
                         userId="me",
                         body=label_info.model_dump(mode="json", exclude_none=True),
-                        )
+                    )
                     .execute()
                 )
 
@@ -251,6 +260,7 @@ def label_mail(
         print(f"An error occurred: {error}")
         logger.error(f"Unhandled error: {error}")
         raise error
+
 
 @task(name="Write a draft with AI", retries=2, log_prints=True)
 def smart_draft(
