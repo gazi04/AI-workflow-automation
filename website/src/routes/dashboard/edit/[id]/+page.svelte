@@ -156,7 +156,6 @@
 		edges = [...layouted.edges];
 	}
 
-
 	function onNodeClick({ event, node }: { event: MouseEvent | TouchEvent; node: Node }) {
 		selectedNode = node;
 	}

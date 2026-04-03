@@ -29,7 +29,10 @@
 	function onDrop(event: DragEvent) {
 		event.preventDefault();
 		const nodeType = (event.dataTransfer?.getData('application/reactflow-type') ||
-			event.dataTransfer?.getData('application/svelteflow-type')) as 'trigger' | 'action' | 'condition';
+			event.dataTransfer?.getData('application/svelteflow-type')) as
+			| 'trigger'
+			| 'action'
+			| 'condition';
 		const catalogType =
 			event.dataTransfer?.getData('application/reactflow-nodetype') ||
 			event.dataTransfer?.getData('application/svelteflow-nodetype');

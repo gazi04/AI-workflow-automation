@@ -12,14 +12,14 @@
 		<div class="rounded-md bg-orange-100 p-1.5 text-orange-600">
 			<GitBranch size={16} />
 		</div>
-		<span class="text-sm font-bold uppercase tracking-wider text-muted-foreground">Condition</span>
+		<span class="text-sm font-bold tracking-wider text-muted-foreground uppercase">Condition</span>
 	</div>
 
 	<div class="space-y-1">
 		<p class="text-xs font-semibold text-foreground">
 			{data.type === 'condition' ? 'Check Condition' : data.type}
 		</p>
-		<p class="text-[10px] leading-relaxed text-muted-foreground line-clamp-2">
+		<p class="line-clamp-2 text-[10px] leading-relaxed text-muted-foreground">
 			{(data.config as any)?.expression || 'Branching logic based on rules.'}
 		</p>
 	</div>
@@ -28,7 +28,7 @@
 	<Handle type="target" position={Position.Left} class="!h-3 !w-3 !bg-orange-500" />
 
 	<!-- True Output Handle (Top Right) -->
-	<div class="absolute -right-3 top-1/4 flex items-center gap-1">
+	<div class="absolute top-1/4 -right-3 flex items-center gap-1">
 		<span class="text-[8px] font-bold text-green-600">TRUE</span>
 		<Handle
 			id="true_path"
