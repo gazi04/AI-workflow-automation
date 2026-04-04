@@ -58,6 +58,7 @@ def _build_node_definitions(union_type) -> list[NodeDefinition]:
                 label=type_literal.replace("_", " ").title(),
                 description="",
                 fields=fields,
+                outputs=schema_extra.get("outputs", []),
             )
         )
     return nodes
