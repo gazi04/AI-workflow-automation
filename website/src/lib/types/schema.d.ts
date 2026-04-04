@@ -446,6 +446,11 @@ export interface components {
 			/** Error */
 			error?: string | null;
 		};
+		/**
+		 * ConditionOperators
+		 * @enum {string}
+		 */
+		ConditionOperators: 'equals' | 'contains' | 'exists' | 'greater_than' | 'less_than';
 		/** ConditionRule */
 		ConditionRule: {
 			/**
@@ -453,11 +458,7 @@ export interface components {
 			 * @description e.g., '{{trigger_1.subject}}'
 			 */
 			variable: string;
-			/**
-			 * Operator
-			 * @enum {string}
-			 */
-			operator: 'equals' | 'contains' | 'exists' | 'greater_than';
+			operator: components['schemas']['ConditionOperators'];
 			/** Value */
 			value: unknown;
 		};
@@ -567,7 +568,7 @@ export interface components {
 			 * @enum {string}
 			 */
 			type: 'if_condition';
-			config: components['schemas']['IfConditionConfig'];
+			config: components['schemas']['IfConditionConfig-Input'];
 		};
 		/** IfCondition */
 		'IfCondition-Output': {
@@ -576,10 +577,21 @@ export interface components {
 			 * @enum {string}
 			 */
 			type: 'if_condition';
-			config: components['schemas']['IfConditionConfig'];
+			config: components['schemas']['IfConditionConfig-Output'];
 		};
 		/** IfConditionConfig */
-		IfConditionConfig: {
+		'IfConditionConfig-Input': {
+			/** Rules */
+			rules: components['schemas']['ConditionRule'][];
+			/**
+			 * Match Type
+			 * @default ALL
+			 * @enum {string}
+			 */
+			match_type: 'ANY' | 'ALL';
+		};
+		/** IfConditionConfig */
+		'IfConditionConfig-Output': {
 			/** Rules */
 			rules: components['schemas']['ConditionRule'][];
 			/**
@@ -711,6 +723,8 @@ export interface components {
 			description: string;
 			/** Fields */
 			fields: components['schemas']['FieldDefinition'][];
+			/** Outputs */
+			outputs?: string[];
 		};
 		/** RefreshTokenRequest */
 		RefreshTokenRequest: {
