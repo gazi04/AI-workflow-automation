@@ -128,7 +128,7 @@ class DeploymentService:
             deployment = await client.read_deployment(deployment_id)
 
             updated_params = deployment.parameters or {}
-            updated_params.update(new_params)
+            updated_params["workflow_data"] = new_params
 
             await client.update_deployment(
                 deployment_id=deployment_id,
