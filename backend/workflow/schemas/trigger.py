@@ -25,7 +25,11 @@ class ManualTrigger(BaseModel):
     config: ManualConfig
 
     model_config = ConfigDict(
-        json_schema_extra={"category": "General", "icon": "lucide-hand"}
+        json_schema_extra={
+            "category": "General",
+            "icon": "lucide-hand",
+            "outputs": ["description"],
+        }
     )
 
 
@@ -34,7 +38,11 @@ class EmailReceivedTrigger(BaseModel):
     config: EmailReceivedConfig
 
     model_config = ConfigDict(
-        json_schema_extra={"category": "Communication", "icon": "lucide-mail"}
+        json_schema_extra={
+            "category": "Communication",
+            "icon": "lucide-mail",
+            "outputs": ["from", "subject", "body", "id", "thread_id"],
+        }
     )
 
 
@@ -43,7 +51,11 @@ class NewSheetRowTrigger(BaseModel):
     config: NewSheetRowConfig
 
     model_config = ConfigDict(
-        json_schema_extra={"category": "Data", "icon": "lucide-file-spreadsheet"}
+        json_schema_extra={
+            "category": "Data",
+            "icon": "lucide-file-spreadsheet",
+            "outputs": ["spreadsheet_id", "row_data"],
+        }
     )
 
 
@@ -52,7 +64,11 @@ class ScheduleTrigger(BaseModel):
     config: ScheduleConfig
 
     model_config = ConfigDict(
-        json_schema_extra={"category": "General", "icon": "lucide-calendar"}
+        json_schema_extra={
+            "category": "General",
+            "icon": "lucide-calendar",
+            "outputs": ["timestamp"],
+        }
     )
 
 

@@ -37,7 +37,11 @@ class SendSlackMessageAction(BaseModel):
     config: SendSlackMessageConfig
 
     model_config = ConfigDict(
-        json_schema_extra={"category": "Communication", "icon": "lucide-slack"}
+        json_schema_extra={
+            "category": "Communication",
+            "icon": "lucide-slack",
+            "outputs": ["status"],
+        }
     )
 
 
@@ -46,7 +50,11 @@ class SendEmailAction(BaseModel):
     config: SendEmailConfig
 
     model_config = ConfigDict(
-        json_schema_extra={"category": "Communication", "icon": "lucide-send"}
+        json_schema_extra={
+            "category": "Communication",
+            "icon": "lucide-send",
+            "outputs": ["id"],
+        }
     )
 
 
@@ -55,7 +63,11 @@ class ReplyEmailAction(BaseModel):
     config: ReplyEmailConfig
 
     model_config = ConfigDict(
-        json_schema_extra={"category": "Communication", "icon": "lucide-reply"}
+        json_schema_extra={
+            "category": "Communication",
+            "icon": "lucide-reply",
+            "outputs": ["id"],
+        }
     )
 
 
@@ -64,7 +76,11 @@ class LabelEmailAction(BaseModel):
     config: LabelEmailConfig
 
     model_config = ConfigDict(
-        json_schema_extra={"category": "Google", "icon": "lucide-tag"}
+        json_schema_extra={
+            "category": "Google",
+            "icon": "lucide-tag",
+            "outputs": ["labels"],
+        }
     )
 
 
@@ -73,7 +89,11 @@ class SmartDraftAction(BaseModel):
     config: SmartDraftConfig
 
     model_config = ConfigDict(
-        json_schema_extra={"category": "AI", "icon": "lucide-sparkles"}
+        json_schema_extra={
+            "category": "AI",
+            "icon": "lucide-sparkles",
+            "outputs": ["id", "body"],
+        }
     )
 
 
@@ -82,7 +102,11 @@ class CreateDocumentAction(BaseModel):
     config: CreateDocumentConfig
 
     model_config = ConfigDict(
-        json_schema_extra={"category": "Google", "icon": "lucide-file-text"}
+        json_schema_extra={
+            "category": "Google",
+            "icon": "lucide-file-text",
+            "outputs": ["document_id", "title"],
+        }
     )
 
 

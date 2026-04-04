@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Any, List
 
 
@@ -18,6 +18,7 @@ class NodeDefinition(BaseModel):
     icon: str
     description: str
     fields: List[FieldDefinition]
+    outputs: List[str] = Field(default_factory=list)
 
 
 class WorkflowCatalog(BaseModel):
