@@ -1,11 +1,33 @@
 <script lang="ts">
 	import { catalogStore } from '$lib/store/catalogStore.svelte';
-	import { X } from 'lucide-svelte';
+	import { X, Trash2 } from 'lucide-svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Textarea } from '$lib/components/ui/textarea';
 
-	let { node = $bindable(), onClose } = $props();
+	let { node = $bindable(), nodes = [], onClose } = $props();
+
+	let availableVariables = $derived.by(() => {
+		const vars: { label: string; value: string }[] = [];
+		nodes.forEach((n) => {
+			if (n.id === node.id) return;
+
+			// Triggers are special: use trigger.data.type to get definition, but prefix is "trigger"
+			const nodeType = n.type === 'trigger' ? n.data.type : n.type;
+			const def = catalogStore.getNodeDef(nodeType);
+
+			if (def && def.outputs) {
+				const prefix = n.type === 'trigger' ? 'trigger' : n.id;
+				def.outputs.forEach((out) => {
+					vars.push({
+						label: `${n.data.label || n.type} → ${out}`,
+						value: `{{${prefix}.${out}}}`
+					});
+				});
+			}
+		});
+		return vars;
+	});
 
 	let nodeCategory = $derived(node.type as 'trigger' | 'action' | 'condition');
 	let availableDefinitions = $derived.by(() => {
@@ -35,6 +57,16 @@
 				color: { backgroundColor: '#ffffff', textColor: '#000000' }
 			};
 		}
+
+		if (node.data.type === 'if_condition' && config) {
+			if (!Array.isArray(config.rules)) {
+				console.log('Healing workflow config: initializing rules array for if_condition');
+				config.rules = [];
+			}
+			if (!config.match_type) {
+				config.match_type = 'ALL';
+			}
+		}
 	});
 
 	function handleTypeChange(newType: string) {
@@ -54,6 +86,11 @@
 				name: '',
 				color: { backgroundColor: '#ffffff', textColor: '#000000' }
 			};
+		}
+
+		if (newType === 'if_condition') {
+			newConfig.rules = [];
+			newConfig.match_type = 'ALL';
 		}
 
 		node.data.config = newConfig;
@@ -86,7 +123,7 @@
 
 		<hr />
 
-		{#if definition}
+		{#if definition && node.data.type !== 'if_condition'}
 			{#each definition.fields as field}
 				<div class="space-y-2">
 					<Label>{field.label}</Label>
@@ -110,6 +147,91 @@
 					</p>
 				</div>
 			{/each}
+		{/if}
+
+		{#if node.data.type === 'if_condition'}
+			<div class="space-y-4">
+				<div class="space-y-2">
+					<Label>Matching Strategy</Label>
+					<select
+						class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
+						bind:value={node.data.config.match_type}
+					>
+						<option value="ALL">All rules match (AND)</option>
+						<option value="ANY">Any rule matches (OR)</option>
+					</select>
+				</div>
+
+				<div class="space-y-3">
+					<div class="flex items-center justify-between">
+						<Label>Rules</Label>
+						<button
+							onclick={() =>
+								node.data.config.rules.push({
+									variable: '',
+									operator: 'equals',
+									value: ''
+								})}
+							class="text-[10px] font-bold text-primary hover:underline"
+						>
+							+ Add Rule
+						</button>
+					</div>
+
+					{#each node.data.config.rules as rule, i}
+						<div class="space-y-2 rounded-md border bg-muted/30 p-3">
+							<div class="flex items-center justify-between">
+								<span class="text-[10px] font-bold tracking-tight text-muted-foreground uppercase"
+									>Rule {i + 1}</span
+								>
+								<button
+									onclick={() => node.data.config.rules.splice(i, 1)}
+									class="text-muted-foreground hover:text-destructive"
+								>
+									<Trash2 size={12} />
+								</button>
+							</div>
+							<div class="space-y-1">
+								<Label class="text-[10px]">Variable</Label>
+								<select
+									class="flex h-8 w-full items-center justify-between rounded-md border border-input bg-background px-2 py-1 text-xs"
+									bind:value={rule.variable}
+								>
+									<option value="" disabled selected>Select variable...</option>
+									{#each availableVariables as v}
+										<option value={v.value}>{v.label}</option>
+									{/each}
+								</select>
+							</div>
+							<div class="grid grid-cols-2 gap-2">
+								<div class="space-y-1">
+									<Label class="text-[10px]">Operator</Label>
+									<select
+										class="flex h-8 w-full items-center justify-between rounded-md border border-input bg-background px-2 py-1 text-xs"
+										bind:value={rule.operator}
+									>
+										<option value="equals">Equals</option>
+										<option value="contains">Contains</option>
+										<option value="exists">Exists</option>
+										<option value="greater_than">Greater than</option>
+										<option value="less_than">Less than</option>
+									</select>
+								</div>
+								<div class="space-y-1">
+									<Label class="text-[10px]">Value</Label>
+									<Input bind:value={rule.value} placeholder="Value..." class="h-8 text-xs" />
+								</div>
+							</div>
+						</div>
+					{/each}
+
+					{#if node.data.config.rules.length === 0}
+						<p class="py-4 text-center text-xs text-muted-foreground italic">
+							No rules defined. This condition will always match by default.
+						</p>
+					{/if}
+				</div>
+			</div>
 		{/if}
 
 		{#if node.data.type === 'label_email' && node.data.config.label_info}

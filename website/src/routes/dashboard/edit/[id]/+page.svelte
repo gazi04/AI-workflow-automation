@@ -309,7 +309,7 @@
 		</div>
 
 		{#if selectedNode}
-			<ConfigPanel bind:node={selectedNode} onClose={() => (selectedNode = null)} />
+			<ConfigPanel bind:node={selectedNode} {nodes} onClose={() => (selectedNode = null)} />
 		{/if}
 	{:else if isLoading}
 		<div class="flex h-full w-full items-center justify-center">

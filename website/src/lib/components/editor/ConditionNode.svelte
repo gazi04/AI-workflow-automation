@@ -3,6 +3,30 @@
 	import { GitBranch } from 'lucide-svelte';
 
 	let { data }: NodeProps = $props();
+
+	// Safely extract rules and match_type using derived state so the node updates instantly
+	let rules = $derived(
+		Array.isArray((data.config as any)?.rules) ? (data.config as any).rules : []
+	);
+	let matchType = $derived((data.config as any)?.match_type || 'ALL');
+
+	// Create a dynamic, readable summary to show on the node card
+	let conditionSummary = $derived.by(() => {
+		if (rules.length === 0) return 'No rules defined.';
+
+		const firstRule = rules[0];
+		const varName = firstRule.variable || '[empty]';
+		const opName = firstRule.operator ? firstRule.operator.replace('_', ' ') : 'equals';
+		const valName = firstRule.value || '[empty]';
+
+		let summary = `${varName} ${opName} ${valName}`;
+
+		if (rules.length > 1) {
+			summary += ` ${matchType === 'ALL' ? '(AND' : '(OR'} ${rules.length - 1} more)`;
+		}
+
+		return summary;
+	});
 </script>
 
 <div
@@ -17,17 +41,17 @@
 
 	<div class="space-y-1">
 		<p class="text-xs font-semibold text-foreground">
-			{data.type === 'condition' ? 'Check Condition' : data.type}
+			{data.type === 'if_condition' ? 'Check Condition' : data.type}
 		</p>
-		<p class="line-clamp-2 text-[10px] leading-relaxed text-muted-foreground">
-			{(data.config as any)?.expression || 'Branching logic based on rules.'}
+		<p
+			class="mt-1 line-clamp-2 rounded bg-muted/50 p-1 font-mono text-[10px] leading-relaxed text-muted-foreground"
+		>
+			{conditionSummary}
 		</p>
 	</div>
 
-	<!-- Input Handle -->
 	<Handle type="target" position={Position.Left} class="h-3! w-3! bg-orange-500!" />
 
-	<!-- True Output Handle (Top Right) -->
 	<div class="absolute top-1/4 -right-3 flex items-center gap-1">
 		<span class="text-[8px] font-bold text-green-600">TRUE</span>
 		<Handle
@@ -39,7 +63,6 @@
 		/>
 	</div>
 
-	<!-- False Output Handle (Bottom Right) -->
 	<div class="absolute -right-3 bottom-1/4 flex items-center gap-1">
 		<span class="text-[8px] font-bold text-red-600">FALSE</span>
 		<Handle
