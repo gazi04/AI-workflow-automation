@@ -260,7 +260,7 @@
 					<input
 						type="text"
 						bind:value={workflow.description}
-						class="bg-transparent text-center text-xs text-muted-foreground outline-none"
+						class="w-full max-w-lg bg-transparent text-center text-xs text-muted-foreground outline-none"
 					/>
 				</div>
 
