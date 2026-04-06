@@ -1,7 +1,13 @@
 <script lang="ts">
 	import { Handle, Position } from '@xyflow/svelte';
-	import { Settings2, Play } from 'lucide-svelte';
+	import { Settings2 } from 'lucide-svelte';
+	import { catalogStore } from '$lib/store/catalogStore.svelte';
+	import { ICON_MAP, DEFAULT_ICON } from '$lib/utils/icons';
+
 	let { data } = $props();
+
+	let definition = $derived(catalogStore.getNodeDef(data.type));
+	let Icon = $derived(ICON_MAP[definition?.icon || ''] || DEFAULT_ICON);
 </script>
 
 <div
@@ -12,17 +18,17 @@
 	<div class="mb-2 flex items-center justify-between">
 		<div class="flex items-center gap-2">
 			<div class="rounded bg-slate-800 p-1 text-white">
-				<Play size={14} />
+				<Icon size={14} />
 			</div>
-			<span class="text-[10px] font-bold tracking-wider text-slate-500 uppercase"
-				>{data.type.replace('_', ' ')}</span
-			>
+			<span class="text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+				{definition?.label || data.type.replace('_', ' ')}
+			</span>
 		</div>
 		<Settings2 size={14} class="text-slate-400" />
 	</div>
 
 	<div class="text-sm font-medium text-slate-900">
-		{data.config.user_prompt || data.type}
+		{data.config.user_prompt || definition?.description || data.type}
 	</div>
 
 	<Handle type="source" position={Position.Right} class="h-3! w-3! bg-slate-400!" />

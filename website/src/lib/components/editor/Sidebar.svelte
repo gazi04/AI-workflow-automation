@@ -2,41 +2,13 @@
 	import { onMount } from 'svelte';
 	import { catalogStore } from '$lib/store/catalogStore.svelte';
 	import type { components } from '$lib/types/schema';
-
-	import {
-		Mail,
-		Hand,
-		Calendar,
-		FileSpreadsheet,
-		Send,
-		Reply,
-		Tag,
-		Sparkles,
-		FileText,
-		Slack,
-		Circle
-	} from 'lucide-svelte';
+	import { ICON_MAP, DEFAULT_ICON } from '$lib/utils/icons';
 
 	type NodeDefinition = components['schemas']['NodeDefinition'];
 
-	const ICON_MAP: Record<string, any> = {
-		'lucide-mail': Mail,
-		'lucide-hand': Hand,
-		'lucide-calendar': Calendar,
-		'lucide-file-spreadsheet': FileSpreadsheet,
-		'lucide-send': Send,
-		'lucide-reply': Reply,
-		'lucide-tag': Tag,
-		'lucide-sparkles': Sparkles,
-		'lucide-file-text': FileText,
-		'lucide-slack': Slack
-	};
-
-	const DEFAULT_ICON = Circle;
-
 	let {
 		onDragStart
-	}: { onDragStart?: (node: NodeDefinition, nodeType: 'trigger' | 'action') => void } = $props();
+	}: { onDragStart?: (node: NodeDefinition, nodeType: 'trigger' | 'action' | 'condition') => void } = $props();
 
 	const grouped = $derived.by(() => {
 		if (!catalogStore.catalog) return { triggers: {}, actions: {}, conditions: {} };
@@ -54,7 +26,11 @@
 		};
 	});
 
-	function handleDragStart(event: DragEvent, node: NodeDefinition, nodeType: 'trigger' | 'action') {
+	function handleDragStart(
+		event: DragEvent,
+		node: NodeDefinition,
+		nodeType: 'trigger' | 'action' | 'condition'
+	) {
 		if (!event.dataTransfer) return;
 		event.dataTransfer.effectAllowed = 'move';
 		event.dataTransfer.setData('application/reactflow-type', nodeType);
@@ -82,7 +58,7 @@
 				Failed to load catalog: {catalogStore.error}
 			</div>
 		{:else}
-			{#snippet nodeItem(node, type)}
+			{#snippet nodeItem(node: NodeDefinition, type: 'trigger' | 'action' | 'condition')}
 				{@const Icon = ICON_MAP[node.icon] ?? DEFAULT_ICON}
 				<div
 					role="button"

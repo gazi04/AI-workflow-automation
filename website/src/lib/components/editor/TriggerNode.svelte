@@ -1,8 +1,12 @@
 <script lang="ts">
 	import { Handle, Position } from '@xyflow/svelte';
-	import { Zap } from 'lucide-svelte';
-	import { formatLabel } from '$lib/utils';
+	import { catalogStore } from '$lib/store/catalogStore.svelte';
+	import { ICON_MAP, DEFAULT_ICON } from '$lib/utils/icons';
+
 	let { data } = $props();
+
+	let definition = $derived(catalogStore.getNodeDef(data.type));
+	let Icon = $derived(ICON_MAP[definition?.icon || ''] || DEFAULT_ICON);
 </script>
 
 <div
@@ -10,12 +14,16 @@
 >
 	<div class="mb-2 flex items-center gap-2">
 		<div class="rounded bg-blue-500 p-1 text-white">
-			<Zap size={14} />
+			<Icon size={14} />
 		</div>
 		<span class="text-xs font-bold tracking-wider text-blue-700 uppercase">Trigger</span>
 	</div>
-	<div class="text-sm font-medium text-slate-900">{formatLabel(data.type)}</div>
-	<div class="mt-1 text-[10px] text-slate-500 italic">Starts the workflow</div>
+	<div class="text-sm font-medium text-slate-900">
+		{definition?.label || data.type}
+	</div>
+	<div class="mt-1 text-[10px] text-slate-500 italic">
+		{definition?.description || 'Starts the workflow'}
+	</div>
 
 	<Handle type="source" position={Position.Right} class="h-3! w-3! bg-blue-500!" />
 </div>

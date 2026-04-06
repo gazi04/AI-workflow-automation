@@ -1,8 +1,12 @@
 <script lang="ts">
 	import { Handle, Position, type NodeProps } from '@xyflow/svelte';
-	import { GitBranch } from 'lucide-svelte';
+	import { catalogStore } from '$lib/store/catalogStore.svelte';
+	import { ICON_MAP, DEFAULT_ICON } from '$lib/utils/icons';
 
 	let { data }: NodeProps = $props();
+
+	let definition = $derived(catalogStore.getNodeDef(data.type as string));
+	let Icon = $derived(ICON_MAP[definition?.icon || ''] || DEFAULT_ICON);
 
 	// Safely extract rules and match_type using derived state so the node updates instantly
 	let rules = $derived(
@@ -34,14 +38,14 @@
 >
 	<div class="mb-2 flex items-center gap-2 border-b border-orange-100 pb-2">
 		<div class="rounded-md bg-orange-100 p-1.5 text-orange-600">
-			<GitBranch size={16} />
+			<Icon size={16} />
 		</div>
 		<span class="text-sm font-bold tracking-wider text-muted-foreground uppercase">Condition</span>
 	</div>
 
 	<div class="space-y-1">
 		<p class="text-xs font-semibold text-foreground">
-			{data.type === 'if_condition' ? 'Check Condition' : data.type}
+			{definition?.label || 'Check Condition'}
 		</p>
 		<p
 			class="mt-1 line-clamp-2 rounded bg-muted/50 p-1 font-mono text-[10px] leading-relaxed text-muted-foreground"
