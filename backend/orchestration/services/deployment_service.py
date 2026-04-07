@@ -122,13 +122,25 @@ class DeploymentService:
     @staticmethod
     async def update_workflow_config(deployment_id: UUID, new_params: Dict) -> Dict:
         """
-        Updates the parameters of a deployment
+        Updates the parameters of a specific Prefect deployment.
+        This method is now 'leak-proof': it identifies the core parameters (user_id) 
+        and updates the 'workflow_data' while purging any legacy flattened keys 
+        that would cause a SignatureMismatchError.
         """
         async with get_client() as client:
             deployment = await client.read_deployment(deployment_id)
+            current_params = deployment.parameters or {}
 
-            updated_params = deployment.parameters or {}
-            updated_params["workflow_data"] = new_params
+            # Construct a clean, nested parameter set
+            updated_params = {
+                "user_id": current_params.get("user_id"),
+                "workflow_data": new_params,
+                # trigger_context is usually transient, but we preserve it if present
+                "trigger_context": current_params.get("trigger_context")
+            }
+
+            # Remove keys where value is None to keep the deployment clean
+            updated_params = {k: v for k, v in updated_params.items() if v is not None}
 
             await client.update_deployment(
                 deployment_id=deployment_id,
