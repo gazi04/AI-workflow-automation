@@ -56,7 +56,10 @@ def execute_automation_flow(
         set()
     )  # To prevent infinite loops if the user accidentally created a cycle
 
-    run_context = {"trigger": ctx_data, "node_outputs": {}}
+    run_context = {"trigger": original_email or {}, "node_outputs": {}}
+
+    if matched_trigger_node_id:
+        run_context[matched_trigger_node_id] = original_email or {}
 
     email_dependent_actions = {"reply_email", "label_email", "smart_draft"}
     adjacency_list = build_adjacency_list(workflow.edges)
