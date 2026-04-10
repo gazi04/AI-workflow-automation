@@ -3,6 +3,7 @@
 	import { Settings2 } from 'lucide-svelte';
 	import { catalogStore } from '$lib/store/catalogStore.svelte';
 	import { ICON_MAP, DEFAULT_ICON } from '$lib/utils/icons';
+	import { formatLabel } from '$lib/utils';
 
 	let { data } = $props();
 
@@ -21,14 +22,14 @@
 				<Icon size={14} />
 			</div>
 			<span class="text-[10px] font-bold tracking-wider text-slate-500 uppercase">
-				{definition?.label || data.type.replace('_', ' ')}
+				{definition?.label || formatLabel(data.type)}
 			</span>
 		</div>
 		<Settings2 size={14} class="text-slate-400" />
 	</div>
 
 	<div class="text-sm font-medium text-slate-900">
-		{data.config.user_prompt || definition?.description || data.type}
+		{data.config.user_prompt || definition?.description || formatLabel(data.type)}
 	</div>
 
 	<Handle type="source" position={Position.Right} class="h-3! w-3! bg-slate-400!" />

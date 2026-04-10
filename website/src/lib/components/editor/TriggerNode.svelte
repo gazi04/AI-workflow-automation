@@ -2,6 +2,7 @@
 	import { Handle, Position } from '@xyflow/svelte';
 	import { catalogStore } from '$lib/store/catalogStore.svelte';
 	import { ICON_MAP, DEFAULT_ICON } from '$lib/utils/icons';
+	import { formatLabel } from '$lib/utils';
 
 	let { data } = $props();
 
@@ -19,7 +20,7 @@
 		<span class="text-xs font-bold tracking-wider text-blue-700 uppercase">Trigger</span>
 	</div>
 	<div class="text-sm font-medium text-slate-900">
-		{definition?.label || data.type}
+		{definition?.label || formatLabel(data.type)}
 	</div>
 	<div class="mt-1 text-[10px] text-slate-500 italic">
 		{definition?.description || 'Starts the workflow'}
