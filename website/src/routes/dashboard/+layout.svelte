@@ -209,7 +209,7 @@
 
 			<div class="ml-auto">
 				<DropdownMenu.Root>
-					<DropdownMenu.Trigger>
+					<DropdownMenu.Trigger asChild>
 						<button
 							class="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground transition-opacity hover:opacity-80"
 							title={userEmail ?? 'Profile'}
