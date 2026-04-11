@@ -11,7 +11,7 @@ import {
 	Slack,
 	Circle,
 	Split,
-    GitBranch
+	GitBranch
 } from 'lucide-svelte';
 
 export const ICON_MAP: Record<string, any> = {
@@ -26,7 +26,7 @@ export const ICON_MAP: Record<string, any> = {
 	'lucide-file-text': FileText,
 	'lucide-slack': Slack,
 	'lucide-split': Split,
-    'lucide-git-branch': GitBranch
+	'lucide-git-branch': GitBranch
 };
 
 export const DEFAULT_ICON = Circle;

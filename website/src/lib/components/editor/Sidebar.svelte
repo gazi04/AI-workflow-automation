@@ -8,7 +8,9 @@
 
 	let {
 		onDragStart
-	}: { onDragStart?: (node: NodeDefinition, nodeType: 'trigger' | 'action' | 'condition') => void } = $props();
+	}: {
+		onDragStart?: (node: NodeDefinition, nodeType: 'trigger' | 'action' | 'condition') => void;
+	} = $props();
 
 	const grouped = $derived.by(() => {
 		if (!catalogStore.catalog) return { triggers: {}, actions: {}, conditions: {} };
