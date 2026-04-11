@@ -231,9 +231,21 @@
 				});
 				toast.success('Workflow saved successfully!');
 			}
-		} catch (e) {
-			toast.error('Failed to save the workflow.');
-			console.error(e);
+		} catch (e: any) {
+			let message = 'Failed to save the workflow.';
+
+			if (e.detail && Array.isArray(e.detail) && e.detail.length > 0) {
+				message = e.detail[0].msg;
+				// Pydantic/FastAPI often prefix ValueError messages with 'Value error, '
+				if (message.startsWith('Value error, ')) {
+					message = message.replace('Value error, ', '');
+				}
+			} else if (e.message) {
+				message = e.message;
+			}
+
+			toast.error(message);
+			console.error('Save error:', e);
 		} finally {
 			isLoading = false;
 		}
