@@ -54,10 +54,8 @@ class GmailHistoryProcessor:
             for message_item in history_record["messagesAdded"]:
                 message_id = message_item["message"]["id"]
                 unique_message_ids.add(message_id)
-                # await self._process_single_message(message_id)
 
         if not unique_message_ids:
-            self.logger.info("No new messages found in this sync.")
             return
 
         for message_id in unique_message_ids:
@@ -75,15 +73,13 @@ class GmailHistoryProcessor:
             labels = full_message.get("labelIds", [])
 
             if "INBOX" not in labels or "SPAM" in labels or "TRASH" in labels:
-                self.logger.debug(
-                    f"Skipping message {message_id}. Labels {labels} do not meet criteria (Must be INBOX, not SPAM/TRASH)."
-                )
                 return
 
             payload = full_message.get("payload", {})
             headers = payload.get("headers", [])
             email_body = self._get_email_body(payload)
 
+            # ♻️ todo: refactor the email data object into a pydantic object
             email_data = {
                 "message_id": message_id,
                 "thread_id": full_message.get("threadId", ""),
@@ -111,16 +107,9 @@ class GmailHistoryProcessor:
                 workflows = WorkflowService.get_by_user_id(db, self.user_id)
 
                 active_ids = [w.id for w in workflows if w.is_active]
-                self.logger.debug(
-                    f"Processing message {message_id} against {len(active_ids)} active workflows. IDs: {active_ids}"
-                )
 
                 for workflow in workflows:
-                    self.logger.debug(
-                        f"Checking email with subject `{email_data.get('subject')}` against workflow {workflow.name}"
-                    )
                     if not workflow.is_active:
-                        self.logger.debug(f"Skipping workflow {workflow.id} (Inactive)")
                         continue
 
                     workflow_definition = WorkflowDefinition.model_validate(
@@ -147,9 +136,6 @@ class GmailHistoryProcessor:
                                 (node_config.config.from_email or "").strip().lower()
                             )
                             if trigger_from and trigger_from not in email_from:
-                                self.logger.debug(
-                                    f"Node {node_id} mismatch: 'From' condition failed."
-                                )
                                 continue
 
                             trigger_subject = (
@@ -158,9 +144,6 @@ class GmailHistoryProcessor:
                                 .lower()
                             )
                             if trigger_subject and trigger_subject not in email_subject:
-                                self.logger.debug(
-                                    f"Node {node_id} mismatch: 'Subject' condition failed."
-                                )
                                 continue
 
                             matched_trigger_node_id = node_id
@@ -176,17 +159,7 @@ class GmailHistoryProcessor:
                     )
 
                     if exists_processed_message:
-                        self.logger.info(
-                            f"Skipping duplicated: Workflow {workflow.id} already ran for message {message_id}"
-                        )
                         continue
-
-                    self.logger.info(
-                        f"✅ MATCH FOUND! Workflow ID: {workflow.id}\n"
-                        f"   Matched Node ID: {matched_trigger_node_id}\n"
-                        f"   Email Subject: {email_data['subject']}\n"
-                        f"   Email From: {email_data['from']}"
-                    )
 
                     # We pass the context directly to the deployment run
                     trigger_context = {
