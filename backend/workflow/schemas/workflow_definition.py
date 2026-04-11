@@ -67,3 +67,48 @@ class WorkflowDefinition(BaseModel):
                     )
 
         return self
+
+    @model_validator(mode="after")
+    def check_minimum_requirements(self) -> "WorkflowDefinition":
+        """
+        Validates that the workflow contains actionable steps and that 
+        triggers are actually connected to downstream nodes.
+        """
+        has_executable_node = any(
+            node.type in ["action", "condition"] for node in self.nodes.values()
+        )
+        if not has_executable_node:
+            raise ValueError(
+                "A workflow must contain at least one action or condition. "
+                "Trigger-only workflows are not allowed."
+            )
+
+        start_node_has_edge = {
+            edge.source for edge in self.edges if edge.source in self.start_node_ids
+        }
+        
+        if not start_node_has_edge:
+            raise ValueError(
+                "At least one trigger node must be connected to an action or condition. "
+                "An isolated trigger node will not execute any processes."
+            )
+
+        reachable_nodes = set(self.start_node_ids)
+        adj_list = build_adjacency_list(self.edges)
+        
+        queue = list(self.start_node_ids)
+        while queue:
+            current = queue.pop(0)
+            for edge in adj_list.get(current, []):
+                if edge.target not in reachable_nodes:
+                    reachable_nodes.add(edge.target)
+                    queue.append(edge.target)
+
+        unreachable_nodes = set(self.nodes.keys()) - reachable_nodes # elements that are in the first set but not in the second set
+        if unreachable_nodes:
+            raise ValueError(
+                f"Workflow contains unreachable nodes: {', '.join(unreachable_nodes)}. "
+                "All actions and conditions must be connected to a trigger path."
+            )
+
+        return self
