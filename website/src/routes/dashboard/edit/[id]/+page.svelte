@@ -221,6 +221,7 @@
 
 				sessionStorage.removeItem('ai_blueprint');
 
+				workflow.id = res.id;
 				toast.success('Workflow deployed successfully!');
 				goto(`/dashboard/edit/${res.id}`);
 			} else {
