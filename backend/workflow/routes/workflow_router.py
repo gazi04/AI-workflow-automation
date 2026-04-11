@@ -300,7 +300,6 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             await asyncio.sleep(5)
     except WebSocketDisconnect:
         manager.disconnect(user_id, websocket)
-        logger.info(f"WebSocket disconnected for user {user_id}")
+        logger.warning(f"WebSocket disconnected for user {user_id}")
     finally:
         manager.disconnect(user_id, websocket)
-        logger.info(f"WebSocket fully cleaned up for user {user_id}")
