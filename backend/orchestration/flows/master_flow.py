@@ -17,7 +17,6 @@ def execute_automation_flow(
     user_id: UUID,
     workflow_data: Dict[str, Any],
     trigger_context: Optional[Dict[str, Any]] = None,
-    **kwargs,
 ):
     """
     Executes a DAG-based workflow using a Breadth-First Search (BFS) queue.
