@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { catalogStore } from '$lib/store/catalogStore.svelte';
+	import { formatLabel } from '$lib/utils';
 	import { X, Trash2 } from 'lucide-svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -12,15 +13,16 @@
 		nodes.forEach((n) => {
 			if (n.id === node.id) return;
 
-			// Triggers are special: use trigger.data.type to get definition, but prefix is "trigger"
-			const nodeType = n.type === 'trigger' ? n.data.type : n.type;
+			// Use the specific backend type for definition lookup
+			const nodeType = n.data.type;
 			const def = catalogStore.getNodeDef(nodeType);
 
 			if (def && def.outputs) {
-				const prefix = n.type === 'trigger' ? 'trigger' : n.id;
+				// Use the actual node ID as the prefix for all nodes (including triggers)
+				const prefix = n.id;
 				def.outputs.forEach((out) => {
 					vars.push({
-						label: `${n.data.label || n.type} → ${out}`,
+						label: `${n.data.label || formatLabel(nodeType)} → ${out}`,
 						value: `{{${prefix}.${out}}}`
 					});
 				});
