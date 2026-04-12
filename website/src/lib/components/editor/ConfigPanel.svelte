@@ -126,7 +126,7 @@
 		<hr />
 
 		{#if definition && node.data.type !== 'if_condition'}
-			{#each definition.fields as field}
+			{#each definition.fields.filter((f) => f.key !== 'label_info') as field}
 				<div class="space-y-2">
 					<Label>{field.label}</Label>
 
