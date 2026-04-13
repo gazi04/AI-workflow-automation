@@ -52,19 +52,23 @@
 			}
 		}
 
-    if (node.data.type === 'label_email' && config) {
-        if (!config.label_info) {
-            console.log('Healing workflow config: initializing label_info');
-            config.label_info = {
-                name: '',
-                color: { backgroundColor: '#999999', textColor: '#f3f3f3' }
-            };
-        } 
-        else if (!config.label_info.color) {
-            console.log('Healing workflow config: initializing missing color object');
-            config.label_info.color = { backgroundColor: '#999999', textColor: '#f3f3f3' };
-        }
-    }
+		if (node.data.type === 'label_email' && config) {
+			// Migrate old label_info format to new flat fields
+			if (config.label_info) {
+				console.log('Migrating label_info to flattened fields');
+				config.label_name = config.label_info.name || '';
+				if (config.label_info.color) {
+					config.background_color = config.label_info.color.backgroundColor || '#999999';
+					config.text_color = config.label_info.color.textColor || '#f3f3f3';
+				}
+				delete config.label_info;
+			}
+
+			// Ensure defaults for new format
+			if (config.label_name === undefined) config.label_name = '';
+			if (!config.background_color) config.background_color = '#999999';
+			if (!config.text_color) config.text_color = '#f3f3f3';
+		}
 
 		if (node.data.type === 'if_condition' && config) {
 			if (!Array.isArray(config.rules)) {
@@ -90,10 +94,9 @@
 		});
 
 		if (newType === 'label_email') {
-			newConfig.label_info = {
-				name: '',
-				color: { backgroundColor: '#999999', textColor: '#f3f3f3' }
-			};
+			newConfig.label_name = '';
+			newConfig.background_color = '#999999';
+			newConfig.text_color = '#f3f3f3';
 		}
 
 		if (newType === 'if_condition') {
@@ -144,7 +147,7 @@
 						/>
 					{:else}
 						<Input
-							type="text"
+							type={field.type}
 							bind:value={node.data.config[field.key]}
 							placeholder={`Enter ${field.label}...`}
 						/>
@@ -242,32 +245,6 @@
 			</div>
 		{/if}
 
-		{#if node.data.type === 'label_email' && node.data.config.label_info?.color}
-			<div class="space-y-4">
-				<div class="space-y-2">
-					<Label>Label Name</Label>
-					<Input type="text" bind:value={node.data.config.label_info.name} />
-				</div>
-				<div class="grid grid-cols-2 gap-4">
-					<div class="space-y-2">
-						<Label>Background Color</Label>
-						<Input
-							type="color"
-							bind:value={node.data.config.label_info.color.backgroundColor}
-							class="h-10 w-full p-1"
-						/>
-					</div>
-					<div class="space-y-2">
-						<Label>Text Color</Label>
-						<Input
-							type="color"
-							bind:value={node.data.config.label_info.color.textColor}
-							class="h-10 w-full p-1"
-						/>
-					</div>
-				</div>
-			</div>
-		{/if}
 
 		{#if definition && definition.fields.length === 0 && node.data.type !== 'label_email'}
 			<div class="rounded bg-yellow-50 p-3 text-sm text-yellow-600">

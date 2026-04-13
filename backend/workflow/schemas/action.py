@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field, EmailStr
 from typing import Literal, Union, Annotated
 
-from gmail.schemas.label import GmailLabel
+from gmail.schemas.label import GmailLabel, LabelColor
 
 
 class SendSlackMessageConfig(BaseModel):
@@ -20,7 +20,21 @@ class ReplyEmailConfig(BaseModel):
 
 
 class LabelEmailConfig(BaseModel):
-    label_info: GmailLabel
+    label_name: str = Field(..., description="The name of the label (e.g., 'OFFERS')")
+    background_color: str = Field(
+        default="#999999", json_schema_extra={"widget": "color"}
+    )
+    text_color: str = Field(default="#f3f3f3", json_schema_extra={"widget": "color"})
+
+    @property
+    def label_info(self) -> GmailLabel:
+        """Backward compatibility for the execution engine."""
+        return GmailLabel(
+            name=self.label_name,
+            color=LabelColor(
+                backgroundColor=self.background_color, textColor=self.text_color
+            ),
+        )
 
 
 class SmartDraftConfig(BaseModel):
