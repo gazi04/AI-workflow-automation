@@ -52,13 +52,19 @@
 			}
 		}
 
-		if (node.data.type === 'label_email' && config && !config.label_info) {
-			console.log('Healing workflow config: initializing label_info');
-			config.label_info = {
-				name: '',
-				color: { backgroundColor: '#ffffff', textColor: '#000000' }
-			};
-		}
+    if (node.data.type === 'label_email' && config) {
+        if (!config.label_info) {
+            console.log('Healing workflow config: initializing label_info');
+            config.label_info = {
+                name: '',
+                color: { backgroundColor: '#999999', textColor: '#f3f3f3' }
+            };
+        } 
+        else if (!config.label_info.color) {
+            console.log('Healing workflow config: initializing missing color object');
+            config.label_info.color = { backgroundColor: '#999999', textColor: '#f3f3f3' };
+        }
+    }
 
 		if (node.data.type === 'if_condition' && config) {
 			if (!Array.isArray(config.rules)) {
@@ -86,7 +92,7 @@
 		if (newType === 'label_email') {
 			newConfig.label_info = {
 				name: '',
-				color: { backgroundColor: '#ffffff', textColor: '#000000' }
+				color: { backgroundColor: '#999999', textColor: '#f3f3f3' }
 			};
 		}
 
@@ -236,7 +242,7 @@
 			</div>
 		{/if}
 
-		{#if node.data.type === 'label_email' && node.data.config.label_info}
+		{#if node.data.type === 'label_email' && node.data.config.label_info?.color}
 			<div class="space-y-4">
 				<div class="space-y-2">
 					<Label>Label Name</Label>
