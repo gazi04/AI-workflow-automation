@@ -2,6 +2,7 @@ from enum import Enum
 from typing import Annotated, Any, List, Literal, Union
 from pydantic import BaseModel, ConfigDict, Field
 
+
 class ConditionOperators(str, Enum):
     EQUALS = "equals"
     CONTAINS = "contains"

@@ -123,8 +123,8 @@ class DeploymentService:
     async def update_workflow_config(deployment_id: UUID, new_params: Dict) -> Dict:
         """
         Updates the parameters of a specific Prefect deployment.
-        This method is now 'leak-proof': it identifies the core parameters (user_id) 
-        and updates the 'workflow_data' while purging any legacy flattened keys 
+        This method is now 'leak-proof': it identifies the core parameters (user_id)
+        and updates the 'workflow_data' while purging any legacy flattened keys
         that would cause a SignatureMismatchError.
         """
         async with get_client() as client:
@@ -136,7 +136,7 @@ class DeploymentService:
                 "user_id": current_params.get("user_id"),
                 "workflow_data": new_params,
                 # trigger_context is usually transient, but we preserve it if present
-                "trigger_context": current_params.get("trigger_context")
+                "trigger_context": current_params.get("trigger_context"),
             }
 
             # Remove keys where value is None to keep the deployment clean
