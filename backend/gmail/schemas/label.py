@@ -23,9 +23,9 @@ class LabelType(str, Enum):
 
 class LabelColor(BaseModel):
     backgroundColor: str = Field(
-        ..., description="The background color hex string (e.g., #000000)"
+        default="#999999",description="The background color hex string (e.g., #000000)"
     )
-    textColor: str = Field(..., description="The text color hex string (e.g., #ffffff)")
+    textColor: str = Field(default="#f3f3f3", description="The text color hex string (e.g., #ffffff)")
 
     @field_validator("backgroundColor")
     @classmethod
@@ -43,4 +43,4 @@ class GmailLabel(BaseModel):
     labelListVisibility: Optional[LabelListVisibility] = None
     messageListVisibility: Optional[MessageListVisibility] = None
     type: Optional[LabelType] = None
-    color: Optional[LabelColor] = None
+    color: Optional[LabelColor] = Field(default_factory=LabelColor)
