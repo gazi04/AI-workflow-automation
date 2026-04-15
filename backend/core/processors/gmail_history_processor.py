@@ -7,6 +7,7 @@ from typing import Dict, Any
 
 from core.database import db_session
 from core.setup_logging import setup_logger
+from gmail.schemas.message import GmailMessage, GmailMessagePart
 from orchestration.services.deployment_service import DeploymentService
 from processed_messages.services import ProcessedMessageService
 from workflow.schemas.workflow_definition import WorkflowDefinition
@@ -63,40 +64,33 @@ class GmailHistoryProcessor:
 
     def _process_single_message(self, message_id: str):
         try:
-            full_message = (
+            raw_message = (
                 self.service.users()
                 .messages()
                 .get(userId="me", id=message_id)
                 .execute()
             )
 
-            labels = full_message.get("labelIds", [])
+            message = GmailMessage.model_validate(raw_message)
+
+            labels = message.label_ids
 
             if "INBOX" not in labels or "SPAM" in labels or "TRASH" in labels:
                 return
 
-            payload = full_message.get("payload", {})
-            headers = payload.get("headers", [])
+            payload = message.payload
+            headers = payload.headers
             email_body = self._get_email_body(payload)
 
-            # ♻️ todo: refactor the email data object into a pydantic object
             email_data = {
                 "message_id": message_id,
-                "thread_id": full_message.get("threadId", ""),
-                "subject": next(
-                    (h["value"] for h in headers if h["name"] == "Subject"), ""
-                ),
-                "from": next((h["value"] for h in headers if h["name"] == "From"), ""),
-                "snippet": full_message.get("snippet", ""),
-                "header_message_id": next(
-                    (h["value"] for h in headers if h["name"].lower() == "message-id"),
-                    "",
-                ),
-                "references": next(
-                    (h["value"] for h in headers if h["name"].lower() == "references"),
-                    "",
-                ),
-                "body": email_body or full_message.get("snippet", ""),
+                "thread_id": message.thread_id,
+                "subject": next((h.value for h in headers if h.name.lower() == "subject"), ""),
+                "from": next((h.value for h in headers if h.name.lower() == "from"), ""),
+                "snippet": message.snippet,
+                "header_message_id": next((h.value for h in headers if h.name.lower() == "message-id"), ""),
+                "references": next((h.value for h in headers if h.name.lower() == "references"), ""),
+                "body": email_body or message.snippet
             }
 
             email_from = email_data["from"].lower()
@@ -191,27 +185,21 @@ class GmailHistoryProcessor:
         except Exception as e:
             self.logger.error(f"Unhandled error occurred: {e}")
 
-    def _get_email_body(self, payload: Dict[str, Any]) -> str:
+    def _get_email_body(self, payload: GmailMessagePart) -> str:
         """
         Recursively extracts the plain text body from the email payload.
         """
-        if "body" in payload and "data" in payload["body"]:
-            return base64.urlsafe_b64decode(payload["body"]["data"]).decode("utf-8")
+        if payload.body and payload.body.data:
+            if payload.mime_type == "text/plain":
+                return base64.urlsafe_b64decode(payload.body.data).decode("utf-8")
 
-        if "parts" in payload:
-            for part in payload["parts"]:
-                mime_type = part.get("mimeType")
+        for part in payload.parts:
+            if part.mime_type == "text/plain" and part.body and part.body.data:
+                return base64.urlsafe_b64decode(part.body.data).decode("utf-8")
 
-                if (
-                    mime_type == "text/plain"
-                    and "body" in part
-                    and "data" in part["body"]
-                ):
-                    return base64.urlsafe_b64decode(part["body"]["data"]).decode(
-                        "utf-8"
-                    )
-
-                if mime_type.startswith("multipart"):
-                    return self._get_email_body(part)
+            if part.mime_type.startswith("multipart"):
+                body = self._get_email_body(part)
+                if body:
+                    return body
 
         return ""
