@@ -24,7 +24,7 @@
 	function onDragOver(event: DragEvent) {
 		event.preventDefault();
 		if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-    takeSnapshot();
+		takeSnapshot();
 	}
 
 	function onDrop(event: DragEvent) {
@@ -62,24 +62,24 @@
 			nodes = [...nodes, newNode];
 		}
 
-    setTimeout(takeSnapshot, 0);
+		setTimeout(takeSnapshot, 0);
 	}
 
-  function onNodeDragStop() {
-      takeSnapshot();
-  }
+	function onNodeDragStop() {
+		takeSnapshot();
+	}
 
-  function onConnect(connection: Connection) {
-      edges = addEdge({ ...connection, animated: true }, edges);
-      setTimeout(takeSnapshot, 0);
-  }
+	function onConnect(connection: Connection) {
+		edges = addEdge({ ...connection, animated: true }, edges);
+		setTimeout(takeSnapshot, 0);
+	}
 
-  function onEdgesChange(changes: any) {
-      const isSignificant = changes.some((c: any) => c.type === 'remove' || c.type === 'reset');
-      if (isSignificant) {
-          setTimeout(takeSnapshot, 0);
-      }
-  }
+	function onEdgesChange(changes: any) {
+		const isSignificant = changes.some((c: any) => c.type === 'remove' || c.type === 'reset');
+		if (isSignificant) {
+			setTimeout(takeSnapshot, 0);
+		}
+	}
 </script>
 
 <div class="h-full w-full" ondragover={onDragOver} ondrop={onDrop} role="presentation">
@@ -87,12 +87,12 @@
 		bind:nodes
 		bind:edges
 		{nodeTypes}
-    onconnect={onConnect}
-    onnodeclick={onNodeClick}
-    onnodedragstop={onNodeDragStop}
-    onedgeschange={onEdgesChange}
-    ondragover={onDragOver}
-    ondrop={onDrop}
+		onconnect={onConnect}
+		onnodeclick={onNodeClick}
+		onnodedragstop={onNodeDragStop}
+		onedgeschange={onEdgesChange}
+		ondragover={onDragOver}
+		ondrop={onDrop}
 		fitView
 	>
 		<Controls />

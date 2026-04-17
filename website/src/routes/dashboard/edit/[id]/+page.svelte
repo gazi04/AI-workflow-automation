@@ -9,13 +9,13 @@
 	import { goto } from '$app/navigation';
 	import { toast, Toaster } from 'svelte-sonner';
 	import { getLayoutedElements } from '$lib/utils/layout';
-  import { HistoryManager } from '$lib/utils/history.svelte'
+	import { HistoryManager } from '$lib/utils/history.svelte';
 	import ConfigPanel from '$lib/components/editor/ConfigPanel.svelte';
 	import Sidebar from '$lib/components/editor/Sidebar.svelte';
 	import FlowCanvas from '$lib/components/editor/FlowCanvas.svelte';
 	import type { components } from '$lib/types/schema';
 
-  const history = new HistoryManager<{ nodes: Node[], edges: Edge[] }>();
+	const history = new HistoryManager<{ nodes: Node[]; edges: Edge[] }>();
 
 	type WorkflowDef = components['schemas']['WorkflowDefinition-Output'];
 
@@ -134,7 +134,7 @@
 			} as Workflow;
 
 			syncFlowState(config);
-      setTimeout(takeSnapshot, 100);
+			setTimeout(takeSnapshot, 100);
 			isLoading = false;
 			return;
 		}
@@ -158,7 +158,7 @@
 		const layouted = getLayoutedElements(nodes, edges, direction);
 		nodes = [...layouted.nodes];
 		edges = [...layouted.edges];
-    takeSnapshot();
+		takeSnapshot();
 	}
 
 	function onNodeClick({ event, node }: { event: MouseEvent | TouchEvent; node: Node }) {
@@ -256,40 +256,40 @@
 		}
 	}
 
-  function takeSnapshot() {
-    history.push({
-      nodes: $state.snapshot(nodes),
-      edges: $state.snapshot(edges)
-      });
-  }
+	function takeSnapshot() {
+		history.push({
+			nodes: $state.snapshot(nodes),
+			edges: $state.snapshot(edges)
+		});
+	}
 
-  function handleUndo() {
-    const previous = history.undo({ nodes, edges });
-    if (previous) {
-        nodes = previous.nodes;
-        edges = previous.edges;
-    }
-  }
+	function handleUndo() {
+		const previous = history.undo({ nodes, edges });
+		if (previous) {
+			nodes = previous.nodes;
+			edges = previous.edges;
+		}
+	}
 
-  function handleRedo() {
-      const next = history.redo();
-      if (next) {
-          nodes = next.nodes;
-          edges = next.edges;
-      }
-  }
+	function handleRedo() {
+		const next = history.redo();
+		if (next) {
+			nodes = next.nodes;
+			edges = next.edges;
+		}
+	}
 
-  function handleKeyDown(e: KeyboardEvent) {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
-          e.preventDefault();
-          if (e.shiftKey) handleRedo();
-          else handleUndo();
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
-          e.preventDefault();
-          handleRedo();
-      }
-  }
+	function handleKeyDown(e: KeyboardEvent) {
+		if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+			e.preventDefault();
+			if (e.shiftKey) handleRedo();
+			else handleUndo();
+		}
+		if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+			e.preventDefault();
+			handleRedo();
+		}
+	}
 
 	onMount(loadWorkflow);
 </script>
@@ -302,22 +302,32 @@
 
 		<div class="flex grow flex-col">
 			<header class="flex items-center justify-between border-b bg-card p-4">
-        <div class="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onclick={() => goto('/dashboard')}>
-                <ChevronLeft class="h-4 w-4" />
-            </Button>
-            
-            <div class="flex items-center border-l ml-2 pl-2 gap-1">
-                <Button variant="ghost" size="icon" class="h-8 w-8" 
-                    onclick={handleUndo} disabled={!history.canUndo}>
-                    <Undo2 class="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" class="h-8 w-8" 
-                    onclick={handleRedo} disabled={!history.canRedo}>
-                    <Redo2 class="h-4 w-4" />
-                </Button>
-            </div>
-        </div>
+				<div class="flex items-center gap-2">
+					<Button variant="ghost" size="sm" onclick={() => goto('/dashboard')}>
+						<ChevronLeft class="h-4 w-4" />
+					</Button>
+
+					<div class="ml-2 flex items-center gap-1 border-l pl-2">
+						<Button
+							variant="ghost"
+							size="icon"
+							class="h-8 w-8"
+							onclick={handleUndo}
+							disabled={!history.canUndo}
+						>
+							<Undo2 class="h-4 w-4" />
+						</Button>
+						<Button
+							variant="ghost"
+							size="icon"
+							class="h-8 w-8"
+							onclick={handleRedo}
+							disabled={!history.canRedo}
+						>
+							<Redo2 class="h-4 w-4" />
+						</Button>
+					</div>
+				</div>
 
 				<div class="flex flex-col items-center">
 					<input
@@ -370,7 +380,6 @@
 					{/if}
 				</div>
 			</header>
-
 
 			<main class="relative grow">
 				<SvelteFlowProvider>

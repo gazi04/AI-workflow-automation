@@ -245,7 +245,6 @@
 			</div>
 		{/if}
 
-
 		{#if definition && definition.fields.length === 0 && node.data.type !== 'label_email'}
 			<div class="rounded bg-yellow-50 p-3 text-sm text-yellow-600">
 				⚠️ No configuration fields defined for this type.
