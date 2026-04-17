@@ -85,12 +85,20 @@ class GmailHistoryProcessor:
             email_data = {
                 "message_id": message_id,
                 "thread_id": message.thread_id,
-                "subject": next((h.value for h in headers if h.name.lower() == "subject"), ""),
-                "from": next((h.value for h in headers if h.name.lower() == "from"), ""),
+                "subject": next(
+                    (h.value for h in headers if h.name.lower() == "subject"), ""
+                ),
+                "from": next(
+                    (h.value for h in headers if h.name.lower() == "from"), ""
+                ),
                 "snippet": message.snippet,
-                "header_message_id": next((h.value for h in headers if h.name.lower() == "message-id"), ""),
-                "references": next((h.value for h in headers if h.name.lower() == "references"), ""),
-                "body": email_body or message.snippet
+                "header_message_id": next(
+                    (h.value for h in headers if h.name.lower() == "message-id"), ""
+                ),
+                "references": next(
+                    (h.value for h in headers if h.name.lower() == "references"), ""
+                ),
+                "body": email_body or message.snippet,
             }
 
             email_from = email_data["from"].lower()

@@ -24,9 +24,11 @@ class LabelType(str, Enum):
 
 class LabelColor(BaseModel):
     backgroundColor: GmailBackgroundHex = Field(
-        default="#999999",description="The background color hex string (e.g., #000000)"
+        default="#999999", description="The background color hex string (e.g., #000000)"
     )
-    textColor: GmailTextHex = Field(default="#f3f3f3", description="The text color hex string (e.g., #ffffff)")
+    textColor: GmailTextHex = Field(
+        default="#f3f3f3", description="The text color hex string (e.g., #ffffff)"
+    )
 
     @field_validator("backgroundColor")
     @classmethod
