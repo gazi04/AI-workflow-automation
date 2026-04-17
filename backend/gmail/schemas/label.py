@@ -2,6 +2,7 @@ from enum import Enum
 from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 
+from gmail.schemas.colors import GmailBackgroundHex, GmailTextHex
 from utils.gmail_colors import validate_background_color, validate_text_color
 
 
@@ -22,10 +23,10 @@ class LabelType(str, Enum):
 
 
 class LabelColor(BaseModel):
-    backgroundColor: str = Field(
+    backgroundColor: GmailBackgroundHex = Field(
         default="#999999",description="The background color hex string (e.g., #000000)"
     )
-    textColor: str = Field(default="#f3f3f3", description="The text color hex string (e.g., #ffffff)")
+    textColor: GmailTextHex = Field(default="#f3f3f3", description="The text color hex string (e.g., #ffffff)")
 
     @field_validator("backgroundColor")
     @classmethod
