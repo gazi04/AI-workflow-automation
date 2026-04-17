@@ -11,7 +11,7 @@
 	import TriggerNode from './TriggerNode.svelte';
 	import ConditionNode from './ConditionNode.svelte';
 
-	let { nodes = $bindable(), edges = $bindable(), onNodeClick } = $props();
+	let { nodes = $bindable(), edges = $bindable(), onNodeClick, takeSnapshot } = $props();
 
 	const nodeTypes: any = {
 		trigger: TriggerNode,
@@ -24,6 +24,7 @@
 	function onDragOver(event: DragEvent) {
 		event.preventDefault();
 		if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    takeSnapshot();
 	}
 
 	function onDrop(event: DragEvent) {
@@ -60,7 +61,25 @@
 		} else {
 			nodes = [...nodes, newNode];
 		}
+
+    setTimeout(takeSnapshot, 0);
 	}
+
+  function onNodeDragStop() {
+      takeSnapshot();
+  }
+
+  function onConnect(connection: Connection) {
+      edges = addEdge({ ...connection, animated: true }, edges);
+      setTimeout(takeSnapshot, 0);
+  }
+
+  function onEdgesChange(changes: any) {
+      const isSignificant = changes.some((c: any) => c.type === 'remove' || c.type === 'reset');
+      if (isSignificant) {
+          setTimeout(takeSnapshot, 0);
+      }
+  }
 </script>
 
 <div class="h-full w-full" ondragover={onDragOver} ondrop={onDrop} role="presentation">
@@ -68,8 +87,12 @@
 		bind:nodes
 		bind:edges
 		{nodeTypes}
-		onnodeclick={onNodeClick}
-		onconnect={(params) => (edges = addEdge(params, edges))}
+    onconnect={onConnect}
+    onnodeclick={onNodeClick}
+    onnodedragstop={onNodeDragStop}
+    onedgeschange={onEdgesChange}
+    ondragover={onDragOver}
+    ondrop={onDrop}
 		fitView
 	>
 		<Controls />
