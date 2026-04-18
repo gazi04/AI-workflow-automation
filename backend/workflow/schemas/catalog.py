@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Any, List
+from typing import Any, List, Optional
 
 
 class FieldDefinition(BaseModel):
@@ -9,6 +9,7 @@ class FieldDefinition(BaseModel):
     required: bool
     default: Any = None
     description: str = ""
+    options: Optional[List[str]] = None
 
 
 class NodeDefinition(BaseModel):

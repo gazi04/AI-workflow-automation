@@ -134,8 +134,8 @@
 
 		<hr />
 
-		{#if definition && node.data.type !== 'if_condition'}
-			{#each definition.fields.filter((f) => f.key !== 'label_info') as field}
+		{#if definition}
+			{#each definition.fields as field}
 				<div class="space-y-2">
 					<Label>{field.label}</Label>
 
@@ -145,6 +145,86 @@
 							placeholder={`Enter ${field.label}...`}
 							rows={5}
 						/>
+					{:else if field.type === 'select'}
+						<select
+							class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
+							bind:value={node.data.config[field.key]}
+						>
+							{#each field.options || [] as option}
+								<option value={option}>{option}</option>
+							{/each}
+						</select>
+					{:else if field.type === 'rule_builder'}
+						<div class="space-y-3">
+							<div class="flex items-center justify-between">
+								<button
+									onclick={() => {
+										if (!node.data.config[field.key]) node.data.config[field.key] = [];
+										node.data.config[field.key].push({
+											variable: '',
+											operator: 'equals',
+											value: ''
+										});
+									}}
+									class="text-[10px] font-bold text-primary hover:underline"
+								>
+									+ Add Rule
+								</button>
+							</div>
+
+							{#each node.data.config[field.key] || [] as rule, i}
+								<div class="space-y-2 rounded-md border bg-muted/30 p-3">
+									<div class="flex items-center justify-between">
+										<span class="text-[10px] font-bold tracking-tight text-muted-foreground uppercase"
+											>Rule {i + 1}</span
+										>
+										<button
+											onclick={() => node.data.config[field.key].splice(i, 1)}
+											class="text-muted-foreground hover:text-destructive"
+										>
+											<Trash2 size={12} />
+										</button>
+									</div>
+									<div class="space-y-1">
+										<Label class="text-[10px]">Variable</Label>
+										<select
+											class="flex h-8 w-full items-center justify-between rounded-md border border-input bg-background px-2 py-1 text-xs"
+											bind:value={rule.variable}
+										>
+											<option value="" disabled selected>Select variable...</option>
+											{#each availableVariables as v}
+												<option value={v.value}>{v.label}</option>
+											{/each}
+										</select>
+									</div>
+									<div class="grid grid-cols-2 gap-2">
+										<div class="space-y-1">
+											<Label class="text-[10px]">Operator</Label>
+											<select
+												class="flex h-8 w-full items-center justify-between rounded-md border border-input bg-background px-2 py-1 text-xs"
+												bind:value={rule.operator}
+											>
+												<option value="equals">Equals</option>
+												<option value="contains">Contains</option>
+												<option value="exists">Exists</option>
+												<option value="greater_than">Greater than</option>
+												<option value="less_than">Less than</option>
+											</select>
+										</div>
+										<div class="space-y-1">
+											<Label class="text-[10px]">Value</Label>
+											<Input bind:value={rule.value} placeholder="Value..." class="h-8 text-xs" />
+										</div>
+									</div>
+								</div>
+							{/each}
+
+							{#if (node.data.config[field.key] || []).length === 0}
+								<p class="py-4 text-center text-xs text-muted-foreground italic">
+									No rules defined. This condition will always match by default.
+								</p>
+							{/if}
+						</div>
 					{:else}
 						<Input
 							type={field.type}
@@ -160,90 +240,6 @@
 			{/each}
 		{/if}
 
-		{#if node.data.type === 'if_condition'}
-			<div class="space-y-4">
-				<div class="space-y-2">
-					<Label>Matching Strategy</Label>
-					<select
-						class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
-						bind:value={node.data.config.match_type}
-					>
-						<option value="ALL">All rules match (AND)</option>
-						<option value="ANY">Any rule matches (OR)</option>
-					</select>
-				</div>
-
-				<div class="space-y-3">
-					<div class="flex items-center justify-between">
-						<Label>Rules</Label>
-						<button
-							onclick={() =>
-								node.data.config.rules.push({
-									variable: '',
-									operator: 'equals',
-									value: ''
-								})}
-							class="text-[10px] font-bold text-primary hover:underline"
-						>
-							+ Add Rule
-						</button>
-					</div>
-
-					{#each node.data.config.rules as rule, i}
-						<div class="space-y-2 rounded-md border bg-muted/30 p-3">
-							<div class="flex items-center justify-between">
-								<span class="text-[10px] font-bold tracking-tight text-muted-foreground uppercase"
-									>Rule {i + 1}</span
-								>
-								<button
-									onclick={() => node.data.config.rules.splice(i, 1)}
-									class="text-muted-foreground hover:text-destructive"
-								>
-									<Trash2 size={12} />
-								</button>
-							</div>
-							<div class="space-y-1">
-								<Label class="text-[10px]">Variable</Label>
-								<select
-									class="flex h-8 w-full items-center justify-between rounded-md border border-input bg-background px-2 py-1 text-xs"
-									bind:value={rule.variable}
-								>
-									<option value="" disabled selected>Select variable...</option>
-									{#each availableVariables as v}
-										<option value={v.value}>{v.label}</option>
-									{/each}
-								</select>
-							</div>
-							<div class="grid grid-cols-2 gap-2">
-								<div class="space-y-1">
-									<Label class="text-[10px]">Operator</Label>
-									<select
-										class="flex h-8 w-full items-center justify-between rounded-md border border-input bg-background px-2 py-1 text-xs"
-										bind:value={rule.operator}
-									>
-										<option value="equals">Equals</option>
-										<option value="contains">Contains</option>
-										<option value="exists">Exists</option>
-										<option value="greater_than">Greater than</option>
-										<option value="less_than">Less than</option>
-									</select>
-								</div>
-								<div class="space-y-1">
-									<Label class="text-[10px]">Value</Label>
-									<Input bind:value={rule.value} placeholder="Value..." class="h-8 text-xs" />
-								</div>
-							</div>
-						</div>
-					{/each}
-
-					{#if node.data.config.rules.length === 0}
-						<p class="py-4 text-center text-xs text-muted-foreground italic">
-							No rules defined. This condition will always match by default.
-						</p>
-					{/if}
-				</div>
-			</div>
-		{/if}
 
 		{#if definition && definition.fields.length === 0 && node.data.type !== 'label_email'}
 			<div class="rounded bg-yellow-50 p-3 text-sm text-yellow-600">

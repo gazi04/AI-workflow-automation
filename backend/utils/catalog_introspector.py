@@ -11,6 +11,8 @@ from workflow.schemas.trigger import Trigger
 
 def _map_annotation_to_ui_type(annotation, field_info: FieldInfo) -> str:
     """Maps a Python/Pydantic annotation to a frontend widget string."""
+    if typing.get_origin(annotation) is typing.Literal:
+        return "select"
     if annotation is EmailStr:
         return "email"
     if annotation is bool:
@@ -37,6 +39,11 @@ def _build_node_definitions(union_type) -> list[NodeDefinition]:
         fields = []
         for field_name, field_info in config_cls.model_fields.items():
             key = field_info.alias or field_name
+            # Handle Literal options for select type
+            options = None
+            if typing.get_origin(field_info.annotation) is typing.Literal:
+                options = list(typing.get_args(field_info.annotation))
+
             fields.append(
                 FieldDefinition(
                     key=key,
@@ -47,6 +54,7 @@ def _build_node_definitions(union_type) -> list[NodeDefinition]:
                     if not field_info.is_required()
                     else None,
                     description=field_info.description or "",
+                    options=options,
                 )
             )
 
