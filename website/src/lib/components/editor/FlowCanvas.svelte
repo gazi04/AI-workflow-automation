@@ -5,7 +5,8 @@
 		Background,
 		addEdge,
 		useSvelteFlow,
-		type Node
+		type Node,
+		type Connection
 	} from '@xyflow/svelte';
 	import ActionNode from './ActionNode.svelte';
 	import TriggerNode from './TriggerNode.svelte';
@@ -57,7 +58,7 @@
 		};
 
 		if (nodeType === 'trigger') {
-			nodes = [newNode, ...nodes.filter((n: Node) => n.id !== 'trigger')];
+			nodes = [newNode, ...nodes.filter((n: Node) => n.type !== 'trigger')];
 		} else {
 			nodes = [...nodes, newNode];
 		}
@@ -82,7 +83,7 @@
 	}
 </script>
 
-<div class="h-full w-full" ondragover={onDragOver} ondrop={onDrop} role="presentation">
+<div class="h-full w-full" role="presentation">
 	<SvelteFlow
 		bind:nodes
 		bind:edges
