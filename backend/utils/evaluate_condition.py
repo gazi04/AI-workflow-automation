@@ -1,7 +1,7 @@
 from typing import Any, Dict
 from email.utils import parseaddr
 from utils.resolve_variables import resolve_variables
-from workflow.schemas.condition_nodes import IfCondition
+from workflow.schemas.condition_nodes import IfCondition, ConditionOperators
 
 
 def evaluate_condition(condition: IfCondition, run_context: Dict[str, Any]) -> bool:
@@ -22,7 +22,7 @@ def evaluate_condition(condition: IfCondition, run_context: Dict[str, Any]) -> b
         actual_str = str(actual_value).lower().strip()
         expected_str = str(expected_value).lower().strip()
 
-        if operator == "equals":
+        if operator == ConditionOperators.EQUALS:
             # Extract just the email if it's formatted like "Name <email@domain>"
             _, parsed_actual = parseaddr(actual_str)
             _, parsed_expected = parseaddr(expected_str)
@@ -37,16 +37,16 @@ def evaluate_condition(condition: IfCondition, run_context: Dict[str, Any]) -> b
             else:
                 res = actual_str == expected_str
 
-        elif operator == "contains":
+        elif operator == ConditionOperators.CONTAINS:
             res = expected_str in actual_str
-        elif operator == "exists":
+        elif operator == ConditionOperators.EXISTS:
             res = actual_value != rule.variable
-        elif operator == "greater_than":
+        elif operator == ConditionOperators.GREATER_THAN:
             try:
                 res = float(actual_value) > float(expected_value)
             except (ValueError, TypeError):
                 res = False
-        elif operator == "less_than":
+        elif operator == ConditionOperators.LESS_THAN:
             try:
                 res = float(actual_value) < float(expected_value)
             except (ValueError, TypeError):
