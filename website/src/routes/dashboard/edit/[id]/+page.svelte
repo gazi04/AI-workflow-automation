@@ -289,6 +289,21 @@
 			e.preventDefault();
 			handleRedo();
 		}
+		if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNode) {
+			if (document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+				e.preventDefault();
+				deleteSelectedNode();
+			}
+		}
+	}
+
+	function deleteSelectedNode() {
+		if (!selectedNode) return;
+		takeSnapshot();
+		const nodeId = selectedNode.id;
+		nodes = nodes.filter((n) => n.id !== nodeId);
+		edges = edges.filter((e) => e.source !== nodeId && e.target !== nodeId);
+		selectedNode = null;
 	}
 
 	onMount(loadWorkflow);

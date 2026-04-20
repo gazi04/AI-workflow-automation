@@ -6,7 +6,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Textarea } from '$lib/components/ui/textarea';
 
-	let { node = $bindable(), nodes = [], onClose } = $props();
+	let { node = $bindable(), nodes = [], onClose, onDelete } = $props();
 
 	let availableVariables = $derived.by(() => {
 		const vars: { label: string; value: string }[] = [];
@@ -113,9 +113,14 @@
 		<h2 class="text-sm font-bold tracking-wide uppercase">
 			Configure {nodeCategory}
 		</h2>
-		<button onclick={onClose} class="rounded p-1 hover:bg-slate-200">
-			<X size={16} />
-		</button>
+		<div class="flex items-center gap-1">
+			<button onclick={onDelete} class="rounded p-1 hover:bg-slate-200 text-destructive" title="Delete node">
+				<Trash2 size={16} />
+			</button>
+			<button onclick={onClose} class="rounded p-1 hover:bg-slate-200">
+				<X size={16} />
+			</button>
+		</div>
 	</div>
 
 	<div class="flex-1 space-y-6 overflow-y-auto p-6">
