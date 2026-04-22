@@ -108,8 +108,6 @@ class GmailHistoryProcessor:
                 # ⚡ todo: improve performance by caching the workflows
                 workflows = WorkflowService.get_by_user_id(db, self.user_id)
 
-                active_ids = [w.id for w in workflows if w.is_active]
-
                 for workflow in workflows:
                     if not workflow.is_active:
                         continue

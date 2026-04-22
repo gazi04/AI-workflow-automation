@@ -18,7 +18,9 @@ class ConditionRule(BaseModel):
 
 
 class IfConditionConfig(BaseModel):
-    rules: List[ConditionRule] = Field(..., json_schema_extra={"widget": "rule_builder"})
+    rules: List[ConditionRule] = Field(
+        ..., json_schema_extra={"widget": "rule_builder"}
+    )
     match_type: Literal["ANY", "ALL"] = "ALL"
 
 

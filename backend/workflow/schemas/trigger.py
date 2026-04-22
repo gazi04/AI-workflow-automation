@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field, EmailStr, model_validator
+from pydantic import BaseModel, ConfigDict, Field, EmailStr
 from typing import Literal, Optional, Union, Annotated
 
 
