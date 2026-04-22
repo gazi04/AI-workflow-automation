@@ -114,7 +114,11 @@
 			Configure {nodeCategory}
 		</h2>
 		<div class="flex items-center gap-1">
-			<button onclick={onDelete} class="rounded p-1 hover:bg-slate-200 text-destructive" title="Delete node">
+			<button
+				onclick={onDelete}
+				class="rounded p-1 text-destructive hover:bg-slate-200"
+				title="Delete node"
+			>
 				<Trash2 size={16} />
 			</button>
 			<button onclick={onClose} class="rounded p-1 hover:bg-slate-200">
@@ -180,7 +184,8 @@
 							{#each node.data.config[field.key] || [] as rule, i}
 								<div class="space-y-2 rounded-md border bg-muted/30 p-3">
 									<div class="flex items-center justify-between">
-										<span class="text-[10px] font-bold tracking-tight text-muted-foreground uppercase"
+										<span
+											class="text-[10px] font-bold tracking-tight text-muted-foreground uppercase"
 											>Rule {i + 1}</span
 										>
 										<button
@@ -244,7 +249,6 @@
 				</div>
 			{/each}
 		{/if}
-
 
 		{#if definition && definition.fields.length === 0 && node.data.type !== 'label_email'}
 			<div class="rounded bg-yellow-50 p-3 text-sm text-yellow-600">

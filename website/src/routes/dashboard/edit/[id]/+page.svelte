@@ -290,7 +290,10 @@
 			handleRedo();
 		}
 		if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNode) {
-			if (document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+			if (
+				document.activeElement?.tagName !== 'INPUT' &&
+				document.activeElement?.tagName !== 'TEXTAREA'
+			) {
 				e.preventDefault();
 				deleteSelectedNode();
 			}
@@ -311,7 +314,7 @@
 
 <svelte:window onkeydown={handleKeyDown} />
 
-<div class="flex h-screen overflow-hidden bg-background">
+<div class="flex min-h-[100dvh] flex-col overflow-hidden bg-background">
 	{#if workflow}
 		<Sidebar />
 
@@ -396,7 +399,7 @@
 				</div>
 			</header>
 
-			<main class="relative grow">
+			<main class="relative min-h-0 grow">
 				<SvelteFlowProvider>
 					<FlowCanvas bind:nodes bind:edges {onNodeClick} {takeSnapshot} />
 				</SvelteFlowProvider>
@@ -404,7 +407,12 @@
 		</div>
 
 		{#if selectedNode}
-			<ConfigPanel bind:node={selectedNode} {nodes} onClose={() => (selectedNode = null)} />
+			<ConfigPanel
+				bind:node={selectedNode}
+				{nodes}
+				onClose={() => (selectedNode = null)}
+				onDelete={deleteSelectedNode}
+			/>
 		{/if}
 	{:else if isLoading}
 		<div class="flex h-full w-full items-center justify-center">
