@@ -1,3 +1,4 @@
+from typing import Optional
 from azure.ai.inference import ChatCompletionsClient
 from azure.ai.inference.models import SystemMessage, UserMessage
 from azure.core.credentials import AzureKeyCredential
@@ -63,21 +64,37 @@ class AiService:
         ]  # the +1 will enclude the '}' character in the return
 
     @staticmethod
-    def generate_workflow(user_input: str) -> WorkflowDefinition:
+    def generate_workflow(user_input: str, current_workflow: Optional[WorkflowDefinition] = None) -> WorkflowDefinition:
         """
-        Make a request to create a workflow, parses the response
-        Returns the parsed workflow definition
+        Makes a request to create or modify a workflow.
         """
         workflow_schema = json.dumps(WorkflowDefinition.model_json_schema(), indent=2)
 
+        base_prompt = f"{settings.system_prompt}"
+
+        context_modifier = ""
+        if current_workflow:
+            context_modifier = f"""
+            IMPORTANT CONTEXT:
+            The user is modifying an EXISTING workflow. Here is the current JSON structure:
+            {current_workflow.model_dump_json()}
+
+            INSTRUCTIONS FOR MODIFICATION:
+            1. Keep existing node IDs and edge IDs intact unless the user explicitly asks to remove or replace them.
+            2. Splice new nodes into the existing `nodes` dictionary.
+            3. Update the `edges` list to wire the new nodes logically into the flow.
+            4. If the user asks to change a color or text in a specific node, only update that node's config.
+            """
+
         strict_system_prompt = f"""
-        {settings.system_prompt}
+        {base_prompt}
+        
+        {context_modifier}
 
         CRITICAL OUTPUT INSTRUCTIONS:
         1. You must output ONLY a valid JSON object.
         2. Do not include markdown formatting, code blocks, or explanations.
         3. Your JSON must strictly adhere to the following schema:
-        
         {workflow_schema}
         """
 

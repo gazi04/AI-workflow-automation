@@ -22,7 +22,7 @@ async def interpret_command(
     and returns a structured workflow definition or an error.
     """
     try:
-        workflow_definition = AiService.generate_workflow(user_request.text)
+        workflow_definition = AiService.generate_workflow(user_request.text, user_request.current_workflow)
         return AIResponse(success=True, data=workflow_definition)
     except ValueError as e:
         logger.error(f"AI Router: Interpret command value error: {e}")
