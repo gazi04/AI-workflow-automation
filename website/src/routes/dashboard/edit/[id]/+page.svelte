@@ -10,6 +10,7 @@
 	import { toast, Toaster } from 'svelte-sonner';
 	import { getLayoutedElements } from '$lib/utils/layout';
 	import { HistoryManager } from '$lib/utils/history.svelte';
+  import AIAgentChat from '$lib/components/editor/AIAgentChat.svelte';
 	import ConfigPanel from '$lib/components/editor/ConfigPanel.svelte';
 	import Sidebar from '$lib/components/editor/Sidebar.svelte';
 	import FlowCanvas from '$lib/components/editor/FlowCanvas.svelte';
@@ -309,12 +310,25 @@
 		selectedNode = null;
 	}
 
+  function handleAIUpdate(newConfig: WorkflowDef) {
+    // Sync the new backend schema to your SvelteFlow nodes/edges
+    syncFlowState(newConfig, newConfig.ui_metadata);
+
+    // Auto-layout the graph because the AI doesn't output X/Y coordinates
+    setTimeout(() => {
+      onLayout('LR');
+      // Take a snapshot so the user can Undo the AI's changes if they don't like them
+      takeSnapshot();
+      toast.success("Workflow updated by AI");
+    }, 100);
+  }
+
 	onMount(loadWorkflow);
 </script>
 
 <svelte:window onkeydown={handleKeyDown} />
 
-<div class="flex min-h-[100dvh] flex-col overflow-hidden bg-background">
+<div class="flex h-screen overflow-hidden bg-background">
 	{#if workflow}
 		<Sidebar />
 
@@ -399,11 +413,16 @@
 				</div>
 			</header>
 
-			<main class="relative min-h-0 grow">
-				<SvelteFlowProvider>
-					<FlowCanvas bind:nodes bind:edges {onNodeClick} {takeSnapshot} />
-				</SvelteFlowProvider>
-			</main>
+      <main class="relative grow">
+        <SvelteFlowProvider>
+          <FlowCanvas bind:nodes bind:edges {onNodeClick} {takeSnapshot} />
+        </SvelteFlowProvider>
+
+        <AIAgentChat 
+          onAIUpdate={handleAIUpdate} 
+          getCurrentConfig={getUpdatedConfig} 
+        />
+      </main>
 		</div>
 
 		{#if selectedNode}
