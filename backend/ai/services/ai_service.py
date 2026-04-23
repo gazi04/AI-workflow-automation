@@ -77,13 +77,14 @@ class AiService:
             context_modifier = f"""
             IMPORTANT CONTEXT:
             The user is modifying an EXISTING workflow. Here is the current JSON structure:
-            {current_workflow.model_dump_json()}
+            {json.dumps(current_workflow)}
 
             INSTRUCTIONS FOR MODIFICATION:
-            1. Keep existing node IDs and edge IDs intact unless the user explicitly asks to remove or replace them.
-            2. Splice new nodes into the existing `nodes` dictionary.
-            3. Update the `edges` list to wire the new nodes logically into the flow.
-            4. If the user asks to change a color or text in a specific node, only update that node's config.
+            1. Keep existing node IDs and edge IDs intact if they are being used in the logic.
+            2. If the current workflow has a default 'manual' trigger and the user's request implies a different trigger (like an email or schedule), REMOVE the default manual trigger and replace it.
+            3. Ensure EVERY trigger node in the 'nodes' dictionary has at least one outgoing edge. Do not leave "floating" or isolated triggers.
+            4. Splice new nodes into the existing `nodes` dictionary.
+            5. Update the `edges` list to wire the new nodes logically into the flow.
             """
 
         strict_system_prompt = f"""
@@ -100,6 +101,7 @@ class AiService:
 
         response = AiService.__make_ai_request(user_input, strict_system_prompt)
         json_content = AiService.__clean_json_response(response)
+        logger.debug(f"AI response:\n{json_content}")
         return WorkflowDefinition.model_validate_json(json_content)
 
     @staticmethod
