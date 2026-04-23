@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Dict, Optional
 from pydantic import BaseModel
 
 from workflow.schemas import WorkflowDefinition
@@ -6,4 +6,4 @@ from workflow.schemas import WorkflowDefinition
 
 class UserRequest(BaseModel):
     text: str
-    current_workflow: Optional[WorkflowDefinition]
+    current_workflow: Optional[Dict[str, Any]]
