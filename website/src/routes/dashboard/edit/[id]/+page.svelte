@@ -328,7 +328,7 @@
 
 <svelte:window onkeydown={handleKeyDown} />
 
-<div class="flex h-screen overflow-hidden bg-background">
+<div class="flex overflow-hidden bg-background" style="height: 96vh;">
 	{#if workflow}
 		<Sidebar />
 
