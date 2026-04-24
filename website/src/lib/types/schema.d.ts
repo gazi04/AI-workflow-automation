@@ -546,15 +546,8 @@ export interface components {
 			 * @default
 			 */
 			description: string;
-		};
-		/** GmailLabel */
-		GmailLabel: {
-			/** Name */
-			name: string;
-			labelListVisibility?: components['schemas']['LabelListVisibility'] | null;
-			messageListVisibility?: components['schemas']['MessageListVisibility'] | null;
-			type?: components['schemas']['LabelType'] | null;
-			color?: components['schemas']['LabelColor'] | null;
+			/** Options */
+			options?: string[] | null;
 		};
 		/** HTTPValidationError */
 		HTTPValidationError: {
@@ -624,55 +617,33 @@ export interface components {
 			 */
 			needs_reconnect: boolean;
 		};
-		/** LabelColor */
-		LabelColor: {
-			/**
-			 * Backgroundcolor
-			 * @description The background color hex string (e.g., #000000)
-			 */
-			backgroundColor: string;
-			/**
-			 * Textcolor
-			 * @description The text color hex string (e.g., #ffffff)
-			 */
-			textColor: string;
-		};
 		/** LabelEmailAction */
-		'LabelEmailAction-Input': {
+		LabelEmailAction: {
 			/**
 			 * @description discriminator enum property added by openapi-typescript
 			 * @enum {string}
 			 */
 			type: 'label_email';
-			config: components['schemas']['LabelEmailConfig-Input'];
+			config: components['schemas']['LabelEmailConfig'];
 		};
-		/** LabelEmailAction */
-		'LabelEmailAction-Output': {
+		/** LabelEmailConfig */
+		LabelEmailConfig: {
 			/**
-			 * @description discriminator enum property added by openapi-typescript
-			 * @enum {string}
+			 * Label Name
+			 * @description The name of the label (e.g., 'OFFERS')
 			 */
-			type: 'label_email';
-			config: components['schemas']['LabelEmailConfig-Output'];
+			label_name: string;
+			/**
+			 * Background Color
+			 * @default #999999
+			 */
+			background_color: string;
+			/**
+			 * Text Color
+			 * @default #f3f3f3
+			 */
+			text_color: string;
 		};
-		/** LabelEmailConfig */
-		'LabelEmailConfig-Input': {
-			label_info: components['schemas']['GmailLabel'];
-		};
-		/** LabelEmailConfig */
-		'LabelEmailConfig-Output': {
-			label_info: components['schemas']['GmailLabel'];
-		};
-		/**
-		 * LabelListVisibility
-		 * @enum {string}
-		 */
-		LabelListVisibility: 'labelShow' | 'labelShowIfUnread' | 'labelHide';
-		/**
-		 * LabelType
-		 * @enum {string}
-		 */
-		LabelType: 'system' | 'user';
 		/** ManualConfig */
 		ManualConfig: {
 			/**
@@ -690,11 +661,6 @@ export interface components {
 			type: 'manual';
 			config: components['schemas']['ManualConfig'];
 		};
-		/**
-		 * MessageListVisibility
-		 * @enum {string}
-		 */
-		MessageListVisibility: 'show' | 'hide';
 		/** NewSheetRowConfig */
 		NewSheetRowConfig: {
 			/** Spreadsheet Id */
@@ -887,6 +853,10 @@ export interface components {
 		UserRequest: {
 			/** Text */
 			text: string;
+			/** Current Workflow */
+			current_workflow: {
+				[key: string]: unknown;
+			} | null;
 		};
 		/** ValidationError */
 		ValidationError: {
@@ -988,7 +958,7 @@ export interface components {
 				| components['schemas']['SendSlackMessageAction']
 				| components['schemas']['SendEmailAction']
 				| components['schemas']['ReplyEmailAction']
-				| components['schemas']['LabelEmailAction-Input']
+				| components['schemas']['LabelEmailAction']
 				| components['schemas']['SmartDraftAction']
 				| components['schemas']['CreateDocumentAction']
 				| components['schemas']['IfCondition-Input'];
@@ -1013,7 +983,7 @@ export interface components {
 				| components['schemas']['SendSlackMessageAction']
 				| components['schemas']['SendEmailAction']
 				| components['schemas']['ReplyEmailAction']
-				| components['schemas']['LabelEmailAction-Output']
+				| components['schemas']['LabelEmailAction']
 				| components['schemas']['SmartDraftAction']
 				| components['schemas']['CreateDocumentAction']
 				| components['schemas']['IfCondition-Output'];
