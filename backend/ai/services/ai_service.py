@@ -64,7 +64,9 @@ class AiService:
         ]  # the +1 will enclude the '}' character in the return
 
     @staticmethod
-    def generate_workflow(user_input: str, current_workflow: Optional[WorkflowDefinition] = None) -> WorkflowDefinition:
+    def generate_workflow(
+        user_input: str, current_workflow: Optional[WorkflowDefinition] = None
+    ) -> WorkflowDefinition:
         """
         Makes a request to create or modify a workflow.
         """
@@ -101,7 +103,6 @@ class AiService:
 
         response = AiService.__make_ai_request(user_input, strict_system_prompt)
         json_content = AiService.__clean_json_response(response)
-        logger.debug(f"AI response:\n{json_content}")
         return WorkflowDefinition.model_validate_json(json_content)
 
     @staticmethod

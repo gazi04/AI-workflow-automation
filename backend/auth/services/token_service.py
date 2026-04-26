@@ -17,7 +17,7 @@ class TokenService:
                     .join(User)
                     .filter(
                         RefreshToken.token == refresh_token,
-                        RefreshToken.is_revoked == False, # noqa: E712
+                        RefreshToken.is_revoked == False,  # noqa: E712
                         RefreshToken.expires_at > datetime.now(timezone.utc),
                         User.is_active,
                     )
