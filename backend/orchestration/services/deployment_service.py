@@ -46,8 +46,6 @@ class DeploymentService:
         Supports multiple triggers (DAG architecture).
         """
         schedule = None
-        has_manual = False
-        unautomated_triggers = []
 
         for node_id in workflow.start_node_ids:
             node = workflow.nodes.get(node_id)
@@ -67,22 +65,6 @@ class DeploymentService:
                     # Note: Prefect deploy() param 'schedule' takes a single schedule.
                     # If a user adds multiple schedule nodes, we use the first one here.
                     schedule = CronSchedule(cron=cron_expression, timezone="UTC")
-
-            elif trigger.type == "manual":
-                has_manual = True
-
-            elif trigger.type in ["email_received", "new_sheet_row"]:
-                unautomated_triggers.append(trigger.type)
-
-        if has_manual:
-            logger.info(
-                f"Creating manual deployment capabilities for workflow: {workflow.name}"
-            )
-        if unautomated_triggers:
-            # ✨ TODO: Add logic to register webhooks or polling for these event-based triggers.
-            logger.warning(
-                f"Triggers {unautomated_triggers} in workflow '{workflow.name}' are not yet fully automated."
-            )
 
         safe_name = workflow.name.replace(" ", "-").lower()
         deployment_name = f"user-{user_id}-{safe_name}"
