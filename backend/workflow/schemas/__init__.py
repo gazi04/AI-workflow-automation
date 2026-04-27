@@ -17,7 +17,7 @@ from .trigger import (
     Trigger,
 )
 from .condition_nodes import Condition
-from .workflow_definition import WorkflowDefinition
+from .workflow_schema import WorkflowSchema, WorkflowExecutionConfig
 from .workflow_run import WorkflowRun
 from .toggle_workflow_request import ToggleWorkflowRequest
 from .update_workflow_request import UpdateWorkflowRequest
@@ -33,7 +33,8 @@ __all__ = [
     "ScheduleTrigger",
     "Trigger",
     "Condition",
-    "WorkflowDefinition",
+    "WorkflowSchema",
+    "WorkflowExecutionConfig",
     "ToggleWorkflowRequest",
     "UpdateWorkflowRequest",
     "CreateWorkflowRequest",
