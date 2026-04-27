@@ -7,17 +7,11 @@ from workflow.schemas.workflow_nodes import WorkflowNode
 from .ui_metadata_workflow import UIMetadata
 
 
-class WorkflowDefinition(BaseModel):
-    name: str = Field(..., description="A concise, descriptive name for this workflow")
-    description: str = Field(
-        ..., description="A one-sentence summary of the workflow's purpose"
-    )
-
+class WorkflowExecutionConfig(BaseModel):
     start_node_ids: List[str] = Field(
         ...,
         description="List of Node IDs that represent triggers capable of starting this graph.",
     )
-
     nodes: Dict[str, WorkflowNode] = Field(
         ...,
         description="A dictionary mapping node_id to the Node object for O(1) lookups.",
@@ -26,10 +20,9 @@ class WorkflowDefinition(BaseModel):
         default_factory=list, description="Flat list of edges connecting the nodes."
     )
 
-    ui_metadata: Optional[UIMetadata] = None
 
     @model_validator(mode="after")
-    def check_for_cycles(self) -> "WorkflowDefinition":
+    def check_for_cycles(self) -> "WorkflowExecutionConfig":
         """
         Uses Depth-First Search to ensure the graph is a
         Directed Acyclic Graph (DAG).
@@ -63,13 +56,13 @@ class WorkflowDefinition(BaseModel):
                 if has_cycle(start_node):
                     raise ValueError(
                         f"Circular dependency detected starting from node '{start_node}'. "
-                        "Workflows must be Directed Acyclic Graphs (DAGs)."
+                            "Workflows must be Directed Acyclic Graphs (DAGs)."
                     )
 
         return self
 
     @model_validator(mode="after")
-    def check_minimum_requirements(self) -> "WorkflowDefinition":
+    def check_minimum_requirements(self) -> "WorkflowExecutionConfig":
         """
         Validates that the workflow contains actionable steps and that
         triggers are actually connected to downstream nodes.
@@ -80,7 +73,7 @@ class WorkflowDefinition(BaseModel):
         if not has_executable_node:
             raise ValueError(
                 "A workflow must contain at least one action or condition. "
-                "Trigger-only workflows are not allowed."
+                    "Trigger-only workflows are not allowed."
             )
 
         start_node_has_edge = {
@@ -90,7 +83,7 @@ class WorkflowDefinition(BaseModel):
         if not start_node_has_edge:
             raise ValueError(
                 "At least one trigger node must be connected to an action or condition. "
-                "An isolated trigger node will not execute any processes."
+                    "An isolated trigger node will not execute any processes."
             )
 
         reachable_nodes = set(self.start_node_ids)
@@ -110,7 +103,20 @@ class WorkflowDefinition(BaseModel):
         if unreachable_nodes:
             raise ValueError(
                 f"Workflow contains unreachable nodes: {', '.join(unreachable_nodes)}. "
-                "All actions and conditions must be connected to a trigger path."
+                    "All actions and conditions must be connected to a trigger path."
             )
 
         return self
+
+
+class WorkflowSchema(BaseModel):
+    """
+    The full representation used by the API and AI Service.
+    """
+    name: str = Field(..., description="A concise, descriptive name for this workflow")
+    description: str = Field(
+        ..., description="A one-sentence summary of the workflow's purpose"
+    )
+    is_active: bool = True
+    execution_config: WorkflowExecutionConfig
+    ui_metadata: Optional[UIMetadata] = None
