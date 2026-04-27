@@ -3,28 +3,20 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from workflow.models.workflow import Workflow
+from workflow.schemas import WorkflowSchema
 
 
 class WorkflowService:
     @staticmethod
-    def create(
-        db: Session,
-        workflow_id: UUID,
-        user_id: UUID,
-        name: str,
-        description: str,
-        workflow_definition: dict,
-    ) -> Workflow:
-        # Extract ui_metadata from the definition if it exists
-        ui_metadata = workflow_definition.get("ui_metadata")
-
+    def create(db: Session, workflow_id: UUID, user_id: UUID, schema: WorkflowSchema) -> Workflow:
         new_workflow = Workflow(
             id=workflow_id,
             user_id=user_id,
-            name=name,
-            description=description,
-            config=workflow_definition,
-            ui_metadata=ui_metadata,
+            name=schema.name,
+            description=schema.description,
+            config=schema.execution_config.model_dump(),
+            ui_metadata=schema.ui_metadata.model_dump() if schema.ui_metadata else {},
+            version=1
         )
         db.add(new_workflow)
         db.commit()
@@ -42,14 +34,13 @@ class WorkflowService:
 
         return workflow
 
-    # ♻️ todo: use pydantic schema for the config instead of python dictionaries
     @staticmethod
-    def update_config(db: Session, id: UUID, config: Dict) -> Workflow:
+    def update_config(db: Session, id: UUID, schema: WorkflowSchema) -> Workflow:
         workflow = db.query(Workflow).filter(Workflow.id == id).first()
 
         if workflow:
-            ui_metadata = config.pop("ui_metadata", None)
-            workflow.config = config
+            ui_metadata = schema.ui_metadata.model_dump()
+            workflow.config = schema.execution_config.model_dump()
 
             if ui_metadata is not None:
                 workflow.ui_metadata = ui_metadata

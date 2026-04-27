@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Dict, Optional
 from azure.ai.inference import ChatCompletionsClient
 from azure.ai.inference.models import SystemMessage, UserMessage
 from azure.core.credentials import AzureKeyCredential
@@ -6,7 +6,7 @@ from fastapi import HTTPException
 
 from core.config_loader import settings
 from core.setup_logging import setup_logger
-from workflow.schemas.workflow_definition import WorkflowDefinition
+from workflow.schemas import WorkflowSchema
 
 import json
 
@@ -65,12 +65,12 @@ class AiService:
 
     @staticmethod
     def generate_workflow(
-        user_input: str, current_workflow: Optional[WorkflowDefinition] = None
-    ) -> WorkflowDefinition:
+        user_input: str, current_workflow: Optional[Dict[str, Any]] = None
+    ) -> WorkflowSchema:
         """
         Makes a request to create or modify a workflow.
         """
-        workflow_schema = json.dumps(WorkflowDefinition.model_json_schema(), indent=2)
+        workflow_schema = json.dumps(WorkflowSchema.model_json_schema(), indent=2)
 
         base_prompt = f"{settings.system_prompt}"
 
@@ -79,7 +79,7 @@ class AiService:
             context_modifier = f"""
             IMPORTANT CONTEXT:
             The user is modifying an EXISTING workflow. Here is the current JSON structure:
-            {json.dumps(current_workflow)}
+            {json.dumps(current_workflow, indent=2)}
 
             INSTRUCTIONS FOR MODIFICATION:
             1. Keep existing node IDs and edge IDs intact if they are being used in the logic.
@@ -103,7 +103,7 @@ class AiService:
 
         response = AiService.__make_ai_request(user_input, strict_system_prompt)
         json_content = AiService.__clean_json_response(response)
-        return WorkflowDefinition.model_validate_json(json_content)
+        return WorkflowSchema.model_validate_json(json_content)
 
     @staticmethod
     def ask_ai(user_input: str, prompt: str) -> str:

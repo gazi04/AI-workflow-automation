@@ -6,10 +6,10 @@ from orchestration.tasks import send_message, reply_email, label_mail, smart_dra
 from utils.build_adjacency_list import build_adjacency_list
 from utils.evaluate_condition import evaluate_condition
 from utils.resolve_variables import resolve_variables
-from workflow.schemas import WorkflowDefinition
+from workflow.schemas import WorkflowSchema  
 
 # Loading the models ensuring that the SQLAlchemy Base registry is fully populated before any database operation
-import core.models  # noqa: F401
+import core.models # noqa: F401
 
 
 @flow(name="Master Automation Executor")
@@ -24,12 +24,14 @@ def execute_automation_flow(
     logger = setup_logger("Master flow")
 
     try:
-        workflow = WorkflowDefinition.model_validate(workflow_data)
+        schema = WorkflowSchema.model_validate(workflow_data)
     except Exception as e:
         logger.error(f"Invalid workflow data for user {user_id}: {e}")
         raise Exception("Invalid workflow data.")
 
-    print(f"🚀 Starting Workflow: {workflow.name}")
+    workflow = schema.execution_config
+
+    print(f"🚀 Starting Workflow: {schema.name}")
 
     # ♻️ todo: refactor the trigger context into a pydantic schema
     if trigger_context and "trigger_context" in trigger_context:
@@ -172,4 +174,4 @@ def execute_automation_flow(
         for edge in outgoing_edges:
             queue.append(edge.target)
 
-    print(f"✅ Workflow '{workflow.name}' execution completed.")
+    print(f"✅ Workflow '{schema.name}' execution completed.")

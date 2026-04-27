@@ -10,7 +10,7 @@ from core.setup_logging import setup_logger
 from gmail.schemas.message import GmailMessage, GmailMessagePart
 from orchestration.services.deployment_service import DeploymentService
 from processed_messages.services import ProcessedMessageService
-from workflow.schemas.workflow_definition import WorkflowDefinition
+from workflow.schemas import WorkflowExecutionConfig
 from workflow.services.workflow_service import WorkflowService
 
 import anyio
@@ -112,11 +112,11 @@ class GmailHistoryProcessor:
                     if not workflow.is_active:
                         continue
 
-                    workflow_definition = WorkflowDefinition.model_validate(
+                    workflow_config = WorkflowExecutionConfig.model_validate(
                         workflow.config
                     )
-                    start_node_ids = workflow_definition.start_node_ids
-                    nodes = workflow_definition.nodes
+                    start_node_ids = workflow_config.start_node_ids
+                    nodes = workflow_config.nodes
 
                     matched_trigger_node_id = None
 

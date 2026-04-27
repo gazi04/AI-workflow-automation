@@ -18,12 +18,12 @@ from orchestration.services import DeploymentService
 from user.models import User
 from utils.catalog_introspector import build_catalog
 from workflow.schemas.catalog import WorkflowCatalog
+from workflow.schemas import WorkflowSchema
 from workflow.schemas.workflow_run import WorkflowRun
 from workflow.schemas import (
     RunWorkflowRequest,
     UpdateWorkflowRequest,
     ToggleWorkflowRequest,
-    CreateWorkflowRequest,
 )
 from workflow.services import WorkflowService
 from core.websocket_manager import manager
@@ -123,7 +123,7 @@ async def toggle_workflow(
 
 @workflow_router.post("/create")
 async def create_workflow(
-    request: CreateWorkflowRequest,
+    schema: WorkflowSchema,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -132,16 +132,14 @@ async def create_workflow(
     """
     try:
         deployment_id = await DeploymentService.create_deployment_for_workflow(
-            user.id, request.workflow_definition
+            user.id, schema
         )
 
         new_workflow = WorkflowService.create(
             db=db,
             workflow_id=deployment_id,
             user_id=user.id,
-            name=request.name,
-            description=request.description,
-            workflow_definition=request.workflow_definition.model_dump(),
+            schema=schema
         )
 
         return new_workflow
@@ -163,10 +161,8 @@ async def update_workflow_config(
     Update the parameters/config of a specific Prefect deployment and also it's workflow corresponding entity.
     """
     try:
-        workflow_config_dict = request.config.model_dump(
-            by_alias=True, exclude_none=True
-        )
-        WorkflowService.update_config(db, request.deployment_id, workflow_config_dict)
+        workflow_config_dict = request.schema.execution_config.model_dump(by_alias=True, exclude_none=True)
+        WorkflowService.update_config(db, request.deployment_id, request.schema)
 
         result = await DeploymentService.update_workflow_config(
             deployment_id=request.deployment_id, new_params=workflow_config_dict

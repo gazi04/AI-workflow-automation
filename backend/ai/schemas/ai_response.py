@@ -1,9 +1,9 @@
 from typing import Optional
 from pydantic import BaseModel
-from workflow.schemas.workflow_definition import WorkflowDefinition
+from workflow.schemas import WorkflowSchema
 
 
 class AIResponse(BaseModel):
     success: bool
-    data: Optional[WorkflowDefinition] = None
+    data: Optional[WorkflowSchema] = None
     error: Optional[str] = None

@@ -17,9 +17,9 @@ from core.setup_logging import setup_logger
 from orchestration.flows.master_flow import execute_automation_flow
 from utils.translate_workflow_runs_schema import translate_flow_runs_schema
 from workflow.schemas import (
-    WorkflowDefinition,
     WorkflowRun,
 )
+from workflow.schemas import WorkflowSchema
 
 logger = setup_logger("Deployment Service")
 
@@ -39,13 +39,14 @@ class DeploymentService:
 
     @staticmethod
     async def create_deployment_for_workflow(
-        user_id: UUID, workflow: WorkflowDefinition
+        user_id: UUID, schema: WorkflowSchema
     ) -> UUID:
         """
         Dynamically registers a deployment with Prefect.
         Supports multiple triggers (DAG architecture).
         """
         schedule = None
+        workflow = schema.execution_config
 
         for node_id in workflow.start_node_ids:
             node = workflow.nodes.get(node_id)
@@ -66,7 +67,7 @@ class DeploymentService:
                     # If a user adds multiple schedule nodes, we use the first one here.
                     schedule = CronSchedule(cron=cron_expression, timezone="UTC")
 
-        safe_name = workflow.name.replace(" ", "-").lower()
+        safe_name = schema.name.replace(" ", "-").lower()
         deployment_name = f"user-{user_id}-{safe_name}"
         workflow_data = workflow.model_dump()
 
