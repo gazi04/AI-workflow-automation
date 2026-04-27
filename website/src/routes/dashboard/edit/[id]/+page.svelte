@@ -18,7 +18,7 @@
 
 	const history = new HistoryManager<{ nodes: Node[]; edges: Edge[] }>();
 
-	type WorkflowDef = components['schemas']['WorkflowDefinition-Output'];
+	type WorkflowDef = components['schemas']['WorkflowSchema-Output'];
 
 	type Workflow = {
 		id: string;
@@ -26,7 +26,7 @@
 		is_active: boolean;
 		name: string;
 		description: string;
-		config: WorkflowDef;
+		config: any;
 		ui_metadata?: { nodes: Node[]; edges: Edge[] } | null;
 	};
 
@@ -37,8 +37,15 @@
 	let edges = $state<Edge[]>([]);
 	let selectedNode = $state<Node | null>(null);
 
-	function syncFlowState(config: WorkflowDef, uiMetadata?: any) {
-		if (!config || !config.nodes) return;
+	function syncFlowState(config: any, uiMetadata?: any) {
+		if (!config) return;
+
+		// Support both nested execution_config (new schema) and flat config (legacy/DB column)
+		const execConfig = config.execution_config || config;
+		const nodesMap = execConfig.nodes;
+		const edgesList = execConfig.edges || [];
+
+		if (!nodesMap) return;
 
 		let newNodes: Node[] = [];
 		let newEdges: Edge[] = [];
@@ -46,7 +53,7 @@
 		if (uiMetadata && uiMetadata.nodes && uiMetadata.nodes.length > 0) {
 			// Restore from UI metadata (positions preserved)
 			newNodes = uiMetadata.nodes.map((uiNode: any) => {
-				const backendNode = config.nodes[uiNode.id];
+				const backendNode = nodesMap[uiNode.id];
 				return {
 					...uiNode,
 					type: backendNode?.type || uiNode.type,
@@ -56,14 +63,14 @@
 			newEdges = uiMetadata.edges || [];
 		} else {
 			// Generate from scratch from the backend nodes map
-			newNodes = Object.entries(config.nodes).map(([id, node]) => ({
+			newNodes = Object.entries(nodesMap).map(([id, node]: [string, any]) => ({
 				id,
 				type: node.type as any,
 				data: node.config,
 				position: { x: 0, y: 0 }
 			}));
 
-			newEdges = (config.edges || []).map((edge, index) => ({
+			newEdges = edgesList.map((edge: any, index: number) => ({
 				id: edge.id || `e-${index}`,
 				source: edge.source,
 				target: edge.target,
@@ -94,7 +101,7 @@
 					workflow = {
 						id: 'new',
 						deployment_id: '',
-						is_active: false,
+						is_active: data.is_active ?? false,
 						name: data.name || 'AI Generated Agent',
 						description: data.description || '',
 						config: data,
@@ -110,24 +117,28 @@
 			const config: WorkflowDef = {
 				name: 'New Custom Agent',
 				description: 'Automate tasks with custom logic.',
-				nodes: {
-					trigger: {
-						id: 'trigger',
-						type: 'trigger',
-						config: {
-							type: 'manual',
-							config: { description: 'Triggered manually via the UI' }
+				is_active: true,
+				execution_config: {
+					nodes: {
+						trigger: {
+							id: 'trigger',
+							type: 'trigger',
+							config: {
+								type: 'manual',
+								config: { description: 'Triggered manually via the UI' }
+							}
 						}
-					}
+					},
+					edges: [],
+					start_node_ids: ['trigger']
 				},
-				edges: [],
-				start_node_ids: ['trigger']
+				ui_metadata: null
 			};
 
 			workflow = {
 				id: 'new',
 				deployment_id: '',
-				is_active: false,
+				is_active: config.is_active,
 				name: config.name,
 				description: config.description,
 				config: config,
@@ -195,15 +206,18 @@
 		return {
 			name: workflow.name,
 			description: workflow.description,
-			nodes: nodesDict,
-			edges: currentEdges.map((e) => ({
-				id: e.id,
-				source: e.source,
-				target: e.target,
-				sourceHandle: e.sourceHandle,
-				targetHandle: e.targetHandle
-			})),
-			start_node_ids: startNodeIds,
+			is_active: workflow.is_active,
+			execution_config: {
+				nodes: nodesDict,
+				edges: currentEdges.map((e) => ({
+					id: e.id,
+					source: e.source,
+					target: e.target,
+					sourceHandle: e.sourceHandle,
+					targetHandle: e.targetHandle
+				})),
+				start_node_ids: startNodeIds
+			},
 			ui_metadata: {
 				nodes: currentNodes,
 				edges: currentEdges
@@ -219,11 +233,7 @@
 			isLoading = true;
 
 			if (workflow.id === 'new') {
-				const res = await api.post<Workflow>(`/api/workflow/create`, {
-					name: workflow.name,
-					description: workflow.description,
-					workflow_definition: config
-				});
+				const res = await api.post<any>(`/api/workflow/create`, config);
 
 				sessionStorage.removeItem('ai_blueprint');
 
@@ -233,7 +243,7 @@
 			} else {
 				await api.patch(`/api/workflow/update-config`, {
 					deployment_id: workflow.id,
-					config: config
+					schema: config
 				});
 				toast.success('Workflow saved successfully!');
 			}

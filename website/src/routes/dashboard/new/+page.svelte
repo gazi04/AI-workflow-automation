@@ -8,7 +8,7 @@
 	import { goto } from '$app/navigation';
 
 	type AIResponse = components['schemas']['AIResponse'];
-	type WorkflowDef = components['schemas']['WorkflowDefinition-Output'];
+	type WorkflowDef = components['schemas']['WorkflowSchema-Output'];
 
 	let prompt = $state('');
 	let isAnalyzing = $state(false);

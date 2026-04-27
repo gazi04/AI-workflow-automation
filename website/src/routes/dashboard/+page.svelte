@@ -10,12 +10,16 @@
 	import { formatLabel } from '$lib/utils';
 	import { toast, Toaster } from 'svelte-sonner';
 
-	type WorkflowDef = components['schemas']['WorkflowDefinition-Output'];
+	type WorkflowDef = components['schemas']['WorkflowSchema-Output'];
 
-	type Workflow = WorkflowDef & {
+	type Workflow = {
 		id: string;
+		name: string;
+		description: string;
 		is_active: boolean;
-		config?: WorkflowDef;
+		config: any;
+		ui_metadata: any;
+		updated_at: string;
 	};
 
 	let workflows = $state<Workflow[]>([]);
@@ -24,7 +28,12 @@
 
 	async function fetchWorkflows() {
 		try {
-			workflows = await api.get<Workflow[]>('/api/workflow/get_workflows');
+			const res = await api.get<Workflow[]>('/api/workflow/get_workflows');
+			workflows = res.map((wf) => ({
+				...wf,
+				// Support both flat column storage and full schema nesting
+				config: wf.config?.execution_config || wf.config
+			}));
 		} catch (err: any) {
 			toast.error('Failed to load workflows.');
 			console.error('Failed to load workflows', err);
@@ -40,7 +49,7 @@
 				status: !currentStatus
 			});
 			await fetchWorkflows();
-			toast.success('Workflow is now ', currentStatus);
+			toast.success(`Workflow is now ${!currentStatus ? 'active' : 'paused'}`);
 		} catch (err) {
 			toast.error('Failed to toggle workflow.');
 			console.error('Toggle failed', err);
