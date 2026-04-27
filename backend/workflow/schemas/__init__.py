@@ -21,7 +21,6 @@ from .workflow_schema import WorkflowSchema, WorkflowExecutionConfig
 from .workflow_run import WorkflowRun
 from .toggle_workflow_request import ToggleWorkflowRequest
 from .update_workflow_request import UpdateWorkflowRequest
-from .create_workflow_request import CreateWorkflowRequest
 
 __all__ = [
     "Action",
@@ -37,7 +36,6 @@ __all__ = [
     "WorkflowExecutionConfig",
     "ToggleWorkflowRequest",
     "UpdateWorkflowRequest",
-    "CreateWorkflowRequest",
     "SendEmailAction",
     "ReplyEmailAction",
     "LabelEmailAction",
