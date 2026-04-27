@@ -442,7 +442,7 @@ export interface components {
 		AIResponse: {
 			/** Success */
 			success: boolean;
-			data?: components['schemas']['WorkflowDefinition-Output'] | null;
+			data?: components['schemas']['WorkflowSchema-Output'] | null;
 			/** Error */
 			error?: string | null;
 		};
@@ -482,20 +482,6 @@ export interface components {
 			title: string;
 			/** Content */
 			content: string;
-		};
-		/** CreateWorkflowRequest */
-		CreateWorkflowRequest: {
-			/**
-			 * Name
-			 * @description The name of the workflow
-			 */
-			name: string;
-			/**
-			 * Description
-			 * @description A short description of the workflow
-			 */
-			description: string;
-			workflow_definition: components['schemas']['WorkflowDefinition-Input'];
 		};
 		/** Edge */
 		Edge: {
@@ -847,16 +833,13 @@ export interface components {
 			 */
 			deployment_id: string;
 			/** @description New configuration/parameters to merge */
-			config: components['schemas']['WorkflowDefinition-Input'];
+			schema: components['schemas']['WorkflowSchema-Input'];
 		};
 		/** UserRequest */
 		UserRequest: {
 			/** Text */
 			text: string;
-			/** Current Workflow */
-			current_workflow: {
-				[key: string]: unknown;
-			} | null;
+			current_workflow: components['schemas']['WorkflowSchema-Input'] | null;
 		};
 		/** ValidationError */
 		ValidationError: {
@@ -876,18 +859,8 @@ export interface components {
 			/** Conditions */
 			conditions: components['schemas']['NodeDefinition'][];
 		};
-		/** WorkflowDefinition */
-		'WorkflowDefinition-Input': {
-			/**
-			 * Name
-			 * @description A concise, descriptive name for this workflow
-			 */
-			name: string;
-			/**
-			 * Description
-			 * @description A one-sentence summary of the workflow's purpose
-			 */
-			description: string;
+		/** WorkflowExecutionConfig */
+		'WorkflowExecutionConfig-Input': {
 			/**
 			 * Start Node Ids
 			 * @description List of Node IDs that represent triggers capable of starting this graph.
@@ -905,20 +878,9 @@ export interface components {
 			 * @description Flat list of edges connecting the nodes.
 			 */
 			edges?: components['schemas']['Edge'][];
-			ui_metadata?: components['schemas']['UIMetadata'] | null;
 		};
-		/** WorkflowDefinition */
-		'WorkflowDefinition-Output': {
-			/**
-			 * Name
-			 * @description A concise, descriptive name for this workflow
-			 */
-			name: string;
-			/**
-			 * Description
-			 * @description A one-sentence summary of the workflow's purpose
-			 */
-			description: string;
+		/** WorkflowExecutionConfig */
+		'WorkflowExecutionConfig-Output': {
 			/**
 			 * Start Node Ids
 			 * @description List of Node IDs that represent triggers capable of starting this graph.
@@ -936,7 +898,6 @@ export interface components {
 			 * @description Flat list of edges connecting the nodes.
 			 */
 			edges?: components['schemas']['Edge'][];
-			ui_metadata?: components['schemas']['UIMetadata'] | null;
 		};
 		/** WorkflowNode */
 		'WorkflowNode-Input': {
@@ -1022,6 +983,52 @@ export interface components {
 			 * @default 0
 			 */
 			total_run_time: number;
+		};
+		/**
+		 * WorkflowSchema
+		 * @description The full representation used by the API and AI Service.
+		 */
+		'WorkflowSchema-Input': {
+			/**
+			 * Name
+			 * @description A concise, descriptive name for this workflow
+			 */
+			name: string;
+			/**
+			 * Description
+			 * @description A one-sentence summary of the workflow's purpose
+			 */
+			description: string;
+			/**
+			 * Is Active
+			 * @default true
+			 */
+			is_active: boolean;
+			execution_config: components['schemas']['WorkflowExecutionConfig-Input'];
+			ui_metadata?: components['schemas']['UIMetadata'] | null;
+		};
+		/**
+		 * WorkflowSchema
+		 * @description The full representation used by the API and AI Service.
+		 */
+		'WorkflowSchema-Output': {
+			/**
+			 * Name
+			 * @description A concise, descriptive name for this workflow
+			 */
+			name: string;
+			/**
+			 * Description
+			 * @description A one-sentence summary of the workflow's purpose
+			 */
+			description: string;
+			/**
+			 * Is Active
+			 * @default true
+			 */
+			is_active: boolean;
+			execution_config: components['schemas']['WorkflowExecutionConfig-Output'];
+			ui_metadata?: components['schemas']['UIMetadata'] | null;
 		};
 	};
 	responses: never;
@@ -1396,7 +1403,7 @@ export interface operations {
 		};
 		requestBody: {
 			content: {
-				'application/json': components['schemas']['CreateWorkflowRequest'];
+				'application/json': components['schemas']['WorkflowSchema-Input'];
 			};
 		};
 		responses: {
