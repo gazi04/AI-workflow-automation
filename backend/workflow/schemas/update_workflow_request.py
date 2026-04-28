@@ -1,6 +1,6 @@
 from uuid import UUID
 from pydantic import BaseModel, Field
-from .workflow_definition import WorkflowSchema
+from .workflow_schema import WorkflowSchema
 
 
 class UpdateWorkflowRequest(BaseModel):
