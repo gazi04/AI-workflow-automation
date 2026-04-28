@@ -28,9 +28,9 @@
 		<Settings2 size={14} class="text-slate-400" />
 	</div>
 
-	<div class="text-sm font-medium text-slate-900">
-		{data.config.user_prompt || definition?.description || formatLabel(data.type)}
-	</div>
+  <div class="text-sm font-medium text-slate-900 truncate max-w-[200px]" title={data.config.user_prompt || definition?.description || formatLabel(data.type)}>
+    {data.config.user_prompt || definition?.description || formatLabel(data.type)}
+  </div>
 
 	<Handle type="source" position={Position.Right} class="h-3! w-3! bg-slate-400!" />
 </div>
