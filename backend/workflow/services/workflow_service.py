@@ -8,7 +8,9 @@ from workflow.schemas import WorkflowSchema
 
 class WorkflowService:
     @staticmethod
-    def create(db: Session, workflow_id: UUID, user_id: UUID, schema: WorkflowSchema) -> Workflow:
+    def create(
+        db: Session, workflow_id: UUID, user_id: UUID, schema: WorkflowSchema
+    ) -> Workflow:
         new_workflow = Workflow(
             id=workflow_id,
             user_id=user_id,
@@ -16,7 +18,7 @@ class WorkflowService:
             description=schema.description,
             config=schema.execution_config.model_dump(),
             ui_metadata=schema.ui_metadata.model_dump() if schema.ui_metadata else {},
-            version=1
+            version=1,
         )
         db.add(new_workflow)
         db.commit()

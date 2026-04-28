@@ -136,10 +136,7 @@ async def create_workflow(
         )
 
         new_workflow = WorkflowService.create(
-            db=db,
-            workflow_id=deployment_id,
-            user_id=user.id,
-            schema=schema
+            db=db, workflow_id=deployment_id, user_id=user.id, schema=schema
         )
 
         return new_workflow
@@ -161,7 +158,9 @@ async def update_workflow_config(
     Update the parameters/config of a specific Prefect deployment and also it's workflow corresponding entity.
     """
     try:
-        workflow_config_dict = request.schema.execution_config.model_dump(by_alias=True, exclude_none=True)
+        workflow_config_dict = request.schema.execution_config.model_dump(
+            by_alias=True, exclude_none=True
+        )
         WorkflowService.update_config(db, request.deployment_id, request.schema)
 
         result = await DeploymentService.update_workflow_config(

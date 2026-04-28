@@ -6,10 +6,10 @@ from orchestration.tasks import send_message, reply_email, label_mail, smart_dra
 from utils.build_adjacency_list import build_adjacency_list
 from utils.evaluate_condition import evaluate_condition
 from utils.resolve_variables import resolve_variables
-from workflow.schemas import WorkflowSchema  
+from workflow.schemas import WorkflowSchema
 
 # Loading the models ensuring that the SQLAlchemy Base registry is fully populated before any database operation
-import core.models # noqa: F401
+import core.models  # noqa: F401
 
 
 @flow(name="Master Automation Executor")

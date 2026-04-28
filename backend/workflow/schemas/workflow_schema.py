@@ -20,7 +20,6 @@ class WorkflowExecutionConfig(BaseModel):
         default_factory=list, description="Flat list of edges connecting the nodes."
     )
 
-
     @model_validator(mode="after")
     def check_for_cycles(self) -> "WorkflowExecutionConfig":
         """
@@ -56,7 +55,7 @@ class WorkflowExecutionConfig(BaseModel):
                 if has_cycle(start_node):
                     raise ValueError(
                         f"Circular dependency detected starting from node '{start_node}'. "
-                            "Workflows must be Directed Acyclic Graphs (DAGs)."
+                        "Workflows must be Directed Acyclic Graphs (DAGs)."
                     )
 
         return self
@@ -73,7 +72,7 @@ class WorkflowExecutionConfig(BaseModel):
         if not has_executable_node:
             raise ValueError(
                 "A workflow must contain at least one action or condition. "
-                    "Trigger-only workflows are not allowed."
+                "Trigger-only workflows are not allowed."
             )
 
         start_node_has_edge = {
@@ -83,7 +82,7 @@ class WorkflowExecutionConfig(BaseModel):
         if not start_node_has_edge:
             raise ValueError(
                 "At least one trigger node must be connected to an action or condition. "
-                    "An isolated trigger node will not execute any processes."
+                "An isolated trigger node will not execute any processes."
             )
 
         reachable_nodes = set(self.start_node_ids)
@@ -103,7 +102,7 @@ class WorkflowExecutionConfig(BaseModel):
         if unreachable_nodes:
             raise ValueError(
                 f"Workflow contains unreachable nodes: {', '.join(unreachable_nodes)}. "
-                    "All actions and conditions must be connected to a trigger path."
+                "All actions and conditions must be connected to a trigger path."
             )
 
         return self
@@ -113,6 +112,7 @@ class WorkflowSchema(BaseModel):
     """
     The full representation used by the API and AI Service.
     """
+
     name: str = Field(..., description="A concise, descriptive name for this workflow")
     description: str = Field(
         ..., description="A one-sentence summary of the workflow's purpose"
