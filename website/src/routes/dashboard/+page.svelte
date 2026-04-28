@@ -109,7 +109,7 @@
 			<h1 class="text-3xl font-bold tracking-tight">Agent Control Center</h1>
 			<p class="text-muted-foreground">Monitoring {workflows.length} active automations.</p>
 		</div>
-		<Button href="/dashboard/new">Create New Agent</Button>
+		<Button href="/dashboard/edit/new">Create New Agent</Button>
 	</header>
 
 	{#if isLoading}
