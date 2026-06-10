@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from auth.depedencies import get_current_user
 from auth.models import RefreshToken, ConnectedAccount
 from auth.schemas import Token, RefreshTokenRequest
-from auth.services import AccountService, TokenService
+from auth.services import AccountService, TokenService, OAuthStateService
 from auth.utils import create_access_token, create_refresh_token
 from core.config_loader import settings
 from core.database import get_db
@@ -66,20 +66,14 @@ def get_google_flow():
     )
 
 
-# 🔴 todo: this dictionary can cause memory leakage
-# suggestion: use database
-user_sessions = {}
-
-
 @auth_router.get("/connect/google")
-async def connect_google(request: Request):
+async def connect_google(request: Request, db: Session = Depends(get_db)):
     flow = get_google_flow()
     auth_url, state = flow.authorization_url(
         access_type="offline", include_granted_scopes="true", prompt="consent"
     )
 
-    # Stores state for CSRF protection
-    user_sessions[state] = {"state": state}
+    OAuthStateService.create(db, state)
 
     return {"auth_url": auth_url}
 
@@ -95,8 +89,8 @@ async def callback_google(
     saved_account = None
 
     try:
-        if state not in user_sessions:
-            raise HTTPException(status_code=400, detail="Invalid state parameter")
+        if not OAuthStateService.consume(db, state):
+            raise HTTPException(status_code=400, detail="Invalid or expired state parameter")
 
         flow = get_google_flow()
 
@@ -179,9 +173,6 @@ async def callback_google(
             AccountService.update_history_id(
                 db, saved_account, watch_response["historyId"]
             )
-
-        if state in user_sessions:
-            del user_sessions[state]
 
         frontend_url = f"http://localhost:5173/auth/success?access_token={access_token}&refresh_token={refresh_token_string}"
 
