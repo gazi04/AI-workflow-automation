@@ -102,7 +102,7 @@ def create_draft(user_id: UUID, body: str, original_email: Dict[str, Any]):
     return draft
 
 
-@task(name="Send email message", retries=2, log_prints=True)
+@task(name="Send email message", retries=2, retry_delay_seconds=30, log_prints=True)
 def send_message(user_id: UUID, to: str, subject: str, body: str):
     """
     Create and send an email message
@@ -144,7 +144,7 @@ def send_message(user_id: UUID, to: str, subject: str, body: str):
     return send_message
 
 
-@task(name="Replay email", retries=2, log_prints=True)
+@task(name="Replay email", retries=2, retry_delay_seconds=30, log_prints=True)
 def reply_email(user_id: UUID, body: str, original_email: Dict[str, Any]):
     """
     Reply to an email with a predefined message.
@@ -195,7 +195,7 @@ def reply_email(user_id: UUID, body: str, original_email: Dict[str, Any]):
         raise error
 
 
-@task(name="Label email", retries=2, log_prints=True)
+@task(name="Label email", retries=2, retry_delay_seconds=30, log_prints=True)
 def label_mail(
     user_id: UUID,
     label_info: GmailLabel,
@@ -262,7 +262,7 @@ def label_mail(
         raise error
 
 
-@task(name="Write a draft with AI", retries=2, log_prints=True)
+@task(name="Write a draft with AI", retries=2, retry_delay_seconds=30, log_prints=True)
 def smart_draft(
     user_id: UUID,
     email_data: Dict[str, Any],
