@@ -1,8 +1,10 @@
 from datetime import datetime, timedelta, timezone
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from sqlalchemy.exc import OperationalError
 from uuid import UUID
 
+from auth.models.connected_account import ConnectedAccount
 from auth.services.account_service import AccountService
 from auth.services.auth_service import AuthService
 from core.config_loader import settings
@@ -68,9 +70,30 @@ class GmailService:
                 return
 
             user_id = user.id  # to use outside the with statment
-            connected_account = AccountService.get_account_by_user_and_provider(
-                db, user_id, "google"
-            )
+
+            # Read and lock the account row in one atomic operation. NOWAIT
+            # makes a concurrent task fail immediately instead of queueing
+            # behind us, so two notifications can never both pass the check.
+            try:
+                connected_account = (
+                    db.query(ConnectedAccount)
+                    .filter(
+                        ConnectedAccount.user_id == user_id,
+                        ConnectedAccount.provider == "google",
+                    )
+                    .with_for_update(nowait=True)
+                    .first()
+                )
+            except OperationalError:
+                db.rollback()
+                logger.info(
+                    f"Skipping sync for {email_address} - Sync already in progress."
+                )
+                return
+
+            if not connected_account:
+                logger.error(f"No google account connected for {email_address}")
+                return
 
             now = datetime.now(timezone.utc)
             if connected_account.last_synced_started_at:
@@ -79,18 +102,20 @@ class GmailService:
                  In case where notification A arrives on 20:01 and another notification B is send on 20:02
                  the B notification is skipped and also the other notification that will arrive on the 20:01-20:06 time window,
                  so in the worse case scenario that means there is the notification B (not handled) and there isn't any new notification
-                 for the upcoming 4 hours. After 4 hours there is a new notification Z but there is still notification B that 
+                 for the upcoming 4 hours. After 4 hours there is a new notification Z but there is still notification B that
                  was send on 20:02 and wasn't supposed to be handled after 4 hours
                 """
                 if now - connected_account.last_synced_started_at < timedelta(
-                    minutes=5
+                    minutes=1
                 ):
                     logger.info(
                         f"Skipping sync for {email_address} - Sync already in progress."
                     )
                     return
 
-            # Set the lock
+            # Set the lock. The commit releases the row lock, but the timestamp
+            # keeps guarding the long-running fetch below (with a 1-minute
+            # staleness timeout in case this process dies before clearing it).
             connected_account.last_synced_started_at = now
             db.commit()
 
@@ -107,6 +132,7 @@ class GmailService:
                 connected_account = AccountService.get_account_by_user_and_provider(
                     db, user_id, "google"
                 )  # need to query the connected account again cause a SQLAlchemy model doesn't work outside the session
+                connected_account.last_synced_started_at = None  # release the lock
                 AccountService.update_history_id(db, connected_account, new_history_id)
 
         except HttpError as error:
