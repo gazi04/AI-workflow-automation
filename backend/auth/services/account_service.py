@@ -66,3 +66,28 @@ class AccountService:
         db.commit()
         db.refresh(account)
         return account
+
+    @staticmethod
+    def set_sync_pending(
+        db: Session, account: ConnectedAccount, value: bool
+    ) -> ConnectedAccount:
+        account.sync_pending = value
+        db.commit()
+        db.refresh(account)
+        return account
+
+    @staticmethod
+    def bump_observed_history_id(
+        db: Session, account: ConnectedAccount, history_id: str
+    ) -> ConnectedAccount:
+        """Advance the high-water mark to the newest observed historyId.
+
+        Gmail historyIds are monotonically increasing integers (sent as strings),
+        so the newest notification is the numeric max.
+        """
+        current = account.latest_observed_history_id
+        if current is None or int(history_id) > int(current):
+            account.latest_observed_history_id = history_id
+            db.commit()
+            db.refresh(account)
+        return account

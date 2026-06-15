@@ -58,10 +58,45 @@ class GmailService:
             return
 
     @staticmethod
+    def _acquire_account_locked(db, user_id: UUID) -> ConnectedAccount | None:
+        """Load the google account row under a FOR UPDATE lock.
+
+        Tries NOWAIT first; on contention retries once with a blocking lock. The
+        row lock is only ever held for short bookkeeping commits (never the long
+        Gmail fetch), so the blocking wait returns quickly and cannot deadlock
+        with a sync that is in progress.
+        """
+        query = db.query(ConnectedAccount).filter(
+            ConnectedAccount.user_id == user_id,
+            ConnectedAccount.provider == "google",
+        )
+        try:
+            return query.with_for_update(nowait=True).first()
+        except OperationalError:
+            db.rollback()
+            return query.with_for_update().first()
+
+    @staticmethod
+    def _release_lock(user_id: UUID):
+        """Clear the in-progress timestamp after a failed fetch.
+
+        Leaves ``sync_pending`` untouched so a deferred notification is retried
+        by the next notification (or the staleness takeover).
+        """
+        with db_session() as db:
+            acc = AccountService.get_account_by_user_and_provider(
+                db, user_id, "google"
+            )
+            if acc:
+                acc.last_synced_started_at = None
+                db.commit()
+
+    @staticmethod
     def handle_gmail_update(email_address: str, new_history_id: str):
         """
         Runs in the background. Fetches changes since the last sync and triggers actions.
         """
+        # --- Phase 1: claim ownership or defer -----------------------------
         with db_session() as db:
             user = UserService.get_by_email(db, email_address)
 
@@ -71,88 +106,88 @@ class GmailService:
 
             user_id = user.id  # to use outside the with statment
 
-            # Read and lock the account row in one atomic operation. NOWAIT
-            # makes a concurrent task fail immediately instead of queueing
-            # behind us, so two notifications can never both pass the check.
-            try:
-                connected_account = (
-                    db.query(ConnectedAccount)
-                    .filter(
-                        ConnectedAccount.user_id == user_id,
-                        ConnectedAccount.provider == "google",
-                    )
-                    .with_for_update(nowait=True)
-                    .first()
-                )
-            except OperationalError:
-                db.rollback()
-                logger.info(
-                    f"Skipping sync for {email_address} - Sync already in progress."
-                )
-                return
-
-            if not connected_account:
+            account = GmailService._acquire_account_locked(db, user_id)
+            if not account:
                 logger.error(f"No google account connected for {email_address}")
                 return
 
+            # Record this notification as the newest observed historyId. Done
+            # in-memory; the single commit below persists it while still holding
+            # the row lock, keeping the defer/claim decision atomic.
+            if account.latest_observed_history_id is None or int(
+                new_history_id
+            ) > int(account.latest_observed_history_id):
+                account.latest_observed_history_id = new_history_id
+
             now = datetime.now(timezone.utc)
-            if connected_account.last_synced_started_at:
-                """
-                 🐛 todo: use queue to push new_history_id
-                 In case where notification A arrives on 20:01 and another notification B is send on 20:02
-                 the B notification is skipped and also the other notification that will arrive on the 20:01-20:06 time window,
-                 so in the worse case scenario that means there is the notification B (not handled) and there isn't any new notification
-                 for the upcoming 4 hours. After 4 hours there is a new notification Z but there is still notification B that
-                 was send on 20:02 and wasn't supposed to be handled after 4 hours
-                """
-                if now - connected_account.last_synced_started_at < timedelta(
-                    minutes=1
-                ):
-                    logger.info(
-                        f"Skipping sync for {email_address} - Sync already in progress."
-                    )
-                    return
+            sync_in_progress = (
+                account.last_synced_started_at is not None
+                and now - account.last_synced_started_at < timedelta(minutes=1)
+            )
 
-            # Set the lock. The commit releases the row lock, but the timestamp
-            # keeps guarding the long-running fetch below (with a 1-minute
-            # staleness timeout in case this process dies before clearing it).
-            connected_account.last_synced_started_at = now
+            if sync_in_progress:
+                # Defer instead of dropping: flag pending so the owning sync
+                # re-runs one more cumulative fetch after it finishes.
+                account.sync_pending = True
+                db.commit()
+                logger.info(
+                    f"Deferring sync for {email_address} - flagged pending."
+                )
+                return
+
+            # Become the owner. The commit releases the row lock; the timestamp
+            # keeps guarding the long fetch (1-minute staleness takeover).
+            account.last_synced_started_at = now
+            account.sync_pending = False
             db.commit()
-
-            last_synced_history_id = connected_account.last_synced_history_id
 
             scopes = ["https://www.googleapis.com/auth/gmail.readonly"]
             creds = AuthService.get_google_credentials(db, user_id, "google", scopes)
 
-        try:
-            with GmailHistoryProcessor(creds, user_id) as processor:
-                processor.fetch_and_process(last_synced_history_id)
-
+        # --- Phase 2: drain loop -------------------------------------------
+        # Each pass fetches cumulatively from the baseline. A notification that
+        # arrives mid-fetch bumps the high-water mark and sets sync_pending,
+        # which forces one more pass — so nothing is dropped.
+        while True:
             with db_session() as db:
-                connected_account = AccountService.get_account_by_user_and_provider(
-                    db, user_id, "google"
-                )  # need to query the connected account again cause a SQLAlchemy model doesn't work outside the session
-                connected_account.last_synced_started_at = None  # release the lock
-                AccountService.update_history_id(db, connected_account, new_history_id)
-
-        except HttpError as error:
-            logger.error(f"Gmail History API error for {email_address}: {error}")
-            with db_session() as db:
-                acc = AccountService.get_account_by_user_and_provider(
+                account = AccountService.get_account_by_user_and_provider(
                     db, user_id, "google"
                 )
-                acc.last_synced_started_at = None
-                db.commit()
-            return
-        except Exception as e:
-            logger.error(f"General processing error for {email_address}: {e}")
-            with db_session() as db:
-                acc = AccountService.get_account_by_user_and_provider(
-                    db, user_id, "google"
+                baseline = account.last_synced_history_id
+                # Snapshot the high-water mark BEFORE fetching.
+                target = account.latest_observed_history_id or new_history_id
+
+            try:
+                with GmailHistoryProcessor(creds, user_id) as processor:
+                    processor.fetch_and_process(baseline)
+            except HttpError as error:
+                logger.error(
+                    f"Gmail History API error for {email_address}: {error}"
                 )
-                acc.last_synced_started_at = None
+                GmailService._release_lock(user_id)
+                return
+            except Exception as e:
+                logger.error(f"General processing error for {email_address}: {e}")
+                GmailService._release_lock(user_id)
+                return
+
+            # Bookkeeping under the row lock, committed atomically: advance the
+            # baseline and decide whether another pass is needed.
+            with db_session() as db:
+                account = GmailService._acquire_account_locked(db, user_id)
+                account.last_synced_history_id = target
+
+                if account.sync_pending:
+                    # More notifications landed during the fetch — drain again.
+                    account.sync_pending = False
+                    account.last_synced_started_at = datetime.now(timezone.utc)
+                    db.commit()
+                    continue
+
+                # Nothing pending — release the logical lock and finish.
+                account.last_synced_started_at = None
                 db.commit()
-            return
+                break
 
     @staticmethod
     def get_latest_message_id(user_id: UUID):
@@ -172,3 +207,20 @@ class GmailService:
                 return None
             return messages[0]["id"]
 
+    @staticmethod
+    def get_latest_message(user_id: UUID):
+        """
+        The method is for testing purpose
+        """
+        with db_session() as db:
+            scopes = ["https://www.googleapis.com/auth/gmail.readonly"]
+            creds = AuthService.get_google_credentials(db, user_id, "google", scopes)
+
+        with build("gmail", "v1", credentials=creds) as service:
+            results = (
+                service.users().messages().list(userId="me", maxResults=1).execute()
+            )
+            messages = results.get("messages", [])
+            if not messages:
+                return None
+            return messages
