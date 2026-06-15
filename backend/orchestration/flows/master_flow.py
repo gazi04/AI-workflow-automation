@@ -121,12 +121,10 @@ def execute_automation_flow(
                     ).result()
 
                 elif action_type == "send_slack_message":
-                    print(f"Sent a message to channel {action_data.channel}")
-                    result = {"status": "sent", "channel": action_data.channel}
+                    raise NotImplementedError()
 
                 elif action_type == "create_document":
-                    print(f"Create document '{action_data.title}'")
-                    result = {"document_id": "doc_123", "title": action_data.title}
+                    raise NotImplementedError()
 
                 run_context["node_outputs"][current_node_id] = result
 

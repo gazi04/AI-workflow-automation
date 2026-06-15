@@ -55,6 +55,7 @@ class SendSlackMessageAction(BaseModel):
             "category": "Communication",
             "icon": "lucide-slack",
             "outputs": ["status"],
+            "status": "coming_soon",
         }
     )
 
@@ -120,6 +121,7 @@ class CreateDocumentAction(BaseModel):
             "category": "Google",
             "icon": "lucide-file-text",
             "outputs": ["document_id", "title"],
+            "status": "coming_soon",
         }
     )
 

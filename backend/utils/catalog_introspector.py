@@ -32,6 +32,10 @@ def _build_node_definitions(union_type) -> list[NodeDefinition]:
     clss = typing.get_args(union_type) or [union_type]
     for cls in clss:
         schema_extra = cls.model_config.get("json_schema_extra", {})
+
+        if schema_extra.get("status") == "coming_soon":
+            continue
+
         config_cls = cls.model_fields["config"].annotation
         # Literal["email_received"] -> get_args returns ("email_received",)
         type_literal = typing.get_args(cls.model_fields["type"].annotation)[0]
