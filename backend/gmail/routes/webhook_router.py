@@ -1,8 +1,12 @@
 from fastapi import APIRouter, Request, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from google.oauth2 import id_token as google_id_token
+from google.auth.transport import requests as google_requests
+
 from auth.depedencies import get_current_user
 from auth.services.account_service import AccountService
+from core.config_loader import settings
 from core.database import get_db
 from core.setup_logging import setup_logger
 from gmail.services import GmailService
@@ -14,6 +18,35 @@ import json
 
 webhook_router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 logger = setup_logger("Webhook router")
+
+
+def _verify_pubsub_token(request: Request) -> None:
+    """Verify the Google Pub/Sub OIDC token in the Authorization header."""
+    if not settings.google_pubsub_audience:
+        logger.warning(
+            "GOOGLE_PUBSUB_AUDIENCE not configured — Pub/Sub OIDC verification disabled"
+        )
+        return
+
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        logger.warning("Pub/Sub request missing OIDC Bearer token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized"
+        )
+
+    token = auth_header[len("Bearer "):]
+    try:
+        google_id_token.verify_oauth2_token(
+            token,
+            google_requests.Request(),
+            settings.google_pubsub_audience,
+        )
+    except ValueError as e:
+        logger.warning(f"Pub/Sub OIDC token verification failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized"
+        )
 
 
 @webhook_router.get("/listen-to-gmail")
@@ -47,6 +80,8 @@ async def listen_gmail(
 @webhook_router.post("/gmail")
 async def gmail_webhook(request: Request, background_tasks: BackgroundTasks):
     """Receives push notifications from Google Cloud Pub/Sub."""
+    _verify_pubsub_token(request)
+
     try:
         data = await request.json()
 
@@ -58,7 +93,6 @@ async def gmail_webhook(request: Request, background_tasks: BackgroundTasks):
         new_history_id = notification.get("historyId")
 
         if not email_address or not new_history_id:
-            # Still return 200/204 to avoid retries for bad payload format
             return {"status": "ok", "message": "Notification ignored (missing keys)"}
 
         # ✨ todo: for a proper task queue implement celery or redis
@@ -69,7 +103,5 @@ async def gmail_webhook(request: Request, background_tasks: BackgroundTasks):
         return {"status": "success", "message": "Processing started in background"}
     except Exception as e:
         logger.error(f"Failed to parse incoming Pub/Sub message: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to process notification. This is the error: \n{e}",
-        )
+        # Return 200 to ack bad payloads — Pub/Sub retrying a malformed message never fixes it.
+        return {"status": "ok", "message": "Notification ignored (parse error)"}
