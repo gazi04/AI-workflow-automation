@@ -26,6 +26,21 @@ logger = setup_logger("Deployment Service")
 
 class DeploymentService:
     @staticmethod
+    async def user_owns_run(run_id: UUID, user_id: UUID) -> bool:
+        """
+        Confirm a Prefect flow run belongs to the given user by checking the
+        `user-{user_id}` tag stamped on every deployment at creation time.
+        Returns False if the run is missing or Prefect raises.
+        """
+        try:
+            async with get_client() as client:
+                run = await client.read_flow_run(run_id)
+        except Exception as e:
+            logger.error(f"Could not read flow run {run_id} for ownership check: {e}")
+            return False
+        return f"user-{user_id}" in (run.tags or [])
+
+    @staticmethod
     async def run(workflow_id: UUID, config: Optional[Dict[str, Any]] = None):
         """
         Run a prefect deployment

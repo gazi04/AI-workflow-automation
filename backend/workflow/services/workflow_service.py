@@ -61,5 +61,13 @@ class WorkflowService:
         return db.query(Workflow).filter(Workflow.id == id).first()
 
     @staticmethod
+    def get_by_id_and_user(db: Session, id: UUID, user_id: UUID) -> Optional[Workflow]:
+        return (
+            db.query(Workflow)
+            .filter(Workflow.id == id, Workflow.user_id == user_id)
+            .first()
+        )
+
+    @staticmethod
     def delete_by_id(db: Session, id: UUID) -> None:
         db.query(Workflow).filter(Workflow.id == id).delete(synchronize_session="fetch")

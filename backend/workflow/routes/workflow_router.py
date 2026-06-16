@@ -11,9 +11,12 @@ from fastapi import (
 from sqlalchemy.orm import Session
 import asyncio
 
+from jwt import PyJWTError
+
 from auth.depedencies import get_current_user
 from core.database import get_db
 from core.setup_logging import setup_logger
+from utils.security import decode_access_token
 from orchestration.services import DeploymentService
 from user.models import User
 from utils.catalog_introspector import build_catalog
@@ -75,7 +78,15 @@ async def get_workflow(
     user: User = Depends(get_current_user),
 ):
     try:
-        return WorkflowService.get_by_id(db, workflow_id)
+        workflow = WorkflowService.get_by_id_and_user(db, workflow_id, user.id)
+        if workflow is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Workflow not found.",
+            )
+        return workflow
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error fetching workflow {workflow_id}: {e}")
         raise HTTPException(
@@ -85,10 +96,23 @@ async def get_workflow(
 
 
 @workflow_router.post("/run")
-async def run_workflow(request: RunWorkflowRequest):
+async def run_workflow(
+    request: RunWorkflowRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     try:
-        # todo: validated the request
+        workflow = WorkflowService.get_by_id_and_user(
+            db, request.deployment_id, user.id
+        )
+        if workflow is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Workflow not found.",
+            )
         return await DeploymentService.run(request.deployment_id)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error running workflow {request.deployment_id}: {e}")
         raise HTTPException(
@@ -99,12 +123,23 @@ async def run_workflow(request: RunWorkflowRequest):
 
 @workflow_router.patch("/toggle")
 async def toggle_workflow(
-    request: ToggleWorkflowRequest, db: Session = Depends(get_db)
+    request: ToggleWorkflowRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """
     Pause or Resume a Prefect deployment and updates the status of the workflow in the database.
     """
     try:
+        if (
+            WorkflowService.get_by_id_and_user(db, request.deployment_id, user.id)
+            is None
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Workflow not found.",
+            )
+
         WorkflowService.update_is_active(db, request.deployment_id, request.status)
 
         result = await DeploymentService.toggle_workflow(
@@ -113,6 +148,8 @@ async def toggle_workflow(
 
         db.commit()  # we commit the database changes here because of sequential dependencies between service and manager
         return result
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error toggling workflow {request.deployment_id}: {e}")
         raise HTTPException(
@@ -158,6 +195,15 @@ async def update_workflow_config(
     Update the parameters/config of a specific Prefect deployment and also it's workflow corresponding entity.
     """
     try:
+        if (
+            WorkflowService.get_by_id_and_user(db, request.deployment_id, user.id)
+            is None
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Workflow not found.",
+            )
+
         workflow_config_dict = request.schema.execution_config.model_dump(
             by_alias=True, exclude_none=True
         )
@@ -169,6 +215,8 @@ async def update_workflow_config(
 
         db.commit()  # we commit the config update here because of sequential dependencies between service and manager
         return result
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error updating config for {request.deployment_id}: {e}")
         raise HTTPException(
@@ -187,9 +235,17 @@ async def delete_workflow(
     Deletes a workflow from the database and deletes it's deployment from Prefect
     """
     try:
+        if WorkflowService.get_by_id_and_user(db, deployment_id, user.id) is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Workflow not found.",
+            )
+
         WorkflowService.delete_by_id(db, deployment_id)
         await DeploymentService.delete(deployment_id)
         db.commit()  # to actually commit the changes to the database
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error deleting workflow {deployment_id}: {e}")
         raise HTTPException(
@@ -213,11 +269,21 @@ async def get_workflow_histories(user: User = Depends(get_current_user)):
 
 @workflow_router.get("/{deployement_id}/history", response_model=List[WorkflowRun])
 async def get_workflow_history(
-    deployement_id: UUID, user: User = Depends(get_current_user)
+    deployement_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """Fetches only the history for a specific deployment"""
     try:
+        if WorkflowService.get_by_id_and_user(db, deployement_id, user.id) is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Workflow not found.",
+            )
+
         return await DeploymentService.get_workflow_history(deployement_id)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error fetching history for deployment {deployement_id}: {e}")
         raise HTTPException(
@@ -249,9 +315,16 @@ async def get_run_logs(run_id: UUID, user: User = Depends(get_current_user)):
     Used when a user clicks the 'Eye' icon or 'View Logs' button.
     """
     try:
-        # Note: In a production app, you might want to verify
-        # that this run_id actually belongs to the current user.
+        if not await DeploymentService.user_owns_run(run_id, user.id):
+            # 404 (not 403) so we don't leak the existence of another user's run.
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Run not found.",
+            )
+
         return await DeploymentService.get_run_logs(run_id)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error fetching logs for run {run_id}: {e}")
         raise HTTPException(
@@ -260,19 +333,26 @@ async def get_run_logs(run_id: UUID, user: User = Depends(get_current_user)):
         )
 
 
-@workflow_router.post("/test-notification/{user_id}")
-async def test_notification(user_id: str, message: str = "Test notification"):
-    """
-    Push a test notification to a specific user via WebSocket.
-    """
-    await manager.broadcast_to_user(
-        user_id, {"type": "notification", "message": message}
-    )
-    return {"status": "success", "message_sent": message}
-
-
 @workflow_router.websocket("/ws/workflows/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: str):
+    # Authenticate from a ?token= query param (WebSockets can't use the bearer
+    # Depends easily). The user_id is taken from the verified token, never the
+    # path: reject if the token is missing/invalid or doesn't match the path.
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=1008)
+        return
+    try:
+        payload = decode_access_token(token)
+    except PyJWTError:
+        await websocket.close(code=1008)
+        return
+
+    token_user_id = payload.get("sub")
+    if token_user_id is None or token_user_id != user_id:
+        await websocket.close(code=1008)
+        return
+
     await manager.connect(user_id, websocket)
     try:
         while True:
