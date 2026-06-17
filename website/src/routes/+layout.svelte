@@ -11,13 +11,15 @@
 		const publicRoutes = ['/login', '/auth/success'];
 
 		const isPublicRoute = publicRoutes.some((route) => page.url.pathname.startsWith(route));
-		const token = localStorage.getItem('access_token');
+		// Auth tokens are HttpOnly cookies; use the readable csrf_token cookie as a
+		// client-side "logged in" hint. The server still enforces real auth.
+		const hasSession = /(?:^|;\s*)csrf_token=/.test(document.cookie);
 
-		if (!token && !isPublicRoute) {
+		if (!hasSession && !isPublicRoute) {
 			goto('/login');
 		}
 
-		if (token && page.url.pathname === '/login') {
+		if (hasSession && page.url.pathname === '/login') {
 			goto('/dashboard');
 		}
 	});

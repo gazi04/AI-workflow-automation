@@ -9,6 +9,16 @@ class Settings(BaseSettings):
     algorithm: str
     access_token_expire_minutes: int = 30
 
+    # Fernet key (urlsafe-base64, 32 bytes) used to encrypt OAuth tokens at rest.
+    token_encryption_key: str
+
+    # Auth cookie / frontend config. Defaults suit local dev (same-site localhost);
+    # production cross-domain needs cookie_secure=True + cookie_samesite="none".
+    frontend_url: str = "http://localhost:5173"
+    cookie_secure: bool = False
+    cookie_samesite: str = "lax"
+    cookie_domain: str | None = None
+
     database_url: str
 
     azure_endpoint: str

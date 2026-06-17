@@ -5,6 +5,7 @@ from typing import Optional
 
 from core.config_loader import settings
 
+import hashlib
 import uuid
 import jwt
 
@@ -37,6 +38,16 @@ def create_refresh_token(user_id: uuid.UUID) -> tuple[str, datetime]:
         days=settings.refresh_token_expire_days
     )
     return refresh_token, expires_at
+
+
+def hash_refresh_token(raw: str) -> str:
+    """Hash a refresh token for storage so a DB leak can't yield valid sessions.
+
+    SHA-256 is sufficient for high-entropy tokens (UUID4); no salt needed since
+    the input is not low-entropy like a password. The 64-char hex digest fits the
+    existing String(255) column.
+    """
+    return hashlib.sha256(raw.encode()).hexdigest()
 
 
 def decode_access_token(token: str) -> dict:

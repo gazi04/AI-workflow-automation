@@ -2,20 +2,34 @@ import { env } from '$env/dynamic/public';
 
 export const BASE_URL = env.PUBLIC_API_URL || 'http://localhost:8000';
 
-let refreshPromise: Promise<string | null> | null = null;
+let refreshPromise: Promise<boolean> | null = null;
+
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
+function getCsrfToken(): string | null {
+	if (typeof document === 'undefined') return null;
+	const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+	return match ? decodeURIComponent(match[1]) : null;
+}
+
+function buildHeaders(method: string, extra: HeadersInit = {}): HeadersInit {
+	const headers: Record<string, string> = {
+		'Content-Type': 'application/json',
+		...(extra as Record<string, string>)
+	};
+	if (MUTATING_METHODS.has(method.toUpperCase())) {
+		const csrf = getCsrfToken();
+		if (csrf) headers['X-CSRF-Token'] = csrf;
+	}
+	return headers;
+}
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
 	const url = `${BASE_URL}${endpoint}`;
+	const method = options.method || 'GET';
+	const headers = buildHeaders(method, options.headers);
 
-	const headers = {
-		'Content-Type': 'application/json',
-		...options.headers
-	};
-
-	const fetcher =
-		typeof window !== 'undefined' && localStorage.getItem('access_token') ? authorizedFetch : fetch;
-
-	let response = await fetcher(url, { ...options, headers });
+	let response = await fetch(url, { ...options, headers, credentials: 'include' });
 
 	if (response.status === 401) {
 		if (!refreshPromise) {
@@ -25,19 +39,20 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 		}
 
 		try {
-			const newToken = await refreshPromise;
-			if (newToken) {
-				const retryHeaders = {
-					...headers,
-					Authorization: `Bearer ${newToken}`
-				};
-				response = await fetch(url, { ...options, headers: retryHeaders });
+			const refreshed = await refreshPromise;
+			if (refreshed) {
+				// Cookies are refreshed; rebuild headers to pick up the new CSRF token.
+				response = await fetch(url, {
+					...options,
+					headers: buildHeaders(method, options.headers),
+					credentials: 'include'
+				});
 			} else {
-				handleLogout();
+				await handleLogout();
 				throw { status: 401, message: 'Session expired' };
 			}
 		} catch (err) {
-			handleLogout();
+			await handleLogout();
 			throw { status: 401, message: 'Session expired' };
 		}
 	}
@@ -50,51 +65,32 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 	return response.json();
 }
 
-async function attemptTokenRefresh(): Promise<string | null> {
-	const refreshToken = localStorage.getItem('refresh_token');
-	if (!refreshToken) return null;
-
+async function attemptTokenRefresh(): Promise<boolean> {
 	try {
 		const res = await fetch(`${BASE_URL}/api/auth/refresh`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ refresh_token: refreshToken })
+			headers: buildHeaders('POST'),
+			credentials: 'include'
 		});
-
-		if (res.ok) {
-			const data = await res.json();
-
-			if (data.access_token) {
-				localStorage.setItem('access_token', data.access_token);
-
-				if (data.refresh_token) {
-					localStorage.setItem('refresh_token', data.refresh_token);
-				}
-
-				return data.access_token;
-			}
-		}
+		return res.ok;
 	} catch (err) {
 		console.error('Token refresh network error:', err);
+		return false;
 	}
-
-	return null;
 }
 
-async function authorizedFetch(url: string, options: RequestInit = {}) {
-	const token = localStorage.getItem('access_token');
-	const headers = {
-		...options.headers,
-		Authorization: `Bearer ${token}`
-	};
-	return fetch(url, { ...options, headers });
-}
-
-function handleLogout() {
-	if (typeof window !== 'undefined') {
-		localStorage.clear();
-		window.location.href = '/login?error=session_expired';
+async function handleLogout() {
+	if (typeof window === 'undefined') return;
+	try {
+		await fetch(`${BASE_URL}/api/auth/logout`, {
+			method: 'POST',
+			headers: buildHeaders('POST'),
+			credentials: 'include'
+		});
+	} catch {
+		// ignore network errors on logout
 	}
+	window.location.href = '/login?error=session_expired';
 }
 
 export const api = {

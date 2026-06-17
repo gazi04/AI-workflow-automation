@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { goto } from '$app/navigation';
+import { api } from '$lib/api/client';
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
@@ -20,17 +21,12 @@ export function formatLabel(text: string | undefined) {
 	return formatedText.charAt(0).toUpperCase() + formatedText.slice(1);
 }
 
-export function decodeJwtPayload(token: string): Record<string, unknown> | null {
+export async function logout() {
 	try {
-		const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-		return JSON.parse(atob(base64));
+		await api.post('/api/auth/logout', {});
 	} catch {
-		return null;
+		// ignore; clear client state regardless
 	}
-}
-
-export function logout() {
-	localStorage.clear();
 	goto('/login');
 }
 

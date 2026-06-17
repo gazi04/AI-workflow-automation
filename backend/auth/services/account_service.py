@@ -3,6 +3,7 @@ from typing import Any, List, Optional
 from uuid import UUID
 
 from auth.models.connected_account import ConnectedAccount
+from core.crypto import encrypt_token
 
 
 class AccountService:
@@ -48,11 +49,11 @@ class AccountService:
                 db, user_id, provider
             )
 
-        account.access_token = token
+        account.access_token = encrypt_token(token)
         account.token_expires_at = expiry
 
         if refresh_token is not None:
-            account.refresh_token = refresh_token
+            account.refresh_token = encrypt_token(refresh_token)
 
         db.commit()
         db.refresh(account)

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from auth.models.refresh_token import RefreshToken
-from auth.utils import create_access_token, create_refresh_token
+from auth.utils import create_access_token, create_refresh_token, hash_refresh_token
 from user.models.user import User
 
 
@@ -16,7 +16,7 @@ class TokenService:
                     db.query(RefreshToken)
                     .join(User)
                     .filter(
-                        RefreshToken.token == refresh_token,
+                        RefreshToken.token == hash_refresh_token(refresh_token),
                         RefreshToken.is_revoked == False,  # noqa: E712
                         RefreshToken.expires_at > datetime.now(timezone.utc),
                         User.is_active,
@@ -41,7 +41,7 @@ class TokenService:
 
                 new_refresh_token_record = RefreshToken(
                     user_id=token_record.user_id,
-                    token=new_refresh_token_string,
+                    token=hash_refresh_token(new_refresh_token_string),
                     expires_at=new_expires_at,
                 )
                 db.add(new_refresh_token_record)
@@ -53,3 +53,15 @@ class TokenService:
         except Exception:
             db.rollback()
             raise
+
+    @staticmethod
+    def revoke(db: Session, refresh_token: str) -> None:
+        """Mark a refresh token revoked (used on logout). No-op if not found."""
+        token_record = (
+            db.query(RefreshToken)
+            .filter(RefreshToken.token == hash_refresh_token(refresh_token))
+            .first()
+        )
+        if token_record:
+            token_record.is_revoked = True
+            db.commit()
