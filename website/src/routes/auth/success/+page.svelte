@@ -4,16 +4,20 @@
 	import { page } from '$app/state';
 	import { Loader } from 'lucide-svelte';
 
-	const accessToken = $derived(page.url.searchParams.get('access_token'));
-	const refreshToken = $derived(page.url.searchParams.get('refresh_token'));
-
-	onMount(() => {
-		if (accessToken && refreshToken) {
-			localStorage.setItem('access_token', accessToken);
-			localStorage.setItem('refresh_token', refreshToken);
-
+	onMount(async () => {
+		const code = page.url.searchParams.get('code');
+		if (!code) {
+			goto('/login?error=token_delivery_failed');
+			return;
+		}
+		try {
+			const res = await fetch(`/api/auth/exchange?code=${encodeURIComponent(code)}`);
+			if (!res.ok) throw new Error('exchange failed');
+			const { access_token, refresh_token } = await res.json();
+			localStorage.setItem('access_token', access_token);
+			localStorage.setItem('refresh_token', refresh_token);
 			goto('/dashboard');
-		} else {
+		} catch {
 			goto('/login?error=token_delivery_failed');
 		}
 	});

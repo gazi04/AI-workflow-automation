@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, Request, HTTPException, Depends
+from fastapi import APIRouter, Request, HTTPException, Depends, status
 from fastapi.responses import RedirectResponse
 from google_auth_oauthlib.flow import Flow
 from google.oauth2 import id_token
@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from auth.depedencies import get_current_user
 from auth.models import RefreshToken, ConnectedAccount
 from auth.schemas import Token, RefreshTokenRequest
-from auth.services import AccountService, TokenService, OAuthStateService
+from auth.services import AccountService, TokenService, OAuthStateService, AuthCodeService
 from auth.utils import create_access_token, create_refresh_token
 from core.config_loader import settings
 from core.database import get_db
@@ -25,6 +25,18 @@ logger = setup_logger("Auth Router")
 @auth_router.get("/protected")
 async def protected_route(user: User = Depends(get_current_user)):
     return {"message": f"Hello {user.email}"}
+
+
+@auth_router.get("/exchange")
+def exchange_code(code: str, db: Session = Depends(get_db)):
+    """Exchange a short-lived one-time code for access + refresh tokens."""
+    access_token, refresh_token = AuthCodeService.consume(db, code)
+    if access_token is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired code.",
+        )
+    return {"access_token": access_token, "refresh_token": refresh_token}
 
 
 @auth_router.post("/refresh", response_model=Token)
@@ -174,7 +186,8 @@ async def callback_google(
                 db, saved_account, watch_response["historyId"]
             )
 
-        frontend_url = f"http://localhost:5173/auth/success?access_token={access_token}&refresh_token={refresh_token_string}"
+        code = AuthCodeService.create(db, access_token, refresh_token_string)
+        frontend_url = f"http://localhost:5173/auth/success?code={code}"
 
         return RedirectResponse(url=frontend_url)
 
