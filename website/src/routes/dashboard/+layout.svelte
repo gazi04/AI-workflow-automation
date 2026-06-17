@@ -128,6 +128,16 @@
 
 					knownRunStates.set(run.id, run.state_name);
 				}
+			} else if (message.type === 'node_failed') {
+				toast.error(`Step Failed: ${message.node_id}`, {
+					description: message.error || 'A workflow step encountered an error.',
+					action: {
+						label: 'View Logs',
+						onClick: () => {
+							goto(`/dashboard/agent/${message.workflow_id}/history?runId=${message.run_id}`);
+						}
+					}
+				});
 			} else if (message.type === 'notification') {
 				console.log('Message  was sent from back to front.');
 				toast.success(message.message);
