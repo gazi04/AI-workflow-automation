@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, Request, HTTPException, Depends, status
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from google_auth_oauthlib.flow import Flow
 from google.oauth2 import id_token
 from google.auth.transport import requests
@@ -8,10 +8,26 @@ from sqlalchemy.orm import Session
 
 from auth.depedencies import get_current_user
 from auth.models import RefreshToken, ConnectedAccount
-from auth.schemas import Token, RefreshTokenRequest
-from auth.services import AccountService, TokenService, OAuthStateService, AuthCodeService
-from auth.utils import create_access_token, create_refresh_token
+from auth.services import (
+    AccountService,
+    TokenService,
+    OAuthStateService,
+    AuthCodeService,
+)
+from auth.utils import (
+    create_access_token,
+    create_refresh_token,
+    decode_access_token,
+    hash_refresh_token,
+)
 from core.config_loader import settings
+from core.cookies import (
+    REFRESH_COOKIE,
+    clear_auth_cookies,
+    generate_csrf_token,
+    set_auth_cookies,
+)
+from core.crypto import encrypt_token
 from core.database import get_db
 from core.setup_logging import setup_logger
 from gmail.services import GmailService
@@ -29,27 +45,67 @@ async def protected_route(user: User = Depends(get_current_user)):
 
 @auth_router.get("/exchange")
 def exchange_code(code: str, db: Session = Depends(get_db)):
-    """Exchange a short-lived one-time code for access + refresh tokens."""
+    """Exchange a short-lived one-time code for auth cookies.
+
+    Tokens are set as HttpOnly cookies (plus a readable CSRF cookie) instead of
+    being returned in the body, so client-side JS never holds them.
+    """
     access_token, refresh_token = AuthCodeService.consume(db, code)
     if access_token is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired code.",
         )
-    return {"access_token": access_token, "refresh_token": refresh_token}
+
+    payload = decode_access_token(access_token)
+    response = JSONResponse(
+        content={"user": {"id": payload.get("sub"), "email": payload.get("email")}}
+    )
+    set_auth_cookies(response, access_token, refresh_token, generate_csrf_token())
+    return response
 
 
-@auth_router.post("/refresh", response_model=Token)
-async def refresh_access_token(
-    request: RefreshTokenRequest, db: Session = Depends(get_db)
-):
-    """Refreshes the Access Token using a valid Refresh Token."""
-    new_tokens = TokenService.refresh_token(db, request.refresh_token)
+@auth_router.post("/refresh")
+async def refresh_access_token(request: Request, db: Session = Depends(get_db)):
+    """Rotate tokens using the refresh-token cookie; set the new tokens as cookies."""
+    refresh_token = request.cookies.get(REFRESH_COOKIE)
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Missing refresh token")
+
+    new_tokens = TokenService.refresh_token(db, refresh_token)
     if not new_tokens:
         logger.warning("Invalid refresh token")
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
-    return {**new_tokens, "token_type": "bearer"}
+    payload = decode_access_token(new_tokens["access_token"])
+    response = JSONResponse(
+        content={"user": {"id": payload.get("sub"), "email": payload.get("email")}}
+    )
+    set_auth_cookies(
+        response,
+        new_tokens["access_token"],
+        new_tokens["refresh_token"],
+        generate_csrf_token(),
+    )
+    return response
+
+
+@auth_router.post("/logout")
+async def logout(request: Request, db: Session = Depends(get_db)):
+    """Revoke the current refresh token and clear all auth cookies."""
+    refresh_token = request.cookies.get(REFRESH_COOKIE)
+    if refresh_token:
+        TokenService.revoke(db, refresh_token)
+
+    response = JSONResponse(content={"detail": "Logged out"})
+    clear_auth_cookies(response)
+    return response
+
+
+@auth_router.get("/me")
+async def get_me(user: User = Depends(get_current_user)):
+    """Return the current user so the frontend can display it without a readable token."""
+    return {"id": str(user.id), "email": user.email}
 
 
 # ==================================================
@@ -102,7 +158,9 @@ async def callback_google(
 
     try:
         if not OAuthStateService.consume(db, state):
-            raise HTTPException(status_code=400, detail="Invalid or expired state parameter")
+            raise HTTPException(
+                status_code=400, detail="Invalid or expired state parameter"
+            )
 
         flow = get_google_flow()
 
@@ -128,9 +186,10 @@ async def callback_google(
         )
 
         if existing_account:
-            existing_account.access_token = credentials.token
+            existing_account.access_token = encrypt_token(credentials.token)
             existing_account.refresh_token = (
-                credentials.refresh_token or existing_account.refresh_token
+                encrypt_token(credentials.refresh_token)
+                or existing_account.refresh_token
             )
             existing_account.token_expires_at = (
                 datetime.fromtimestamp(credentials.expiry.timestamp(), tz=timezone.utc)
@@ -146,8 +205,8 @@ async def callback_google(
                 user_id=user.id,
                 provider="google",
                 provider_account_id=provider_account_id,
-                access_token=credentials.token,
-                refresh_token=credentials.refresh_token,
+                access_token=encrypt_token(credentials.token),
+                refresh_token=encrypt_token(credentials.refresh_token),
                 token_expires_at=datetime.fromtimestamp(
                     credentials.expiry.timestamp(), tz=timezone.utc
                 )
@@ -171,7 +230,9 @@ async def callback_google(
         refresh_token_string, expires_at = create_refresh_token(user.id)
 
         new_refresh_token = RefreshToken(
-            user_id=user.id, token=refresh_token_string, expires_at=expires_at
+            user_id=user.id,
+            token=hash_refresh_token(refresh_token_string),
+            expires_at=expires_at,
         )
         db.add(new_refresh_token)
         db.commit()
@@ -187,10 +248,10 @@ async def callback_google(
             )
 
         code = AuthCodeService.create(db, access_token, refresh_token_string)
-        frontend_url = f"http://localhost:5173/auth/success?code={code}"
+        frontend_url = f"{settings.frontend_url}/auth/success?code={code}"
 
         return RedirectResponse(url=frontend_url)
 
     except Exception as e:
         logger.error(f"Unhandled error: {e}")
-        return RedirectResponse(url="http://localhost:5173/login?error=auth_failed")
+        return RedirectResponse(url=f"{settings.frontend_url}/login?error=auth_failed")

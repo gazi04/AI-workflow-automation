@@ -12,7 +12,9 @@ from auth.utils import (
     create_access_token,
     create_refresh_token,
     get_password_hash,
+    hash_refresh_token,
 )
+from core.crypto import decrypt_token
 from core.config_loader import settings
 from core.setup_logging import setup_logger
 from user.models.user import User
@@ -46,7 +48,9 @@ class AuthService:
         refresh_token_string, expires_at = create_refresh_token(user.id)
 
         new_refresh_token = RefreshToken(
-            user_id=user.id, token=refresh_token_string, expires_at=expires_at
+            user_id=user.id,
+            token=hash_refresh_token(refresh_token_string),
+            expires_at=expires_at,
         )
         db.add(new_refresh_token)
         db.commit()
@@ -86,8 +90,8 @@ class AuthService:
             raise HTTPException(status_code=500, detail="Token expiry time is missing.")
 
         creds = Credentials(
-            token=connected_account.access_token,
-            refresh_token=connected_account.refresh_token,
+            token=decrypt_token(connected_account.access_token),
+            refresh_token=decrypt_token(connected_account.refresh_token),
             token_uri="https://oauth2.googleapis.com/token",
             client_id=settings.google_oauth_client_id,
             client_secret=settings.google_oauth_client_secret,

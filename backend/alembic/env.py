@@ -8,7 +8,7 @@ from alembic import context
 from core.config_loader import settings
 from core.database import Base
 from user.models import User
-from workflow.models import Workflow
+from workflow.models import Workflow, WorkflowRunRecord
 from auth.models import ConnectedAccount, RefreshToken
 from processed_messages.models import ProcessedMessages
 

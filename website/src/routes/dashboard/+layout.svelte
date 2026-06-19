@@ -7,7 +7,7 @@
 	import { LayoutDashboard, CirclePlus, Plug, LogOut, User, History } from 'lucide-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { workflowStore } from '$lib/store/workflowStore.svelte';
-	import { decodeJwtPayload, logout } from '$lib/utils';
+	import { logout } from '$lib/utils';
 
 	let { children } = $props();
 
@@ -28,20 +28,14 @@
 		integrations: IntegrationStatus[];
 	};
 
-	function loadUserFromToken() {
-		if (typeof window === 'undefined') return;
-		const token = localStorage.getItem('access_token');
-		if (!token) return;
-
-		const payload = decodeJwtPayload(token);
-		if (payload) {
-			if (typeof payload.email === 'string') {
-				userEmail = payload.email;
-				userInitials = userEmail.slice(0, 2).toUpperCase();
-			}
-			if (typeof payload.sub === 'string') {
-				userId = payload.sub;
-			}
+	async function loadUser() {
+		try {
+			const me = await api.get<{ id: string; email: string }>('/api/auth/me');
+			userEmail = me.email;
+			userInitials = me.email.slice(0, 2).toUpperCase();
+			userId = me.id;
+		} catch (err) {
+			console.error('Failed to load user', err);
 		}
 	}
 
@@ -100,6 +94,7 @@
 	async function initWorkflowWebSocket() {
 		if (!userId) return;
 
+		// Auth comes from the HttpOnly access_token cookie sent on the WS handshake.
 		const wsUrl = `ws://localhost:8000/api/workflow/ws/workflows/${userId}`;
 		socket = new WebSocket(wsUrl);
 
@@ -128,6 +123,16 @@
 
 					knownRunStates.set(run.id, run.state_name);
 				}
+			} else if (message.type === 'node_failed') {
+				toast.error(`Step Failed: ${message.node_id}`, {
+					description: message.error || 'A workflow step encountered an error.',
+					action: {
+						label: 'View Logs',
+						onClick: () => {
+							goto(`/dashboard/agent/${message.workflow_id}/history?runId=${message.run_id}`);
+						}
+					}
+				});
 			} else if (message.type === 'notification') {
 				console.log('Message  was sent from back to front.');
 				toast.success(message.message);
@@ -145,9 +150,9 @@
 	}
 
 	onMount(() => {
-		loadUserFromToken();
+		// Load the user first so userId is available before opening the WebSocket.
+		loadUser().then(() => initWorkflowWebSocket());
 		checkAndRecoverConnections();
-		initWorkflowWebSocket();
 
 		const connInterval = setInterval(checkAndRecoverConnections, 1000 * 60 * 45);
 

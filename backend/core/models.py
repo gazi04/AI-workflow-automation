@@ -9,3 +9,4 @@ from auth.models import ConnectedAccount, RefreshToken, OAuthState, AuthCode  # 
 from processed_messages.models import ProcessedMessages  # noqa: F401
 from user.models.user import User  # noqa: F401
 from workflow.models.workflow import Workflow  # noqa: F401
+from workflow.models.workflow_run_record import WorkflowRunRecord  # noqa: F401

@@ -14,7 +14,7 @@ import asyncio
 from jwt import PyJWTError
 
 from auth.depedencies import get_current_user
-from core.database import get_db
+from core.database import get_db, db_session
 from core.setup_logging import setup_logger
 from utils.security import decode_access_token
 from orchestration.services import DeploymentService
@@ -28,7 +28,7 @@ from workflow.schemas import (
     UpdateWorkflowRequest,
     ToggleWorkflowRequest,
 )
-from workflow.services import WorkflowService
+from workflow.services import WorkflowService, WorkflowRunService
 from core.websocket_manager import manager
 
 
@@ -368,6 +368,30 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                         "data": [run.model_dump(mode="json") for run in latest_runs],
                     },
                 )
+
+                # Surface per-node failures persisted by the worker. The worker
+                # process can't reach this in-memory manager, so it records the
+                # failure in the DB and we broadcast it here (then mark delivered).
+                with db_session() as db:
+                    failed_runs = WorkflowRunService.get_undelivered_failures(db, uid)
+                    for record in failed_runs:
+                        for node_id, result in (record.node_results or {}).items():
+                            if result.get("status") != "failed":
+                                continue
+                            await manager.broadcast_to_user(
+                                user_id,
+                                {
+                                    "type": "node_failed",
+                                    "workflow_id": str(record.workflow_id),
+                                    "run_id": str(record.id),
+                                    "node_id": node_id,
+                                    "error": result.get("error"),
+                                },
+                            )
+                    if failed_runs:
+                        WorkflowRunService.mark_notified(
+                            db, [record.id for record in failed_runs]
+                        )
             except Exception as e:
                 logger.error(f"Error in WebSocket loop for user {user_id}: {e}")
                 break
