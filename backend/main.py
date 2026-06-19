@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from core.cookies import CSRF_COOKIE
 from auth.routes import auth_router, connection_router
 from ai.routes.ai_router import ai_router
-from gmail.routes import webhook_router
+from gmail.routes.webhook_router import webhook_router
 from workflow.routes.workflow_router import workflow_router
 
 # The models are imported as a top level to resolve some issues
