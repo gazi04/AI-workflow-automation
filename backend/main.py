@@ -1,8 +1,12 @@
+import asyncio
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from core.cookies import CSRF_COOKIE
+from core.event_listener import listener
 from auth.routes import auth_router, connection_router
 from ai.routes.ai_router import ai_router
 from gmail.routes.webhook_router import webhook_router
@@ -14,7 +18,19 @@ from workflow.routes.workflow_router import workflow_router
 # in the mapper of defining relantionships
 import core.models  # noqa: F401
 
-app = FastAPI(title="AI Workflow Orchestrator API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Start the Postgres LISTEN thread so worker-emitted node events reach
+    # connected WebSockets. Pass the running loop for run_coroutine_threadsafe.
+    listener.start(asyncio.get_running_loop())
+    try:
+        yield
+    finally:
+        listener.stop()
+
+
+app = FastAPI(title="AI Workflow Orchestrator API", lifespan=lifespan)
 
 app.include_router(auth_router, prefix="/api")
 app.include_router(connection_router, prefix="/api")
