@@ -13,9 +13,21 @@ def evaluate_condition(condition: IfCondition, run_context: Dict[str, Any]) -> b
 
     results = []
     for rule in rules:
+        operator = rule.operator
+
+        if operator == ConditionOperators.EXISTS:
+            # "exists" = the variable path resolves to a value (incl. empty string).
+            # A missing path makes resolve_variables raise → treat as does-not-exist.
+            try:
+                resolve_variables(rule.variable, run_context)
+                res = True
+            except Exception:
+                res = False
+            results.append(res)
+            continue
+
         actual_value = resolve_variables(rule.variable, run_context)
         expected_value = rule.value
-        operator = rule.operator
 
         res = False
 
@@ -39,8 +51,6 @@ def evaluate_condition(condition: IfCondition, run_context: Dict[str, Any]) -> b
 
         elif operator == ConditionOperators.CONTAINS:
             res = expected_str in actual_str
-        elif operator == ConditionOperators.EXISTS:
-            res = actual_value != rule.variable
         elif operator == ConditionOperators.GREATER_THAN:
             try:
                 res = float(actual_value) > float(expected_value)
