@@ -3,7 +3,6 @@ from uuid import UUID
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from typing import Dict, Any
 
 from core.database import db_session
 from core.setup_logging import setup_logger
@@ -37,30 +36,39 @@ class GmailHistoryProcessor:
             self.service.close()
 
     def fetch_and_process(self, start_history_id: str) -> None:
-        history_response = (
-            self.service.users()
-            .history()
-            .list(userId="me", startHistoryId=start_history_id)
-            .execute()
-        )
-        self._filter_notifications(history_response)
+        unique_message_ids: set[str] = set()
+        page_token = None
 
-    def _filter_notifications(self, history_response: Dict[str, Any]):
-        unique_message_ids = set()
+        # history.list is paged; loop until there is no nextPageToken so messages
+        # beyond the first page (busy mailbox / after downtime) aren't dropped.
+        while True:
+            history_response = (
+                self.service.users()
+                .history()
+                .list(
+                    userId="me",
+                    startHistoryId=start_history_id,
+                    pageToken=page_token,
+                )
+                .execute()
+            )
+            self._collect_message_ids(history_response, unique_message_ids)
 
+            page_token = history_response.get("nextPageToken")
+            if not page_token:
+                break
+
+        for message_id in unique_message_ids:
+            self._process_single_message(message_id)
+
+    def _collect_message_ids(self, history_response, sink: set[str]) -> None:
         for history_record in history_response.get("history", []):
             if "messagesAdded" not in history_record:
                 continue
 
             for message_item in history_record["messagesAdded"]:
                 message_id = message_item["message"]["id"]
-                unique_message_ids.add(message_id)
-
-        if not unique_message_ids:
-            return
-
-        for message_id in unique_message_ids:
-            self._process_single_message(message_id)
+                sink.add(message_id)
 
     def _process_single_message(self, message_id: str):
         try:
