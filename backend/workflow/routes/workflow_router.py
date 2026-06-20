@@ -9,7 +9,6 @@ from fastapi import (
     WebSocketDisconnect,
 )
 from sqlalchemy.orm import Session
-import asyncio
 
 from jwt import PyJWTError
 
@@ -354,51 +353,53 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
         return
 
     await manager.connect(user_id, websocket)
+    uid = UUID(user_id)
     try:
-        while True:
-            try:
-                uid = UUID(user_id)
-                latest_runs = await DeploymentService.get_latest_runs_status(uid)
+        # Initial run snapshot so a (re)connecting client isn't blank.
+        try:
+            latest_runs = await DeploymentService.get_latest_runs_status(uid)
+            await manager.broadcast_to_user(
+                user_id,
+                {
+                    "type": "workflow_update",
+                    "data": [run.model_dump(mode="json") for run in latest_runs],
+                },
+            )
+        except Exception as e:
+            logger.error(f"Initial run snapshot failed for user {user_id}: {e}")
 
-                # Makes the websocket connection available for multiple tabs open at once
-                await manager.broadcast_to_user(
-                    user_id,
-                    {
-                        "type": "workflow_update",
-                        "data": [run.model_dump(mode="json") for run in latest_runs],
-                    },
-                )
-
-                # Surface per-node failures persisted by the worker. The worker
-                # process can't reach this in-memory manager, so it records the
-                # failure in the DB and we broadcast it here (then mark delivered).
-                with db_session() as db:
-                    failed_runs = WorkflowRunService.get_undelivered_failures(db, uid)
-                    for record in failed_runs:
-                        for node_id, result in (record.node_results or {}).items():
-                            if result.get("status") != "failed":
-                                continue
-                            await manager.broadcast_to_user(
-                                user_id,
-                                {
-                                    "type": "node_failed",
-                                    "workflow_id": str(record.workflow_id),
-                                    "run_id": str(record.id),
-                                    "node_id": node_id,
-                                    "error": result.get("error"),
-                                },
-                            )
-                    if failed_runs:
-                        WorkflowRunService.mark_notified(
-                            db, [record.id for record in failed_runs]
+        # Replay failures that occurred while this user had no socket connected.
+        # Live per-node events now arrive via the Postgres LISTEN listener
+        # (core/event_listener.py) — no per-connection poll loop.
+        try:
+            with db_session() as db:
+                failed_runs = WorkflowRunService.get_undelivered_failures(db, uid)
+                for record in failed_runs:
+                    for node_id, result in (record.node_results or {}).items():
+                        if result.get("status") != "failed":
+                            continue
+                        await manager.broadcast_to_user(
+                            user_id,
+                            {
+                                "type": "node_failed",
+                                "workflow_id": str(record.workflow_id),
+                                "run_id": str(record.id),
+                                "node_id": node_id,
+                                "error": result.get("error"),
+                            },
                         )
-            except Exception as e:
-                logger.error(f"Error in WebSocket loop for user {user_id}: {e}")
-                break
+                if failed_runs:
+                    WorkflowRunService.mark_notified(
+                        db, [record.id for record in failed_runs]
+                    )
+        except Exception as e:
+            logger.error(f"Failure replay failed for user {user_id}: {e}")
 
-            await asyncio.sleep(5)
+        # Keep the socket open; the global listener pushes live events. Reading
+        # blocks until the client disconnects (and drains any pings/messages).
+        while True:
+            await websocket.receive_text()
     except WebSocketDisconnect:
-        manager.disconnect(user_id, websocket)
         logger.warning(f"WebSocket disconnected for user {user_id}")
     finally:
         manager.disconnect(user_id, websocket)

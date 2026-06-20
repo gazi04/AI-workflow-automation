@@ -123,6 +123,18 @@
 
 					knownRunStates.set(run.id, run.state_name);
 				}
+			} else if (message.type === 'node_started') {
+				toast.info(`Step running: ${message.node_id}`);
+			} else if (message.type === 'node_completed') {
+				toast.success(`Step done: ${message.node_id}`);
+			} else if (message.type === 'flow_finished') {
+				if (message.status === 'success') {
+					toast.success('Workflow finished');
+				} else if (message.status === 'partial') {
+					toast.warning('Workflow finished with some failed steps');
+				} else {
+					toast.error('Workflow failed');
+				}
 			} else if (message.type === 'node_failed') {
 				toast.error(`Step Failed: ${message.node_id}`, {
 					description: message.error || 'A workflow step encountered an error.',

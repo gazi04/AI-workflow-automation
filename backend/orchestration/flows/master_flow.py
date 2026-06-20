@@ -8,6 +8,7 @@ from prefect.runtime import (
 from typing import Dict, Any, Optional
 from core.setup_logging import setup_logger
 from core.database import db_session
+from core.events import publish_event
 from orchestration.tasks import send_message, reply_email, label_mail, smart_draft
 from utils.build_adjacency_list import build_adjacency_list
 from utils.evaluate_condition import evaluate_condition
@@ -84,6 +85,25 @@ def execute_automation_flow(
     # node_id → error string. Any entry here marks the whole run as Failed at the end.
     failed_nodes: Dict[str, str] = {}
 
+    # Resolve ids once so the worker can NOTIFY per-node events that the API
+    # process forwards to the user's WebSocket (core/events.py, event_listener.py).
+    emit_workflow_id = _runtime_id(lambda: workflow_id or prefect_deployment.id)
+    emit_run_id = _runtime_id(lambda: prefect_flow_run.id)
+
+    def emit(event_type, node_id, *, node_type=None, error=None, status=None):
+        publish_event(
+            {
+                "type": event_type,
+                "user_id": str(user_id),
+                "workflow_id": str(emit_workflow_id) if emit_workflow_id else None,
+                "run_id": str(emit_run_id) if emit_run_id else None,
+                "node_id": node_id,
+                "node_type": node_type,
+                "error": error,
+                "status": status,
+            }
+        )
+
     while queue:
         current_node_id = queue.pop(0)
 
@@ -98,17 +118,20 @@ def execute_automation_flow(
         condition_result = None
 
         if node.type == "condition":
+            emit("node_started", current_node_id, node_type="condition")
             try:
                 condition_result = evaluate_condition(node.config, run_context)
                 run_context["node_outputs"][current_node_id] = {
                     "result": condition_result
                 }
+                emit("node_completed", current_node_id, node_type="condition")
             except Exception as e:
                 run_logger.error(
                     f"Condition node '{current_node_id}' failed to evaluate: {e}"
                 )
                 run_context["node_outputs"][current_node_id] = {"error": str(e)}
                 failed_nodes[current_node_id] = str(e)
+                emit("node_failed", current_node_id, node_type="condition", error=str(e))
                 # Prune: route neither handle, don't queue downstream.
                 continue
         elif node.type == "action":
@@ -116,6 +139,7 @@ def execute_automation_flow(
             action_type = node.config.type
             raw_action_data = node.config.config
 
+            emit("node_started", current_node_id, node_type="action")
             try:
                 # Resolution lives inside the try so that a reference to an
                 # already-failed node ({{failed.body}}) surfaces as this node's
@@ -162,6 +186,7 @@ def execute_automation_flow(
                     raise NotImplementedError()
 
                 run_context["node_outputs"][current_node_id] = result
+                emit("node_completed", current_node_id, node_type="action")
 
             except Exception as e:
                 run_logger.error(
@@ -169,6 +194,7 @@ def execute_automation_flow(
                 )
                 run_context["node_outputs"][current_node_id] = {"error": str(e)}
                 failed_nodes[current_node_id] = str(e)
+                emit("node_failed", current_node_id, node_type="action", error=str(e))
                 # Prune: don't queue this node's downstream children.
                 continue
 
@@ -217,6 +243,9 @@ def execute_automation_flow(
         failed_nodes=failed_nodes,
         duration_ms=int((time.monotonic() - started_at) * 1000),
     )
+
+    _, overall_status = build_run_audit(run_context["node_outputs"], failed_nodes)
+    emit("flow_finished", None, status=overall_status)
 
     if failed_nodes:
         # Independent branches have finished; now fail the run so the frontend
