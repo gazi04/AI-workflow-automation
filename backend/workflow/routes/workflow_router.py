@@ -21,7 +21,7 @@ from user.models import User
 from utils.catalog_introspector import build_catalog
 from workflow.schemas.catalog import WorkflowCatalog
 from workflow.schemas import WorkflowSchema
-from workflow.schemas.workflow_run import WorkflowRun
+from workflow.schemas.workflow_run import WorkflowRun, WorkflowRunDetail
 from workflow.schemas import (
     RunWorkflowRequest,
     UpdateWorkflowRequest,
@@ -305,6 +305,28 @@ async def get_latest_runs(user: User = Depends(get_current_user)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not fetch latest run status.",
         )
+
+
+@workflow_router.get("/runs/{run_id}/audit", response_model=WorkflowRunDetail)
+async def get_run_audit(
+    run_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Returns the persisted per-node execution audit for a run.
+
+    `run_id` is the Prefect run id (the same value the history list rows carry).
+    Surfaces node_results / trigger_data that Prefect introspection lacks.
+    """
+    record = WorkflowRunService.get_by_prefect_run_id(db, run_id, user.id)
+    if record is None:
+        # 404 (not 403): don't leak another user's run; also covers runs that
+        # predate the audit table or have no prefect_run_id.
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Run audit not found.",
+        )
+    return record
 
 
 @workflow_router.get("/runs/{run_id}/logs")

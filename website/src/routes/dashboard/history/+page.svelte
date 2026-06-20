@@ -22,6 +22,7 @@
 	import type { components } from '$lib/types/schema';
 
 	type WorkflowRun = components['schemas']['WorkflowRun'];
+	type WorkflowRunDetail = components['schemas']['WorkflowRunDetail'];
 
 	let allRuns = $state<WorkflowRun[]>([]);
 	let filteredRuns = $state<WorkflowRun[]>([]);
@@ -32,6 +33,8 @@
 	let selectedRun = $state<WorkflowRun | null>(null);
 	let logs = $state<string>('');
 	let isLoadingLogs = $state(false);
+	let audit = $state<WorkflowRunDetail | null>(null);
+	let isLoadingAudit = $state(false);
 
 	async function fetchAllHistory() {
 		try {
@@ -74,6 +77,15 @@
 		selectedRun = run;
 		logs = '';
 		isLoadingLogs = true;
+		audit = null;
+		isLoadingAudit = true;
+
+		// Per-node audit (workflow_runs table). 404 = run predates the audit log → no data.
+		api
+			.get<WorkflowRunDetail>(`/api/workflow/runs/${run.id}/audit`)
+			.then((data) => (audit = data))
+			.catch(() => (audit = null))
+			.finally(() => (isLoadingAudit = false));
 
 		try {
 			const logEntries = await api.get<any[]>(`/api/workflow/runs/${run.id}/logs`);
@@ -89,6 +101,16 @@
 
 	function closeDrawer() {
 		selectedRun = null;
+	}
+
+	function nodeStatusVariant(status: string) {
+		return status === 'success' ? 'default' : status === 'failed' ? 'destructive' : 'secondary';
+	}
+
+	function pretty(value: unknown) {
+		if (value === null || value === undefined) return '';
+		if (typeof value === 'string') return value;
+		return JSON.stringify(value, null, 2);
 	}
 
 	function formatDate(dateStr: string | null | undefined) {
@@ -274,6 +296,81 @@
 							<span class="text-xs font-semibold text-muted-foreground uppercase">Run ID</span>
 							<p class="mt-1 font-mono text-[10px] break-all">{selectedRun.id}</p>
 						</div>
+					</div>
+
+					<!-- Per-node execution audit (workflow_runs) -->
+					<div class="mb-6">
+						<h4 class="mb-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+							Node Results
+						</h4>
+
+						{#if isLoadingAudit}
+							<div class="flex items-center justify-center py-8">
+								<Loader class="h-5 w-5 animate-spin text-muted-foreground" />
+							</div>
+						{:else if audit}
+							<div
+								class="mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg bg-muted/40 p-3 text-sm"
+							>
+								<div class="flex items-center gap-2">
+									<span class="text-xs text-muted-foreground uppercase">Outcome</span>
+									<Badge variant={nodeStatusVariant(audit.status)}>{audit.status}</Badge>
+								</div>
+								{#if audit.duration_ms != null}
+									<div class="flex items-center gap-2">
+										<span class="text-xs text-muted-foreground uppercase">Duration</span>
+										<span class="font-medium">{formatDuration(audit.duration_ms / 1000)}</span>
+									</div>
+								{/if}
+							</div>
+
+							<div class="space-y-3">
+								{#each Object.entries(audit.node_results ?? {}) as [nodeId, result] (nodeId)}
+									<div class="rounded-lg border bg-card p-3">
+										<div class="flex items-center justify-between gap-2">
+											<span class="font-mono text-sm font-medium">{nodeId}</span>
+											<Badge variant={nodeStatusVariant(result.status)}>{result.status}</Badge>
+										</div>
+
+										{#if result.error}
+											<div class="mt-2 rounded bg-destructive/10 p-2 text-xs text-destructive">
+												<pre class="whitespace-pre-wrap">{result.error}</pre>
+											</div>
+										{/if}
+
+										{#if result.output !== null && result.output !== undefined}
+											<div class="mt-2">
+												<span class="text-[10px] font-semibold text-muted-foreground uppercase"
+													>Output</span
+												>
+												<pre
+													class="mt-1 max-h-48 overflow-auto rounded bg-muted/50 p-2 text-xs whitespace-pre-wrap">{pretty(
+														result.output
+													)}</pre>
+											</div>
+										{/if}
+									</div>
+								{/each}
+							</div>
+
+							{#if audit.trigger_data}
+								<div class="mt-4">
+									<h5
+										class="mb-1 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+									>
+										Trigger Data
+									</h5>
+									<pre
+										class="max-h-48 overflow-auto rounded-lg bg-muted/50 p-3 text-xs whitespace-pre-wrap">{pretty(
+											audit.trigger_data
+										)}</pre>
+								</div>
+							{/if}
+						{:else}
+							<p class="rounded-lg bg-muted/30 p-3 text-sm text-muted-foreground italic">
+								No node-level data for this run.
+							</p>
+						{/if}
 					</div>
 
 					<div class="relative rounded-lg bg-slate-950 p-4 font-mono text-[13px] text-slate-300">

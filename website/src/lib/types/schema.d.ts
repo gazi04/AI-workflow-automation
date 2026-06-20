@@ -21,6 +21,29 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/auth/exchange': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Exchange Code
+		 * @description Exchange a short-lived one-time code for auth cookies.
+		 *
+		 *     Tokens are set as HttpOnly cookies (plus a readable CSRF cookie) instead of
+		 *     being returned in the body, so client-side JS never holds them.
+		 */
+		get: operations['exchange_code_api_auth_exchange_get'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/auth/refresh': {
 		parameters: {
 			query?: never;
@@ -32,9 +55,49 @@ export interface paths {
 		put?: never;
 		/**
 		 * Refresh Access Token
-		 * @description Refreshes the Access Token using a valid Refresh Token.
+		 * @description Rotate tokens using the refresh-token cookie; set the new tokens as cookies.
 		 */
 		post: operations['refresh_access_token_api_auth_refresh_post'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/auth/logout': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Logout
+		 * @description Revoke the current refresh token and clear all auth cookies.
+		 */
+		post: operations['logout_api_auth_logout_post'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/auth/me': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get Me
+		 * @description Return the current user so the frontend can display it without a readable token.
+		 */
+		get: operations['get_me_api_auth_me_get'];
+		put?: never;
+		post?: never;
 		delete?: never;
 		options?: never;
 		head?: never;
@@ -393,6 +456,29 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/workflow/runs/{run_id}/audit': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get Run Audit
+		 * @description Returns the persisted per-node execution audit for a run.
+		 *
+		 *     `run_id` is the Prefect run id (the same value the history list rows carry).
+		 *     Surfaces node_results / trigger_data that Prefect introspection lacks.
+		 */
+		get: operations['get_run_audit_api_workflow_runs__run_id__audit_get'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/workflow/runs/{run_id}/logs': {
 		parameters: {
 			query?: never;
@@ -408,26 +494,6 @@ export interface paths {
 		get: operations['get_run_logs_api_workflow_runs__run_id__logs_get'];
 		put?: never;
 		post?: never;
-		delete?: never;
-		options?: never;
-		head?: never;
-		patch?: never;
-		trace?: never;
-	};
-	'/api/workflow/test-notification/{user_id}': {
-		parameters: {
-			query?: never;
-			header?: never;
-			path?: never;
-			cookie?: never;
-		};
-		get?: never;
-		put?: never;
-		/**
-		 * Test Notification
-		 * @description Push a test notification to a specific user via WebSocket.
-		 */
-		post: operations['test_notification_api_workflow_test_notification__user_id__post'];
 		delete?: never;
 		options?: never;
 		head?: never;
@@ -678,10 +744,26 @@ export interface components {
 			/** Outputs */
 			outputs?: string[];
 		};
-		/** RefreshTokenRequest */
-		RefreshTokenRequest: {
-			/** Refresh Token */
-			refresh_token: string;
+		/**
+		 * NodeResult
+		 * @description Per-node audit entry as persisted in WorkflowRunRecord.node_results.
+		 */
+		NodeResult: {
+			/**
+			 * Output
+			 * @description The value this node produced.
+			 */
+			output?: unknown;
+			/**
+			 * Status
+			 * @description success | failed
+			 */
+			status: string;
+			/**
+			 * Error
+			 * @description Error message if the node failed.
+			 */
+			error?: string | null;
 		};
 		/** ReplyEmailAction */
 		ReplyEmailAction: {
@@ -800,15 +882,6 @@ export interface components {
 			 */
 			status: boolean;
 		};
-		/** Token */
-		Token: {
-			/** Access Token */
-			access_token: string;
-			/** Refresh Token */
-			refresh_token: string;
-			/** Token Type */
-			token_type: string;
-		};
 		/** UIMetadata */
 		UIMetadata: {
 			/** Nodes */
@@ -839,7 +912,10 @@ export interface components {
 		UserRequest: {
 			/** Text */
 			text: string;
-			current_workflow: components['schemas']['WorkflowSchema-Input'] | null;
+			/** Current Workflow */
+			current_workflow: {
+				[key: string]: unknown;
+			} | null;
 		};
 		/** ValidationError */
 		ValidationError: {
@@ -985,6 +1061,51 @@ export interface components {
 			total_run_time: number;
 		};
 		/**
+		 * WorkflowRunDetail
+		 * @description Persisted execution audit (from the workflow_runs table) — the per-node
+		 *     view Prefect introspection cannot provide.
+		 */
+		WorkflowRunDetail: {
+			/**
+			 * Id
+			 * Format: uuid
+			 */
+			id: string;
+			/**
+			 * Workflow Id
+			 * Format: uuid
+			 */
+			workflow_id: string;
+			/** Prefect Run Id */
+			prefect_run_id?: string | null;
+			/**
+			 * Status
+			 * @description success | partial | failed
+			 */
+			status: string;
+			/** Duration Ms */
+			duration_ms?: number | null;
+			/**
+			 * Triggered At
+			 * Format: date-time
+			 */
+			triggered_at: string;
+			/**
+			 * Trigger Data
+			 * @description The event context that triggered the run.
+			 */
+			trigger_data?: {
+				[key: string]: unknown;
+			} | null;
+			/**
+			 * Node Results
+			 * @description Keyed by node id: { node_id: { output, status, error } }.
+			 */
+			node_results?: {
+				[key: string]: components['schemas']['NodeResult'];
+			};
+		};
+		/**
 		 * WorkflowSchema
 		 * @description The full representation used by the API and AI Service.
 		 */
@@ -1059,18 +1180,16 @@ export interface operations {
 			};
 		};
 	};
-	refresh_access_token_api_auth_refresh_post: {
+	exchange_code_api_auth_exchange_get: {
 		parameters: {
-			query?: never;
+			query: {
+				code: string;
+			};
 			header?: never;
 			path?: never;
 			cookie?: never;
 		};
-		requestBody: {
-			content: {
-				'application/json': components['schemas']['RefreshTokenRequest'];
-			};
-		};
+		requestBody?: never;
 		responses: {
 			/** @description Successful Response */
 			200: {
@@ -1078,7 +1197,7 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': components['schemas']['Token'];
+					'application/json': unknown;
 				};
 			};
 			/** @description Validation Error */
@@ -1088,6 +1207,66 @@ export interface operations {
 				};
 				content: {
 					'application/json': components['schemas']['HTTPValidationError'];
+				};
+			};
+		};
+	};
+	refresh_access_token_api_auth_refresh_post: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Successful Response */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': unknown;
+				};
+			};
+		};
+	};
+	logout_api_auth_logout_post: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Successful Response */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': unknown;
+				};
+			};
+		};
+	};
+	get_me_api_auth_me_get: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Successful Response */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': unknown;
 				};
 			};
 		};
@@ -1562,7 +1741,7 @@ export interface operations {
 			};
 		};
 	};
-	get_run_logs_api_workflow_runs__run_id__logs_get: {
+	get_run_audit_api_workflow_runs__run_id__audit_get: {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -1579,7 +1758,7 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': unknown;
+					'application/json': components['schemas']['WorkflowRunDetail'];
 				};
 			};
 			/** @description Validation Error */
@@ -1593,14 +1772,12 @@ export interface operations {
 			};
 		};
 	};
-	test_notification_api_workflow_test_notification__user_id__post: {
+	get_run_logs_api_workflow_runs__run_id__logs_get: {
 		parameters: {
-			query?: {
-				message?: string;
-			};
+			query?: never;
 			header?: never;
 			path: {
-				user_id: string;
+				run_id: string;
 			};
 			cookie?: never;
 		};

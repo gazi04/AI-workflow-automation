@@ -34,6 +34,23 @@ class WorkflowRunService:
         return record
 
     @staticmethod
+    def get_by_prefect_run_id(
+        db: Session, prefect_run_id: UUID, user_id: UUID
+    ) -> Optional[WorkflowRunRecord]:
+        """Fetch a single audit record by its Prefect run id, scoped to the owner.
+
+        Filtering on user_id enforces ownership in the query, so a non-owner gets
+        None (treated as 404 by the route — no existence leak)."""
+        return (
+            db.query(WorkflowRunRecord)
+            .filter(
+                WorkflowRunRecord.prefect_run_id == prefect_run_id,
+                WorkflowRunRecord.user_id == user_id,
+            )
+            .first()
+        )
+
+    @staticmethod
     def get_undelivered_failures(db: Session, user_id: UUID) -> List[WorkflowRunRecord]:
         """Runs that failed (fully or partially) and whose node_failed event has
         not yet been broadcast to the user."""
