@@ -99,7 +99,7 @@ class AuthService:
             expiry=expiry_time_naive_utc,
         )
 
-        if creds.token_state and creds.refresh_token:
+        if not creds.valid and creds.refresh_token:
             try:
                 creds.refresh(Request())
                 AccountService.refresh_tokens(
