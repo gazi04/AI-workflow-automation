@@ -92,6 +92,22 @@ class GmailService:
                 db.commit()
 
     @staticmethod
+    def _reset_baseline(user_id: UUID, target: str) -> None:
+        """Adopt ``target`` as the new baseline and release the lock.
+
+        Used when the stored startHistoryId is missing or too old (Gmail returns
+        404): that history window is gone, so resync forward from the latest
+        observed id instead of retrying a dead id forever.
+        """
+        with db_session() as db:
+            account = GmailService._acquire_account_locked(db, user_id)
+            if account:
+                account.last_synced_history_id = target
+                account.last_synced_started_at = None
+                account.sync_pending = False
+                db.commit()
+
+    @staticmethod
     def handle_gmail_update(email_address: str, new_history_id: str):
         """
         Runs in the background. Fetches changes since the last sync and triggers actions.
@@ -157,10 +173,26 @@ class GmailService:
                 # Snapshot the high-water mark BEFORE fetching.
                 target = account.latest_observed_history_id or new_history_id
 
+            if baseline is None:
+                # Never completed a watch (or a prior stale-history reset): adopt
+                # the latest observed id and wait for the next notification rather
+                # than calling history.list with None.
+                GmailService._reset_baseline(user_id, target)
+                return
+
             try:
                 with GmailHistoryProcessor(creds, user_id) as processor:
                     processor.fetch_and_process(baseline)
             except HttpError as error:
+                if getattr(error.resp, "status", None) == 404:
+                    # startHistoryId older than Gmail's ~1 week window — resync
+                    # forward from the latest id instead of failing on it forever.
+                    logger.warning(
+                        f"Stale startHistoryId for {email_address}; "
+                        f"resetting baseline to {target}."
+                    )
+                    GmailService._reset_baseline(user_id, target)
+                    return
                 logger.error(
                     f"Gmail History API error for {email_address}: {error}"
                 )
