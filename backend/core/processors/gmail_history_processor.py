@@ -3,6 +3,7 @@ from uuid import UUID
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from sqlalchemy.exc import IntegrityError
 
 from core.database import db_session
 from core.setup_logging import setup_logger
@@ -13,6 +14,15 @@ from workflow.schemas import WorkflowExecutionConfig
 from workflow.services.workflow_service import WorkflowService
 
 import anyio
+
+
+class DeploymentTriggerError(Exception):
+    """Raised when one or more deployment triggers failed during a sync pass.
+
+    Propagated out of ``fetch_and_process`` so the drain loop in
+    ``GmailService.handle_gmail_update`` withholds the baseline advance and the
+    next notification re-drains and retries the failed message(s).
+    """
 
 
 class GmailHistoryProcessor:
@@ -39,6 +49,11 @@ class GmailHistoryProcessor:
         unique_message_ids: set[str] = set()
         page_token = None
 
+        # Batch-level flag set by _process_single_message when a deployment
+        # trigger fails. A failed trigger must not advance the sync baseline, so
+        # we raise after the loop to force the drain loop to retry next pass.
+        self._trigger_failed = False
+
         # history.list is paged; loop until there is no nextPageToken so messages
         # beyond the first page (busy mailbox / after downtime) aren't dropped.
         while True:
@@ -60,6 +75,11 @@ class GmailHistoryProcessor:
 
         for message_id in unique_message_ids:
             self._process_single_message(message_id)
+
+        if self._trigger_failed:
+            raise DeploymentTriggerError(
+                "One or more deployment triggers failed; baseline withheld for retry."
+            )
 
     def _collect_message_ids(self, history_response, sink: set[str]) -> None:
         for history_record in history_response.get("history", []):
@@ -177,10 +197,9 @@ class GmailHistoryProcessor:
                         }
                     }
 
-                    ProcessedMessageService.create(
-                        db, email_data["message_id"], workflow.id
-                    )
-
+                    # Trigger first; only mark processed once the deployment is
+                    # successfully scheduled. On failure, flag the batch and move
+                    # on so the baseline is withheld and this message is retried.
                     try:
                         anyio.from_thread.run(
                             DeploymentService.run, workflow.id, trigger_context
@@ -189,6 +208,17 @@ class GmailHistoryProcessor:
                         self.logger.error(
                             f"Failed to trigger deployment for workflow {workflow.id}: {e}"
                         )
+                        self._trigger_failed = True
+                        continue
+
+                    try:
+                        ProcessedMessageService.create(
+                            db, email_data["message_id"], workflow.id
+                        )
+                    except IntegrityError:
+                        # Concurrent insert or a re-drain raced us — the message is
+                        # already recorded for this workflow, so treat as handled.
+                        db.rollback()
         except HttpError as e:
             if e.resp.status == 404:
                 self.logger.warning(

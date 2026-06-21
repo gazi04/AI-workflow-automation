@@ -46,10 +46,14 @@ class DeploymentService:
         Run a prefect deployment
         """
         try:
-            await run_deployment(workflow_id, parameters=config)
+            # timeout=0 returns as soon as the flow run is scheduled instead of
+            # blocking until it completes. The caller treats "scheduled" (not "ran
+            # to success") as the signal to mark the message processed, so a
+            # workflow that later fails mid-run is never re-triggered.
+            await run_deployment(workflow_id, parameters=config, timeout=0)
             logger.info(f"Triggering workflow {workflow_id}")
         except Exception as e:
-            logger.debug(f"Unexpected error occurred: \n{e}")
+            logger.error(f"Unexpected error occurred: \n{e}")
             raise e
 
     @staticmethod
