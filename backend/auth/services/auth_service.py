@@ -36,11 +36,6 @@ class AuthService:
         return UserService.create(db, user_data.email, hashed_password)
 
     @staticmethod
-    def authenticate_user(db: Session, email: str, password: str) -> User:
-        # Email/password verification logic
-        pass
-
-    @staticmethod
     def create_token_pair(db: Session, user: User) -> dict:
         access_token = create_access_token(
             data={"sub": str(user.id), "email": user.email}
@@ -56,16 +51,6 @@ class AuthService:
         db.commit()
 
         return {"access_token": access_token, "refresh_token": refresh_token_string}
-
-    @staticmethod
-    def refresh_tokens(db: Session, refresh_token: str) -> dict:
-        # Token refresh with rotation logic
-        pass
-
-    @staticmethod
-    def handle_google_oauth(db: Session, code: str, state: str) -> dict:
-        # Complete Google OAuth flow logic
-        pass
 
     @staticmethod
     def get_google_credentials(
@@ -139,13 +124,3 @@ class AuthService:
                 )
 
         return creds
-
-    @staticmethod
-    def validate_google_token(credentials):
-        # Google token verification
-        pass
-
-    @staticmethod
-    def handle_connected_account(db: Session, user: User, user_info: dict, credentials):
-        # Connected account upsert logic
-        pass
