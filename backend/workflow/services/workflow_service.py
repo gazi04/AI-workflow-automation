@@ -41,7 +41,7 @@ class WorkflowService:
         workflow = db.query(Workflow).filter(Workflow.id == id).first()
 
         if workflow:
-            ui_metadata = schema.ui_metadata.model_dump()
+            ui_metadata = schema.ui_metadata.model_dump() if schema.ui_metadata else None
             workflow.config = schema.execution_config.model_dump()
 
             if ui_metadata is not None:
