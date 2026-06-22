@@ -247,11 +247,14 @@ def label_mail(
 
             request = {"addLabelIds": [label_id]}
 
-            service.users().messages().modify(
-                userId="me", id=message_id, body=request
-            ).execute()
+            modify_result = (
+                service.users()
+                .messages()
+                .modify(userId="me", id=message_id, body=request)
+                .execute()
+            )
 
-        return labels
+        return modify_result
     except HttpError as error:
         print(f"An http error occurred: {error}")
         logger.error(f"Http error occurred: \n {error}")
