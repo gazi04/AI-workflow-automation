@@ -235,11 +235,15 @@ class GmailHistoryProcessor:
         """
         if payload.body and payload.body.data:
             if payload.mime_type == "text/plain":
-                return base64.urlsafe_b64decode(payload.body.data).decode("utf-8")
+                return base64.urlsafe_b64decode(payload.body.data).decode(
+                    "utf-8", errors="replace"
+                )
 
         for part in payload.parts:
             if part.mime_type == "text/plain" and part.body and part.body.data:
-                return base64.urlsafe_b64decode(part.body.data).decode("utf-8")
+                return base64.urlsafe_b64decode(part.body.data).decode(
+                    "utf-8", errors="replace"
+                )
 
             if part.mime_type.startswith("multipart"):
                 body = self._get_email_body(part)
