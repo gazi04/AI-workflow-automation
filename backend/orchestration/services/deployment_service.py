@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 from prefect import get_client
+from prefect.exceptions import ObjectNotFound
 from prefect.client.schemas.filters import (
     FlowRunFilter,
     FlowRunFilterDeploymentId,
@@ -153,10 +154,17 @@ class DeploymentService:
     @staticmethod
     async def delete(id: UUID):
         """
-        Deletes deployment
+        Deletes deployment. Idempotent: a deployment that is already gone in
+        Prefect is treated as a successful delete (so a stale DB row can still
+        be removed, and so this is safe as a create-rollback action).
         """
-        async with get_client() as client:
-            await client.delete_deployment(id)
+        try:
+            async with get_client() as client:
+                await client.delete_deployment(id)
+        except ObjectNotFound:
+            setup_logger("DeploymentService").warning(
+                f"Deployment {id} already absent in Prefect; treating delete as success."
+            )
 
     @staticmethod
     async def get_history(user_id: UUID) -> List[WorkflowRun]:

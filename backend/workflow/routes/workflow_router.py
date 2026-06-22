@@ -166,6 +166,7 @@ async def create_workflow(
     """
     Register a new workflow in Prefect and save it to the local database.
     """
+    deployment_id = None
     try:
         deployment_id = await DeploymentService.create_deployment_for_workflow(
             user.id, schema
@@ -178,6 +179,17 @@ async def create_workflow(
         return new_workflow
     except Exception as e:
         logger.error(f"Error creating workflow: {e}")
+        # The Prefect deployment is created before the DB row; if the DB write
+        # failed, roll back the now-orphaned deployment so its schedule can't
+        # fire with no backing workflow.
+        if deployment_id is not None:
+            try:
+                await DeploymentService.delete(deployment_id)
+                logger.info(f"Rolled back orphan deployment {deployment_id}")
+            except Exception as cleanup_err:
+                logger.error(
+                    f"Failed to roll back orphan deployment {deployment_id}: {cleanup_err}"
+                )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not create the workflow.",
