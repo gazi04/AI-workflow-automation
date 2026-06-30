@@ -219,6 +219,28 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/webhooks/trigger/{workflow_id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Webhook Trigger
+		 * @description Generic HTTP webhook entry point. An external caller starts a workflow by
+		 *     POSTing here with the workflow's per-workflow secret in the
+		 *     `X-Webhook-Secret` header (falling back to a `?secret=` query param).
+		 */
+		post: operations['webhook_trigger_api_webhooks_trigger__workflow_id__post'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/webhooks/gmail': {
 		parameters: {
 			query?: never;
@@ -802,7 +824,10 @@ export interface components {
 			 * @example 0 9 * * *
 			 */
 			cron: string;
-			/** Description */
+			/**
+			 * Description
+			 * @default Runs on a schedule
+			 */
 			description: string;
 		};
 		/** ScheduleTrigger */
@@ -926,6 +951,23 @@ export interface components {
 			/** Error Type */
 			type: string;
 		};
+		/** WebhookConfig */
+		WebhookConfig: {
+			/**
+			 * Description
+			 * @default Triggered by an HTTP request
+			 */
+			description: string;
+		};
+		/** WebhookTrigger */
+		WebhookTrigger: {
+			/**
+			 * @description discriminator enum property added by openapi-typescript
+			 * @enum {string}
+			 */
+			type: 'webhook';
+			config: components['schemas']['WebhookConfig'];
+		};
 		/** WorkflowCatalog */
 		WorkflowCatalog: {
 			/** Triggers */
@@ -992,6 +1034,7 @@ export interface components {
 				| components['schemas']['ManualTrigger']
 				| components['schemas']['NewSheetRowTrigger']
 				| components['schemas']['ScheduleTrigger']
+				| components['schemas']['WebhookTrigger']
 				| components['schemas']['SendSlackMessageAction']
 				| components['schemas']['SendEmailAction']
 				| components['schemas']['ReplyEmailAction']
@@ -1017,6 +1060,7 @@ export interface components {
 				| components['schemas']['ManualTrigger']
 				| components['schemas']['NewSheetRowTrigger']
 				| components['schemas']['ScheduleTrigger']
+				| components['schemas']['WebhookTrigger']
 				| components['schemas']['SendSlackMessageAction']
 				| components['schemas']['SendEmailAction']
 				| components['schemas']['ReplyEmailAction']
@@ -1412,6 +1456,37 @@ export interface operations {
 				};
 				content: {
 					'application/json': unknown;
+				};
+			};
+		};
+	};
+	webhook_trigger_api_webhooks_trigger__workflow_id__post: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				workflow_id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Successful Response */
+			202: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': unknown;
+				};
+			};
+			/** @description Validation Error */
+			422: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['HTTPValidationError'];
 				};
 			};
 		};

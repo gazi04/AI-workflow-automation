@@ -1,12 +1,42 @@
 <script lang="ts">
 	import { catalogStore } from '$lib/store/catalogStore.svelte';
 	import { formatLabel } from '$lib/utils';
-	import { X, Trash2 } from 'lucide-svelte';
+	import { X, Trash2, Copy, Check } from 'lucide-svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Textarea } from '$lib/components/ui/textarea';
+	import CronField from './CronField.svelte';
+	import { BASE_URL } from '$lib/api/client';
 
-	let { node = $bindable(), nodes = [], onClose, onDelete } = $props();
+	let {
+		node = $bindable(),
+		nodes = [],
+		workflowId = null,
+		webhookSecret = null,
+		onClose,
+		onDelete
+	}: {
+		node: any;
+		nodes?: any[];
+		workflowId?: string | null;
+		webhookSecret?: string | null;
+		onClose: () => void;
+		onDelete: () => void;
+	} = $props();
+
+	let webhookUrl = $derived(
+		workflowId && workflowId !== 'new' ? `${BASE_URL}/api/webhooks/trigger/${workflowId}` : ''
+	);
+	let copied = $state('');
+	async function copy(text: string, which: string) {
+		try {
+			await navigator.clipboard.writeText(text);
+			copied = which;
+			setTimeout(() => (copied = ''), 1500);
+		} catch {
+			/* clipboard unavailable */
+		}
+	}
 
 	let availableVariables = $derived.by(() => {
 		const vars: { label: string; value: string }[] = [];
@@ -163,6 +193,8 @@
 								<option value={option}>{option}</option>
 							{/each}
 						</select>
+					{:else if field.type === 'cron'}
+						<CronField bind:value={node.data.config[field.key]} />
 					{:else if field.type === 'rule_builder'}
 						<div class="space-y-3">
 							<div class="flex items-center justify-between">
@@ -248,6 +280,47 @@
 					</p>
 				</div>
 			{/each}
+		{/if}
+
+		{#if node.data.type === 'webhook'}
+			<div class="space-y-2 rounded-md border bg-muted/30 p-3">
+				<Label class="text-xs font-bold tracking-tight uppercase">Webhook URL</Label>
+				{#if webhookUrl && webhookSecret}
+					<p class="text-[10px] text-muted-foreground">
+						Send a <code class="rounded bg-slate-100 px-1">POST</code> here to run this workflow.
+					</p>
+					<div class="flex items-center gap-1">
+						<Input value={webhookUrl} readonly class="h-8 text-xs" />
+						<button
+							onclick={() => copy(webhookUrl, 'url')}
+							class="rounded p-1.5 hover:bg-slate-200"
+							title="Copy URL"
+						>
+							{#if copied === 'url'}<Check size={14} />{:else}<Copy size={14} />{/if}
+						</button>
+					</div>
+					<Label class="text-[10px]">Header <code>X-Webhook-Secret</code></Label>
+					<div class="flex items-center gap-1">
+						<Input value={webhookSecret} readonly type="password" class="h-8 text-xs" />
+						<button
+							onclick={() => copy(webhookSecret, 'secret')}
+							class="rounded p-1.5 hover:bg-slate-200"
+							title="Copy secret"
+						>
+							{#if copied === 'secret'}<Check size={14} />{:else}<Copy size={14} />{/if}
+						</button>
+					</div>
+					<p class="text-[10px] text-muted-foreground">
+						Keep this secret private — anyone with it can trigger the workflow. The posted JSON is
+						available downstream as
+						<code class="rounded bg-slate-100 px-1">{`{{${node.id}.body}}`}</code>.
+					</p>
+				{:else}
+					<p class="text-[10px] text-muted-foreground">
+						Save the workflow to generate its webhook URL and secret.
+					</p>
+				{/if}
+			</div>
 		{/if}
 
 		{#if definition && definition.fields.length === 0 && node.data.type !== 'label_email'}

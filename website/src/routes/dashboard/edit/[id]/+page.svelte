@@ -28,6 +28,7 @@
 		description: string;
 		config: any;
 		ui_metadata?: { nodes: Node[]; edges: Edge[] } | null;
+		webhook_secret?: string | null;
 	};
 
 	let isLoading = $state(true);
@@ -238,6 +239,7 @@
 				sessionStorage.removeItem('ai_blueprint');
 
 				workflow.id = res.id;
+				workflow.webhook_secret = res.webhook_secret ?? null;
 				toast.success('Workflow deployed successfully!');
 				goto(`/dashboard/edit/${res.id}`);
 			} else {
@@ -436,6 +438,8 @@
 			<ConfigPanel
 				bind:node={selectedNode}
 				{nodes}
+				workflowId={workflow?.id ?? null}
+				webhookSecret={workflow?.webhook_secret ?? null}
 				onClose={() => (selectedNode = null)}
 				onDelete={deleteSelectedNode}
 			/>
