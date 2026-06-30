@@ -14,6 +14,7 @@ from .trigger import (
     ManualTrigger,
     NewSheetRowTrigger,
     ScheduleTrigger,
+    WebhookTrigger,
     Trigger,
 )
 from .condition_nodes import Condition
@@ -30,6 +31,7 @@ __all__ = [
     "ManualTrigger",
     "NewSheetRowTrigger",
     "ScheduleTrigger",
+    "WebhookTrigger",
     "Trigger",
     "Condition",
     "WorkflowSchema",

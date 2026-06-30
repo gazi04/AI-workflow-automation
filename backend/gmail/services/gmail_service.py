@@ -84,9 +84,7 @@ class GmailService:
         by the next notification (or the staleness takeover).
         """
         with db_session() as db:
-            acc = AccountService.get_account_by_user_and_provider(
-                db, user_id, "google"
-            )
+            acc = AccountService.get_account_by_user_and_provider(db, user_id, "google")
             if acc:
                 acc.last_synced_started_at = None
                 db.commit()
@@ -130,9 +128,9 @@ class GmailService:
             # Record this notification as the newest observed historyId. Done
             # in-memory; the single commit below persists it while still holding
             # the row lock, keeping the defer/claim decision atomic.
-            if account.latest_observed_history_id is None or int(
-                new_history_id
-            ) > int(account.latest_observed_history_id):
+            if account.latest_observed_history_id is None or int(new_history_id) > int(
+                account.latest_observed_history_id
+            ):
                 account.latest_observed_history_id = new_history_id
 
             now = datetime.now(timezone.utc)
@@ -146,9 +144,7 @@ class GmailService:
                 # re-runs one more cumulative fetch after it finishes.
                 account.sync_pending = True
                 db.commit()
-                logger.info(
-                    f"Deferring sync for {email_address} - flagged pending."
-                )
+                logger.info(f"Deferring sync for {email_address} - flagged pending.")
                 return
 
             # Become the owner. The commit releases the row lock; the timestamp
@@ -193,9 +189,7 @@ class GmailService:
                     )
                     GmailService._reset_baseline(user_id, target)
                     return
-                logger.error(
-                    f"Gmail History API error for {email_address}: {error}"
-                )
+                logger.error(f"Gmail History API error for {email_address}: {error}")
                 GmailService._release_lock(user_id)
                 return
             except Exception as e:

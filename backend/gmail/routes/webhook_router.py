@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Request, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -10,9 +12,13 @@ from core.config_loader import settings
 from core.database import get_db
 from core.setup_logging import setup_logger
 from gmail.services import GmailService
+from orchestration.services import DeploymentService
 from user.models.user import User
+from workflow.schemas import WorkflowExecutionConfig
+from workflow.services import WorkflowService
 
 import base64
+import hmac
 import json
 
 
@@ -35,7 +41,7 @@ def _verify_pubsub_token(request: Request) -> None:
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized"
         )
 
-    token = auth_header[len("Bearer "):]
+    token = auth_header[len("Bearer ") :]
     try:
         google_id_token.verify_oauth2_token(
             token,
@@ -75,6 +81,77 @@ async def listen_gmail(
         AccountService.update_history_id(
             db, google_account, watch_response["historyId"]
         )
+
+
+def _find_webhook_trigger_node_id(config: WorkflowExecutionConfig) -> str | None:
+    """Return the id of the workflow's webhook trigger start node, if any."""
+    for node_id in config.start_node_ids:
+        node = config.nodes.get(node_id)
+        if node and node.type == "trigger" and node.config.type == "webhook":
+            return node_id
+    return None
+
+
+@webhook_router.post("/trigger/{workflow_id}", status_code=status.HTTP_202_ACCEPTED)
+async def webhook_trigger(
+    workflow_id: UUID,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """
+    Generic HTTP webhook entry point. An external caller starts a workflow by
+    POSTing here with the workflow's per-workflow secret in the
+    `X-Webhook-Secret` header (falling back to a `?secret=` query param).
+    """
+    workflow = WorkflowService.get_by_id(db, workflow_id)
+
+    # 404 (not 401) on a missing/inactive/non-webhook workflow so we never leak
+    # which workflow ids exist or whether one has a webhook trigger.
+    if not workflow or not workflow.is_active or not workflow.webhook_secret:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+
+    config = WorkflowExecutionConfig.model_validate(workflow.config)
+    node_id = _find_webhook_trigger_node_id(config)
+    if node_id is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+
+    supplied_secret = request.headers.get(
+        "X-Webhook-Secret"
+    ) or request.query_params.get("secret", "")
+    if not supplied_secret or not hmac.compare_digest(
+        supplied_secret, workflow.webhook_secret
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized"
+        )
+
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    # Strip credential-bearing headers before exposing them to the workflow.
+    safe_headers = {
+        k: v
+        for k, v in request.headers.items()
+        if k.lower() not in ("x-webhook-secret", "authorization", "cookie")
+    }
+
+    trigger_context = {
+        "trigger_context": {
+            "webhook_payload": {
+                "body": body,
+                "headers": safe_headers,
+                "query": dict(request.query_params),
+            },
+            "matched_trigger_node_id": node_id,
+        }
+    }
+
+    background_tasks.add_task(DeploymentService.run, workflow.id, trigger_context)
+
+    return {"status": "accepted"}
 
 
 @webhook_router.post("/gmail")

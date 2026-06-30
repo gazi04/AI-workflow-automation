@@ -172,8 +172,18 @@ async def create_workflow(
             user.id, schema
         )
 
+        webhook_secret = (
+            WorkflowService.generate_webhook_secret()
+            if WorkflowService.schema_has_webhook_trigger(schema)
+            else None
+        )
+
         new_workflow = WorkflowService.create(
-            db=db, workflow_id=deployment_id, user_id=user.id, schema=schema
+            db=db,
+            workflow_id=deployment_id,
+            user_id=user.id,
+            schema=schema,
+            webhook_secret=webhook_secret,
         )
 
         return new_workflow

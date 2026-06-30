@@ -57,6 +57,10 @@ def execute_automation_flow(
         ctx_data = trigger_context or {}
 
     original_email = ctx_data.get("original_email")
+    # The trigger payload bound into run_context for {{node.x}} resolution.
+    # Email triggers pass original_email; the generic webhook trigger passes
+    # webhook_payload ({body, headers, query}). Both land at the start node.
+    trigger_payload = original_email or ctx_data.get("webhook_payload")
     matched_trigger_node_id = ctx_data.get("matched_trigger_node_id")
 
     # Fallback for manual or scheduled triggers where the node ID might not be explicitly passed yet
@@ -74,10 +78,10 @@ def execute_automation_flow(
         set()
     )  # To prevent infinite loops if the user accidentally created a cycle
 
-    run_context = {"trigger": original_email or {}, "node_outputs": {}}
+    run_context = {"trigger": trigger_payload or {}, "node_outputs": {}}
 
     if matched_trigger_node_id:
-        run_context[matched_trigger_node_id] = original_email or {}
+        run_context[matched_trigger_node_id] = trigger_payload or {}
 
     email_dependent_actions = {"reply_email", "label_email", "smart_draft"}
     adjacency_list = build_adjacency_list(workflow.edges)
@@ -131,7 +135,9 @@ def execute_automation_flow(
                 )
                 run_context["node_outputs"][current_node_id] = {"error": str(e)}
                 failed_nodes[current_node_id] = str(e)
-                emit("node_failed", current_node_id, node_type="condition", error=str(e))
+                emit(
+                    "node_failed", current_node_id, node_type="condition", error=str(e)
+                )
                 # Prune: route neither handle, don't queue downstream.
                 continue
         elif node.type == "action":
@@ -238,7 +244,7 @@ def execute_automation_flow(
         run_logger,
         user_id=user_id,
         workflow_id=workflow_id,
-        trigger_data=original_email or None,
+        trigger_data=trigger_payload or None,
         node_outputs=run_context["node_outputs"],
         failed_nodes=failed_nodes,
         duration_ms=int((time.monotonic() - started_at) * 1000),

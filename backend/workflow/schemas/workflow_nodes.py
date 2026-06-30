@@ -15,6 +15,7 @@ from workflow.schemas.trigger import (
     ManualTrigger,
     NewSheetRowTrigger,
     ScheduleTrigger,
+    WebhookTrigger,
 )
 
 
@@ -24,6 +25,7 @@ NodeConfig = Annotated[
         ManualTrigger,
         NewSheetRowTrigger,
         ScheduleTrigger,
+        WebhookTrigger,
         SendSlackMessageAction,
         SendEmailAction,
         ReplyEmailAction,

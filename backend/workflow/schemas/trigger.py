@@ -16,8 +16,12 @@ class NewSheetRowConfig(BaseModel):
 
 
 class ScheduleConfig(BaseModel):
-    cron: str = Field(..., json_schema_extra={"example": "0 9 * * *"})
-    description: str
+    cron: str = Field(..., json_schema_extra={"widget": "cron", "example": "0 9 * * *"})
+    description: str = "Runs on a schedule"
+
+
+class WebhookConfig(BaseModel):
+    description: str = "Triggered by an HTTP request"
 
 
 class ManualTrigger(BaseModel):
@@ -72,7 +76,26 @@ class ScheduleTrigger(BaseModel):
     )
 
 
+class WebhookTrigger(BaseModel):
+    type: Literal["webhook"]
+    config: WebhookConfig
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "category": "Developer",
+            "icon": "lucide-webhook",
+            "outputs": ["body", "headers", "query"],
+        }
+    )
+
+
 Trigger = Annotated[
-    Union[EmailReceivedTrigger, ManualTrigger, NewSheetRowTrigger, ScheduleTrigger],
+    Union[
+        EmailReceivedTrigger,
+        ManualTrigger,
+        NewSheetRowTrigger,
+        ScheduleTrigger,
+        WebhookTrigger,
+    ],
     Field(discriminator="type"),
 ]

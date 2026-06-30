@@ -35,6 +35,10 @@ class Workflow(Base):
     config: Mapped[dict] = mapped_column(JSONB, nullable=False)
     version: Mapped[int] = mapped_column(Integer, default=1)
     ui_metadata: Mapped[dict] = mapped_column(JSONB, nullable=True)
+    # Per-workflow secret for the generic webhook trigger; only set when the
+    # workflow has a `webhook` trigger node. Acts as the credential a caller
+    # passes in the X-Webhook-Secret header to POST /api/webhooks/trigger/{id}.
+    webhook_secret: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
