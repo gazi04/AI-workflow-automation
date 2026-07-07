@@ -73,8 +73,13 @@ class GmailHistoryProcessor:
             if not page_token:
                 break
 
+        active_workflows = None
+        if unique_message_ids:
+            with db_session() as db:
+                active_workflows = self._load_active_workflows(db)
+
         for message_id in unique_message_ids:
-            self._process_single_message(message_id)
+            self._process_single_message(message_id, active_workflows)
 
         if self._trigger_failed:
             raise DeploymentTriggerError(
@@ -90,7 +95,19 @@ class GmailHistoryProcessor:
                 message_id = message_item["message"]["id"]
                 sink.add(message_id)
 
-    def _process_single_message(self, message_id: str):
+    def _load_active_workflows(self, db):
+        workflows = WorkflowService.get_by_user_id(db, self.user_id)
+        active = []
+        for workflow in workflows:
+            if not workflow.is_active:
+                continue
+
+            workflow_config = WorkflowExecutionConfig.model_validate(workflow.config)
+            active.append((workflow, workflow_config))
+
+        return active
+
+    def _process_single_message(self, message_id: str, active_workflows=None):
         try:
             raw_message = (
                 self.service.users()
@@ -133,16 +150,11 @@ class GmailHistoryProcessor:
             email_subject = email_data["subject"].lower()
 
             with db_session() as db:
-                # ⚡ todo: improve performance by caching the workflows
-                workflows = WorkflowService.get_by_user_id(db, self.user_id)
+                workflows = active_workflows
+                if workflows is None:
+                    workflows = self._load_active_workflows(db)
 
-                for workflow in workflows:
-                    if not workflow.is_active:
-                        continue
-
-                    workflow_config = WorkflowExecutionConfig.model_validate(
-                        workflow.config
-                    )
+                for workflow, workflow_config in workflows:
                     start_node_ids = workflow_config.start_node_ids
                     nodes = workflow_config.nodes
 
