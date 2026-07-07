@@ -1,4 +1,5 @@
 import typing
+from functools import lru_cache
 
 from pydantic import BaseModel, EmailStr
 from pydantic.fields import FieldInfo
@@ -76,6 +77,7 @@ def _build_node_definitions(union_type) -> list[NodeDefinition]:
     return nodes
 
 
+@lru_cache(maxsize=1)
 def build_catalog() -> WorkflowCatalog:
     """
     Introspects the Trigger and Action unions and returns a structured
