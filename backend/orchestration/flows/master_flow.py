@@ -1,4 +1,5 @@
 import time
+from collections import deque
 from uuid import UUID
 from prefect import flow, get_run_logger
 from prefect.runtime import (
@@ -73,7 +74,7 @@ def execute_automation_flow(
         logger.error("No valid starting node found for this workflow.")
         return
 
-    queue = [matched_trigger_node_id]
+    queue = deque([matched_trigger_node_id])
     visited = (
         set()
     )  # To prevent infinite loops if the user accidentally created a cycle
@@ -109,90 +110,171 @@ def execute_automation_flow(
         )
 
     while queue:
-        current_node_id = queue.pop(0)
+        # Process one BFS level (wave) at a time: submit every action node's
+        # task in this wave before waiting on any of them, so independent
+        # branches actually run concurrently on Prefect's default
+        # ThreadPoolTaskRunner instead of one-at-a-time.
+        level_size = len(queue)
+        pending_actions: Dict[str, Dict[str, Any]] = {}
 
-        if current_node_id in visited:
-            continue
-        visited.add(current_node_id)
+        for _ in range(level_size):
+            current_node_id = queue.popleft()
 
-        node = workflow.nodes.get(current_node_id)
-        if not node:
-            continue
-
-        condition_result = None
-
-        if node.type == "condition":
-            emit("node_started", current_node_id, node_type="condition")
-            try:
-                condition_result = evaluate_condition(node.config, run_context)
-                run_context["node_outputs"][current_node_id] = {
-                    "result": condition_result
-                }
-                emit("node_completed", current_node_id, node_type="condition")
-            except Exception as e:
-                run_logger.error(
-                    f"Condition node '{current_node_id}' failed to evaluate: {e}"
-                )
-                run_context["node_outputs"][current_node_id] = {"error": str(e)}
-                failed_nodes[current_node_id] = str(e)
-                emit(
-                    "node_failed", current_node_id, node_type="condition", error=str(e)
-                )
-                # Prune: route neither handle, don't queue downstream.
+            if current_node_id in visited:
                 continue
-        elif node.type == "action":
-            # node.config is the Action model, node.config.config is the actual action data
-            action_type = node.config.type
-            raw_action_data = node.config.config
+            visited.add(current_node_id)
 
-            emit("node_started", current_node_id, node_type="action")
+            node = workflow.nodes.get(current_node_id)
+            if not node:
+                continue
+
+            if node.type == "condition":
+                emit("node_started", current_node_id, node_type="condition")
+                try:
+                    condition_result = evaluate_condition(node.config, run_context)
+                    run_context["node_outputs"][current_node_id] = {
+                        "result": condition_result
+                    }
+                    emit("node_completed", current_node_id, node_type="condition")
+                except Exception as e:
+                    run_logger.error(
+                        f"Condition node '{current_node_id}' failed to evaluate: {e}"
+                    )
+                    run_context["node_outputs"][current_node_id] = {"error": str(e)}
+                    failed_nodes[current_node_id] = str(e)
+                    emit(
+                        "node_failed",
+                        current_node_id,
+                        node_type="condition",
+                        error=str(e),
+                    )
+                    # Prune: route neither handle, don't queue downstream.
+                    continue
+
+                outgoing_edges = adjacency_list.get(current_node_id, [])
+                expected_handle = "true_path" if condition_result else "false_path"
+                path_continued = False
+
+                for edge in outgoing_edges:
+                    if edge.sourceHandle == expected_handle:
+                        queue.append(edge.target)
+                        path_continued = True
+
+                if not path_continued:
+                    logger.info(
+                        f"🚦 Path stopped at condition node '{current_node_id}'. "
+                        f"Evaluated to '{expected_handle}', but no edges are connected to this path."
+                    )
+                    print(
+                        f"🚦 Flow path naturally stopped: Condition '{current_node_id}' routed to an empty '{expected_handle}'."
+                    )
+                continue
+
+            elif node.type == "action":
+                # node.config is the Action model, node.config.config is the actual action data
+                action_type = node.config.type
+                raw_action_data = node.config.config
+
+                emit("node_started", current_node_id, node_type="action")
+                try:
+                    # Resolution lives inside the try so that a reference to an
+                    # already-failed node ({{failed.body}}) surfaces as this node's
+                    # failure instead of crashing the whole run.
+                    resolved_dict = resolve_variables(
+                        raw_action_data.model_dump(), run_context
+                    )
+                    action_data = type(raw_action_data)(**resolved_dict)
+
+                    if action_type in email_dependent_actions and not original_email:
+                        logger.error(
+                            f"Action '{action_type}' on node '{current_node_id}' requires an email trigger context but none was provided."
+                        )
+                        raise ValueError(
+                            "Action requires an email trigger context, but none was provided."
+                        )
+
+                    if action_type == "send_email":
+                        future = send_message.submit(
+                            user_id,
+                            action_data.to,
+                            action_data.subject,
+                            action_data.body,
+                        )
+
+                    elif action_type == "reply_email":
+                        future = reply_email.submit(
+                            user_id, action_data.body, original_email
+                        )
+
+                    elif action_type == "label_email":
+                        future = label_mail.submit(
+                            user_id, action_data.label_info, original_email
+                        )
+
+                    elif action_type == "smart_draft":
+                        future = smart_draft.submit(
+                            user_id, original_email, action_data.user_prompt
+                        )
+
+                    elif action_type == "send_slack_message":
+                        raise NotImplementedError()
+
+                    elif action_type == "create_document":
+                        raise NotImplementedError()
+
+                    # Don't wait here — stash the future and resolve it after the
+                    # whole level has been submitted, so siblings run concurrently.
+                    pending_actions[current_node_id] = {
+                        "future": future,
+                        "action_type": action_type,
+                    }
+
+                except Exception as e:
+                    run_logger.error(
+                        f"Action '{action_type}' on node '{current_node_id}' failed: {e}"
+                    )
+                    run_context["node_outputs"][current_node_id] = {"error": str(e)}
+                    failed_nodes[current_node_id] = str(e)
+                    emit(
+                        "node_failed", current_node_id, node_type="action", error=str(e)
+                    )
+                    # Prune: don't queue this node's downstream children.
+                continue
+
+            else:
+                # Trigger nodes (and any other non-condition/action type) pass
+                # straight through to their outgoing edges.
+                outgoing_edges = adjacency_list.get(current_node_id, [])
+                if not outgoing_edges:
+                    logger.info(
+                        f"🏁 Path stopped at node '{current_node_id}'. No further outgoing edges found."
+                    )
+                    print(
+                        f"🏁 Flow path naturally stopped: Node '{current_node_id}' is the end of the line."
+                    )
+                for edge in outgoing_edges:
+                    queue.append(edge.target)
+
+        # Resolve this level's action tasks. Every one was already submitted
+        # above, so Prefect's ThreadPoolTaskRunner (the flow's default) runs
+        # them concurrently — these .result() calls just wait for completion.
+        for current_node_id, pending in pending_actions.items():
+            action_type = pending["action_type"]
             try:
-                # Resolution lives inside the try so that a reference to an
-                # already-failed node ({{failed.body}}) surfaces as this node's
-                # failure instead of crashing the whole run.
-                resolved_dict = resolve_variables(
-                    raw_action_data.model_dump(), run_context
-                )
-                action_data = type(raw_action_data)(**resolved_dict)
-
-                if action_type in email_dependent_actions and not original_email:
-                    logger.error(
-                        f"Action '{action_type}' on node '{current_node_id}' requires an email trigger context but none was provided."
-                    )
-                    raise ValueError(
-                        "Action requires an email trigger context, but none was provided."
-                    )
-
-                result = None
-
-                if action_type == "send_email":
-                    result = send_message.submit(
-                        user_id, action_data.to, action_data.subject, action_data.body
-                    ).result()
-
-                elif action_type == "reply_email":
-                    result = reply_email.submit(
-                        user_id, action_data.body, original_email
-                    ).result()
-
-                elif action_type == "label_email":
-                    result = label_mail.submit(
-                        user_id, action_data.label_info, original_email
-                    ).result()
-
-                elif action_type == "smart_draft":
-                    result = smart_draft.submit(
-                        user_id, original_email, action_data.user_prompt
-                    ).result()
-
-                elif action_type == "send_slack_message":
-                    raise NotImplementedError()
-
-                elif action_type == "create_document":
-                    raise NotImplementedError()
-
+                result = pending["future"].result()
                 run_context["node_outputs"][current_node_id] = result
                 emit("node_completed", current_node_id, node_type="action")
+
+                outgoing_edges = adjacency_list.get(current_node_id, [])
+                if not outgoing_edges:
+                    logger.info(
+                        f"🏁 Path stopped at node '{current_node_id}'. No further outgoing edges found."
+                    )
+                    print(
+                        f"🏁 Flow path naturally stopped: Node '{current_node_id}' is the end of the line."
+                    )
+                for edge in outgoing_edges:
+                    queue.append(edge.target)
 
             except Exception as e:
                 run_logger.error(
@@ -202,40 +284,6 @@ def execute_automation_flow(
                 failed_nodes[current_node_id] = str(e)
                 emit("node_failed", current_node_id, node_type="action", error=str(e))
                 # Prune: don't queue this node's downstream children.
-                continue
-
-        outgoing_edges = adjacency_list.get(current_node_id, [])
-
-        if node.type == "condition":
-            expected_handle = "true_path" if condition_result else "false_path"
-            path_continued = False
-
-            for edge in outgoing_edges:
-                if edge.sourceHandle == expected_handle:
-                    queue.append(edge.target)
-                    path_continued = True
-
-            if not path_continued:
-                logger.info(
-                    f"🚦 Path stopped at condition node '{current_node_id}'. "
-                    f"Evaluated to '{expected_handle}', but no edges are connected to this path."
-                )
-                print(
-                    f"🚦 Flow path naturally stopped: Condition '{current_node_id}' routed to an empty '{expected_handle}'."
-                )
-
-            continue
-
-        if not outgoing_edges:
-            logger.info(
-                f"🏁 Path stopped at node '{current_node_id}'. No further outgoing edges found."
-            )
-            print(
-                f"🏁 Flow path naturally stopped: Node '{current_node_id}' is the end of the line."
-            )
-
-        for edge in outgoing_edges:
-            queue.append(edge.target)
 
     # Persist a per-node audit record so the failure is durable and the WS poll
     # loop can surface a node_failed event. Wrapped so an audit-write failure
