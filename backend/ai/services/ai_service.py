@@ -1,3 +1,4 @@
+from functools import lru_cache
 from typing import Any, Dict, Optional
 from azure.ai.inference import ChatCompletionsClient
 from azure.ai.inference.models import SystemMessage, UserMessage
@@ -15,6 +16,7 @@ logger = setup_logger("AI Service")
 
 class AiService:
     @staticmethod
+    @lru_cache(maxsize=1)
     def __get_azure_client():
         """Initialize and return the Azure ChatCompletionsClient"""
         if not settings.azure_api_key:
