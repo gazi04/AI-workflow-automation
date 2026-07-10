@@ -1,3 +1,4 @@
+from collections import deque
 from pydantic import BaseModel, Field, model_validator
 from typing import Dict, List, Optional
 
@@ -88,9 +89,9 @@ class WorkflowExecutionConfig(BaseModel):
         reachable_nodes = set(self.start_node_ids)
         adj_list = build_adjacency_list(self.edges)
 
-        queue = list(self.start_node_ids)
+        queue = deque(self.start_node_ids)
         while queue:
-            current = queue.pop(0)
+            current = queue.popleft()
             for edge in adj_list.get(current, []):
                 if edge.target not in reachable_nodes:
                     reachable_nodes.add(edge.target)
