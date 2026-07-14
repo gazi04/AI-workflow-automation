@@ -7,6 +7,8 @@ from fastapi.responses import JSONResponse
 
 from core.cookies import CSRF_COOKIE
 from core.event_listener import listener
+from core.setup_logging import setup_logger
+from scripts.register_renewal import register_renewal_deployment
 from auth.routes import auth_router, connection_router
 from ai.routes.ai_router import ai_router
 from gmail.routes.webhook_router import webhook_router
@@ -18,12 +20,24 @@ from workflow.routes.workflow_router import workflow_router
 # in the mapper of defining relantionships
 import core.models  # noqa: F401
 
+logger = setup_logger("main")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Start the Postgres LISTEN thread so worker-emitted node events reach
     # connected WebSockets. Pass the running loop for run_coroutine_threadsafe.
     listener.start(asyncio.get_running_loop())
+
+    # Register the daily Gmail-watch renewal deployment. Best-effort: a Prefect
+    # outage must not block API boot — the manual script remains a fallback.
+    try:
+        await register_renewal_deployment()
+    except Exception as e:
+        logger.warning(
+            f"Gmail watch-renewal deployment not registered at startup: {e}"
+        )
+
     try:
         yield
     finally:

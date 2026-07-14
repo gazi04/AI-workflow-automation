@@ -52,9 +52,7 @@ def renew_gmail_watches():
                     AccountService.update_history_id(db, account, resp["historyId"])
                 logger.info(f"Re-watched account for user {user_id}")
             else:
-                logger.warning(
-                    f"Re-watch returned no historyId for user {user_id}"
-                )
+                logger.warning(f"Re-watch returned no historyId for user {user_id}")
         except Exception as e:
             # One bad account must not abort the rest of the batch.
             logger.error(f"Re-watch failed for user {user_id}: {e}")
