@@ -114,10 +114,8 @@ class AiService:
 
     @staticmethod
     def health_check() -> dict:
-        client = AiService.__get_azure_client()
-        client.complete(
-            messages=[UserMessage("Hello")],
-            model=settings.azure_model,
-            max_tokens=10,
-        )
+        # Construct-only check: verifies the Azure client is configured
+        # (raises if the API key is missing) without issuing a billable
+        # completion. A health probe must never cost money per hit.
+        AiService.__get_azure_client()
         return {"status": "healthy", "azure_connected": True}

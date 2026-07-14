@@ -5,8 +5,13 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+
+from core.config_loader import settings
 from core.cookies import CSRF_COOKIE
 from core.event_listener import listener
+from core.rate_limit import limiter
 from core.setup_logging import setup_logger
 from scripts.register_renewal import register_renewal_deployment
 from auth.routes import auth_router, connection_router
@@ -31,12 +36,13 @@ async def lifespan(app: FastAPI):
 
     # Register the daily Gmail-watch renewal deployment. Best-effort: a Prefect
     # outage must not block API boot — the manual script remains a fallback.
-    try:
-        await register_renewal_deployment()
-    except Exception as e:
-        logger.warning(
-            f"Gmail watch-renewal deployment not registered at startup: {e}"
-        )
+    if settings.register_renewal_on_startup:
+        try:
+            await register_renewal_deployment()
+        except Exception as e:
+            logger.warning(
+                f"Gmail watch-renewal deployment not registered at startup: {e}"
+            )
 
     try:
         yield
@@ -45,6 +51,10 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="AI Workflow Orchestrator API", lifespan=lifespan)
+
+# Rate limiting (slowapi): register the shared limiter and its 429 handler.
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.include_router(auth_router, prefix="/api")
 app.include_router(connection_router, prefix="/api")

@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from ai.schemas.ai_response import AIResponse
 from ai.services.ai_service import AiService
 from auth.depedencies import get_current_user
+from core.rate_limit import limiter
 from core.setup_logging import setup_logger
 from user.models.user import User
 from user.schemas.user_request import UserRequest
@@ -13,7 +14,9 @@ ai_router = APIRouter(prefix="/ai", tags=["AI"])
 
 
 @ai_router.post("/interpret", response_model=AIResponse)
+@limiter.limit("10/minute")
 async def interpret_command(
+    request: Request,
     user_request: UserRequest,
     user: User = Depends(get_current_user),
 ):
@@ -47,7 +50,8 @@ async def interpret_command(
 
 
 @ai_router.get("/health")
-async def health():
+@limiter.limit("30/minute")
+async def health(request: Request):
     """Health check endpoint to verify Azure connection"""
     try:
         return AiService.health_check()

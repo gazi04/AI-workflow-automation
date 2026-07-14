@@ -21,6 +21,14 @@ class Settings(BaseSettings):
 
     database_url: str
 
+    # Rate limiting (slowapi). Disabled in the test suite so shared endpoints
+    # don't flake; a dedicated test flips it back on.
+    rate_limit_enabled: bool = True
+
+    # Register the daily Gmail-watch renewal deployment on API startup. Disabled
+    # in tests so the TestClient lifespan doesn't block retrying Prefect.
+    register_renewal_on_startup: bool = True
+
     azure_endpoint: str
     azure_model: str
     azure_api_key: str

@@ -21,6 +21,7 @@ from auth.utils import (
     hash_refresh_token,
 )
 from core.config_loader import settings
+from core.rate_limit import limiter
 from core.cookies import (
     REFRESH_COOKIE,
     clear_auth_cookies,
@@ -44,7 +45,8 @@ async def protected_route(user: User = Depends(get_current_user)):
 
 
 @auth_router.get("/exchange")
-def exchange_code(code: str, db: Session = Depends(get_db)):
+@limiter.limit("20/minute")
+def exchange_code(request: Request, code: str, db: Session = Depends(get_db)):
     """Exchange a short-lived one-time code for auth cookies.
 
     Tokens are set as HttpOnly cookies (plus a readable CSRF cookie) instead of
@@ -66,6 +68,7 @@ def exchange_code(code: str, db: Session = Depends(get_db)):
 
 
 @auth_router.post("/refresh")
+@limiter.limit("20/minute")
 async def refresh_access_token(request: Request, db: Session = Depends(get_db)):
     """Rotate tokens using the refresh-token cookie; set the new tokens as cookies."""
     refresh_token = request.cookies.get(REFRESH_COOKIE)
