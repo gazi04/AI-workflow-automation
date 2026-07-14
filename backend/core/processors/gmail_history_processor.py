@@ -1,4 +1,5 @@
 import base64
+from email.utils import parseaddr
 from uuid import UUID
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -175,8 +176,16 @@ class GmailHistoryProcessor:
                             trigger_from = (
                                 (node_config.config.from_email or "").strip().lower()
                             )
-                            if trigger_from and trigger_from not in email_from:
-                                continue
+                            if trigger_from:
+                                # Match the sender's address exactly, not as a
+                                # substring — otherwise a from_email of "o.com"
+                                # matches almost anything. parseaddr pulls the
+                                # bare address out of a "Name <addr>" header.
+                                _, sender_addr = parseaddr(email_from)
+                                _, trigger_addr = parseaddr(trigger_from)
+                                trigger_addr = trigger_addr or trigger_from
+                                if sender_addr != trigger_addr:
+                                    continue
 
                             trigger_subject = (
                                 (node_config.config.subject_contains or "")
