@@ -2,7 +2,7 @@ from datetime import datetime, timezone, timedelta
 
 from sqlalchemy.orm import Session
 
-from auth.models.oath_state import OAuthState
+from auth.models.oauth_state import OAuthState
 
 _STATE_TTL_MINUTES = 10
 
