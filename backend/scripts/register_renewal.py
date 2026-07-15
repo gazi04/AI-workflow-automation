@@ -1,11 +1,11 @@
-"""Register the daily Gmail-watch renewal deployment with Prefect.
+"""Register the daily system-maintenance deployments with Prefect.
 
-Run manually (and after any change to the flow) from `backend/`:
+Run manually (and after any change to the flows) from `backend/`:
 
     uv run python -m scripts.register_renewal
 
 Also imported by `main.py`'s lifespan so a `docker compose up` registers the
-deployment automatically. Requires the `my-process-pool` worker to execute
+deployments automatically. Requires the `my-process-pool` worker to execute
 scheduled runs.
 """
 
@@ -14,6 +14,7 @@ import asyncio
 from prefect.client.schemas.schedules import CronSchedule
 
 from orchestration.flows.renew_watches_flow import renew_gmail_watches
+from orchestration.flows.cleanup_auth_flow import cleanup_expired_auth
 
 
 async def register_renewal_deployment(retries: int = 5, delay: float = 3.0):
@@ -46,9 +47,38 @@ async def register_renewal_deployment(retries: int = 5, delay: float = 3.0):
     raise last_err
 
 
+async def register_cleanup_deployment(retries: int = 5, delay: float = 3.0):
+    """Register (or refresh) the daily expired-auth cleanup deployment.
+
+    Same idempotent-upsert + retry contract as `register_renewal_deployment`.
+    """
+    flow_from_source = await cleanup_expired_auth.from_source(
+        source=".",
+        entrypoint="orchestration/flows/cleanup_auth_flow.py:cleanup_expired_auth",
+    )
+
+    last_err = None
+    for _ in range(retries):
+        try:
+            return await flow_from_source.deploy(
+                name="cleanup-expired-auth-daily",
+                schedule=CronSchedule(cron="15 3 * * *", timezone="UTC"),  # daily 03:15 UTC
+                tags=["system", "auth-maintenance"],
+                work_pool_name="my-process-pool",
+                build=False,
+            )
+        except Exception as e:  # prefect API not up yet / transient
+            last_err = e
+            await asyncio.sleep(delay)
+
+    raise last_err
+
+
 async def main():
-    deployment_id = await register_renewal_deployment()
-    print(f"✅ Deployment registered: renew-gmail-watches-daily (ID: {deployment_id})")
+    renewal_id = await register_renewal_deployment()
+    print(f"✅ Deployment registered: renew-gmail-watches-daily (ID: {renewal_id})")
+    cleanup_id = await register_cleanup_deployment()
+    print(f"✅ Deployment registered: cleanup-expired-auth-daily (ID: {cleanup_id})")
 
 
 if __name__ == "__main__":

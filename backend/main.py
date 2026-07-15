@@ -13,7 +13,10 @@ from core.cookies import CSRF_COOKIE
 from core.event_listener import listener
 from core.rate_limit import limiter
 from core.setup_logging import setup_logger
-from scripts.register_renewal import register_renewal_deployment
+from scripts.register_renewal import (
+    register_renewal_deployment,
+    register_cleanup_deployment,
+)
 from auth.routes import auth_router, connection_router
 from ai.routes.ai_router import ai_router
 from gmail.routes.webhook_router import webhook_router
@@ -34,14 +37,20 @@ async def lifespan(app: FastAPI):
     # connected WebSockets. Pass the running loop for run_coroutine_threadsafe.
     listener.start(asyncio.get_running_loop())
 
-    # Register the daily Gmail-watch renewal deployment. Best-effort: a Prefect
+    # Register the daily system-maintenance deployments. Best-effort: a Prefect
     # outage must not block API boot — the manual script remains a fallback.
-    if settings.register_renewal_on_startup:
+    if settings.register_deployments_on_startup:
         try:
             await register_renewal_deployment()
         except Exception as e:
             logger.warning(
                 f"Gmail watch-renewal deployment not registered at startup: {e}"
+            )
+        try:
+            await register_cleanup_deployment()
+        except Exception as e:
+            logger.warning(
+                f"Expired-auth cleanup deployment not registered at startup: {e}"
             )
 
     try:
