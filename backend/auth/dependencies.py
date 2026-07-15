@@ -7,7 +7,7 @@ from core.cookies import ACCESS_COOKIE
 from core.database import get_db
 from user.models.user import User
 from user.services.user_service import UserService
-from utils.security import decode_access_token
+from auth.utils import decode_access_token
 
 import uuid
 

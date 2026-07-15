@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from auth.depedencies import get_current_user
+from auth.dependencies import get_current_user
 from auth.schemas.connection_status_response import (
     SUPPORTED_PROVIDERS,
     ConnectionStatusResponse,

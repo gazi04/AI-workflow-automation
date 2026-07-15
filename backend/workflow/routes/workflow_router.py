@@ -12,10 +12,10 @@ from sqlalchemy.orm import Session
 
 from jwt import PyJWTError
 
-from auth.depedencies import get_current_user
+from auth.dependencies import get_current_user
 from core.database import get_db, db_session
 from core.setup_logging import setup_logger
-from utils.security import decode_access_token
+from auth.utils import decode_access_token
 from orchestration.services import DeploymentService
 from user.models import User
 from utils.catalog_introspector import build_catalog

@@ -6,7 +6,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests
 from sqlalchemy.orm import Session
 
-from auth.depedencies import get_current_user
+from auth.dependencies import get_current_user
 from auth.models import RefreshToken, ConnectedAccount
 from auth.services import (
     AccountService,

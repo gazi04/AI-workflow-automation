@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from ai.schemas.ai_response import AIResponse
 from ai.services.ai_service import AiService
-from auth.depedencies import get_current_user
+from auth.dependencies import get_current_user
 from core.rate_limit import limiter
 from core.setup_logging import setup_logger
 from user.models.user import User
