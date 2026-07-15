@@ -25,9 +25,10 @@ class Settings(BaseSettings):
     # don't flake; a dedicated test flips it back on.
     rate_limit_enabled: bool = True
 
-    # Register the daily Gmail-watch renewal deployment on API startup. Disabled
-    # in tests so the TestClient lifespan doesn't block retrying Prefect.
-    register_renewal_on_startup: bool = True
+    # Register the daily system-maintenance deployments (Gmail-watch renewal,
+    # expired-auth cleanup) on API startup. Disabled in tests so the TestClient
+    # lifespan doesn't block retrying Prefect.
+    register_deployments_on_startup: bool = True
 
     azure_endpoint: str
     azure_model: str
@@ -39,6 +40,11 @@ class Settings(BaseSettings):
 
     google_cloud_email_topic: str
     google_pubsub_audience: str | None = None
+
+    # Fail closed if the Pub/Sub OIDC audience is unset: the Gmail webhook is
+    # rejected (503) rather than silently accepting unverified requests. Set
+    # False only for local dev where the audience isn't configured.
+    require_pubsub_oidc: bool = True
 
     smart_draft_prompt: str = """
 Role: You are an expert customer service representative. Context: The user received the following email. Goal: Draft a concise, professional reply. Do not include placeholders like "[Insert Name]" unless absolutely necessary. Tone: Friendly but professional.

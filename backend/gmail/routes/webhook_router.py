@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from google.oauth2 import id_token as google_id_token
 from google.auth.transport import requests as google_requests
 
-from auth.depedencies import get_current_user
+from auth.dependencies import get_current_user
 from auth.services.account_service import AccountService
 from core.config_loader import settings
 from core.database import get_db
@@ -29,8 +29,18 @@ logger = setup_logger("Webhook router")
 def _verify_pubsub_token(request: Request) -> None:
     """Verify the Google Pub/Sub OIDC token in the Authorization header."""
     if not settings.google_pubsub_audience:
+        if settings.require_pubsub_oidc:
+            logger.error(
+                "GOOGLE_PUBSUB_AUDIENCE not set but require_pubsub_oidc is on — "
+                "refusing the Pub/Sub webhook (fail closed)."
+            )
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Webhook verification not configured",
+            )
         logger.warning(
-            "GOOGLE_PUBSUB_AUDIENCE not configured — Pub/Sub OIDC verification disabled"
+            "GOOGLE_PUBSUB_AUDIENCE not set and require_pubsub_oidc is off — "
+            "Pub/Sub OIDC verification DISABLED (dev only)."
         )
         return
 
@@ -69,10 +79,13 @@ async def listen_gmail(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Google account connection not found for user.",
             )
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"Failed to retrieve connected account for user {user.id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve connected account: {e}",
+            detail="Failed to retrieve connected account.",
         )
 
     watch_response = GmailService.watch_mailbox_for_updates(user_id=user.id)
