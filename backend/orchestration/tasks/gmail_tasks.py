@@ -94,9 +94,9 @@ def create_draft(user_id: UUID, body: str, original_email: Dict[str, Any]):
                 .execute()
             )
 
-            print(f"Draft id: {draft['id']}\nDraft message: {draft['message']}")
+            logger.info(f"Draft id: {draft['id']}\nDraft message: {draft['message']}")
     except HttpError as error:
-        print(f"An error occurred: {error}")
+        logger.error(f"Http error occurred while creating draft: {error}")
         raise error
 
     return draft
@@ -131,13 +131,11 @@ def send_message(user_id: UUID, to: str, subject: str, body: str):
                 .send(userId="me", body=create_message)
                 .execute()
             )
-            print(f"Message Id: {send_message['id']}")
+            logger.info(f"Message Id: {send_message['id']}")
     except HttpError as error:
-        print(f"An http error occurred: {error}")
         logger.error(f"Http error occurred: \n {error}")
         raise error
     except Exception as error:
-        print(f"An error occurred: {error}")
         logger.error(f"Unhandled error occurred: \n {error}")
         raise error
 
@@ -186,11 +184,9 @@ def reply_email(user_id: UUID, body: str, original_email: Dict[str, Any]):
                 .execute()
             )
     except HttpError as error:
-        print(f"An http error occurred: {error}")
         logger.error(f"Http error occurred: \n {error}")
         raise error
     except Exception as error:
-        print(f"An error occurred: {error}")
         logger.error(f"Unhandled error occurred: \n {error}")
         raise error
 
@@ -218,7 +214,6 @@ def label_mail(
                 logger.info(
                     f"Label {label_info.name} doesn't exists, we're creating it..."
                 )
-                print("Label doesn't exists, we're creating it...")
 
                 if not label_info.labelListVisibility:
                     label_info.labelListVisibility = LabelListVisibility.LABEL_SHOW
@@ -237,7 +232,7 @@ def label_mail(
                     .execute()
                 )
 
-                print("The label is created with success")
+                logger.info("The label is created with success")
 
             label_id = label_exists.get("id", None)
             message_id = original_email.get("message_id", None)
@@ -256,11 +251,9 @@ def label_mail(
 
         return modify_result
     except HttpError as error:
-        print(f"An http error occurred: {error}")
         logger.error(f"Http error occurred: \n {error}")
         raise error
     except Exception as error:
-        print(f"An error occurred: {error}")
         logger.error(f"Unhandled error: {error}")
         raise error
 

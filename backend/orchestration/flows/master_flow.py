@@ -49,7 +49,7 @@ def execute_automation_flow(
 
     workflow = schema.execution_config
 
-    print(f"🚀 Starting Workflow: {schema.name}")
+    logger.info(f"🚀 Starting Workflow: {schema.name}")
 
     # ♻️ todo: refactor the trigger context into a pydantic schema
     if trigger_context and "trigger_context" in trigger_context:
@@ -165,9 +165,6 @@ def execute_automation_flow(
                         f"🚦 Path stopped at condition node '{current_node_id}'. "
                         f"Evaluated to '{expected_handle}', but no edges are connected to this path."
                     )
-                    print(
-                        f"🚦 Flow path naturally stopped: Condition '{current_node_id}' routed to an empty '{expected_handle}'."
-                    )
                 continue
 
             elif node.type == "action":
@@ -249,9 +246,6 @@ def execute_automation_flow(
                     logger.info(
                         f"🏁 Path stopped at node '{current_node_id}'. No further outgoing edges found."
                     )
-                    print(
-                        f"🏁 Flow path naturally stopped: Node '{current_node_id}' is the end of the line."
-                    )
                 for edge in outgoing_edges:
                     queue.append(edge.target)
 
@@ -269,9 +263,6 @@ def execute_automation_flow(
                 if not outgoing_edges:
                     logger.info(
                         f"🏁 Path stopped at node '{current_node_id}'. No further outgoing edges found."
-                    )
-                    print(
-                        f"🏁 Flow path naturally stopped: Node '{current_node_id}' is the end of the line."
                     )
                 for edge in outgoing_edges:
                     queue.append(edge.target)
@@ -312,7 +303,7 @@ def execute_automation_flow(
         )
         raise RuntimeError(f"Workflow failed on node(s) — {summary}")
 
-    print(f"✅ Workflow '{schema.name}' execution completed.")
+    logger.info(f"✅ Workflow '{schema.name}' execution completed.")
 
 
 def _json_safe(value: Any) -> Any:

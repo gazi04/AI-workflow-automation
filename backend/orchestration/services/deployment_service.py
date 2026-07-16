@@ -105,7 +105,7 @@ class DeploymentService:
             build=False,
         )
 
-        print(f"✅ Deployment created: {deployment_name} (ID: {deployment_id})")
+        logger.info(f"✅ Deployment created: {deployment_name} (ID: {deployment_id})")
         return deployment_id
 
     @staticmethod
