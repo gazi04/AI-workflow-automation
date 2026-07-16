@@ -2,6 +2,10 @@ import re
 from typing import Any, Dict
 
 
+class VariableResolutionError(Exception):
+    """Raised when a {{path}} can't be resolved and no default was supplied."""
+
+
 def _parse_default(literal: str) -> str:
     """Strip one layer of matching surrounding quotes from a default literal."""
     if len(literal) >= 2 and literal[0] == literal[-1] and literal[0] in ("'", '"'):
@@ -41,7 +45,7 @@ def resolve_variables(value: Any, context: Dict[str, Any]) -> Any:
             except (KeyError, AttributeError, TypeError):
                 if has_default:
                     return str(default)
-                raise Exception(
+                raise VariableResolutionError(
                     f"Could not resolve variable '{raw_match}'. "
                     f"The path '{path}' does not exist in the current context."
                 )

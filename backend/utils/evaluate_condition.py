@@ -1,6 +1,6 @@
 from typing import Any, Dict
 from email.utils import parseaddr
-from utils.resolve_variables import resolve_variables
+from utils.resolve_variables import resolve_variables, VariableResolutionError
 from workflow.schemas.condition_nodes import IfCondition, ConditionOperators
 
 
@@ -21,7 +21,7 @@ def evaluate_condition(condition: IfCondition, run_context: Dict[str, Any]) -> b
             try:
                 resolve_variables(rule.variable, run_context)
                 res = True
-            except Exception:
+            except VariableResolutionError:
                 res = False
             results.append(res)
             continue
