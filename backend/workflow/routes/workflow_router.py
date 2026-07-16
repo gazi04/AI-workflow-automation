@@ -313,22 +313,6 @@ async def get_workflow_history(
         )
 
 
-@workflow_router.get("/runs/latest", response_model=List[WorkflowRun])
-async def get_latest_runs(user: User = Depends(get_current_user)):
-    """
-    Lightweight endpoint for frontend polling.
-    Checks the most recent runs to trigger toast notifications.
-    """
-    try:
-        return await DeploymentService.get_latest_runs_status(user.id)
-    except Exception as e:
-        logger.error(f"Error fetching latest runs for user {user.id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Could not fetch latest run status.",
-        )
-
-
 @workflow_router.get("/runs/{run_id}/audit", response_model=WorkflowRunDetail)
 async def get_run_audit(
     run_id: UUID,
