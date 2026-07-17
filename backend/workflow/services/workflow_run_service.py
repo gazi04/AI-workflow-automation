@@ -1,15 +1,16 @@
 from uuid import UUID
 from typing import Optional, List
 
-from sqlalchemy.orm import Session
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from workflow.models.workflow_run_record import WorkflowRunRecord
 
 
 class WorkflowRunService:
     @staticmethod
-    def create(
-        db: Session,
+    async def create(
+        db: AsyncSession,
         *,
         workflow_id: UUID,
         user_id: UUID,
@@ -29,46 +30,46 @@ class WorkflowRunService:
             duration_ms=duration_ms,
         )
         db.add(record)
-        db.commit()
-        db.refresh(record)
+        await db.commit()
+        await db.refresh(record)
         return record
 
     @staticmethod
-    def get_by_prefect_run_id(
-        db: Session, prefect_run_id: UUID, user_id: UUID
+    async def get_by_prefect_run_id(
+        db: AsyncSession, prefect_run_id: UUID, user_id: UUID
     ) -> Optional[WorkflowRunRecord]:
         """Fetch a single audit record by its Prefect run id, scoped to the owner.
 
         Filtering on user_id enforces ownership in the query, so a non-owner gets
         None (treated as 404 by the route — no existence leak)."""
-        return (
-            db.query(WorkflowRunRecord)
-            .filter(
+        result = await db.execute(
+            select(WorkflowRunRecord).where(
                 WorkflowRunRecord.prefect_run_id == prefect_run_id,
                 WorkflowRunRecord.user_id == user_id,
             )
-            .first()
         )
+        return result.scalar_one_or_none()
 
     @staticmethod
-    def get_undelivered_failures(db: Session, user_id: UUID) -> List[WorkflowRunRecord]:
+    async def get_undelivered_failures(db: AsyncSession, user_id: UUID) -> List[WorkflowRunRecord]:
         """Runs that failed (fully or partially) and whose node_failed event has
         not yet been broadcast to the user."""
-        return (
-            db.query(WorkflowRunRecord)
-            .filter(
+        result = await db.execute(
+            select(WorkflowRunRecord).where(
                 WorkflowRunRecord.user_id == user_id,
                 WorkflowRunRecord.status.in_(("failed", "partial")),
                 WorkflowRunRecord.failure_notified.is_(False),
             )
-            .all()
         )
+        return list(result.scalars().all())
 
     @staticmethod
-    def mark_notified(db: Session, ids: List[UUID]) -> None:
+    async def mark_notified(db: AsyncSession, ids: List[UUID]) -> None:
         if not ids:
             return
-        db.query(WorkflowRunRecord).filter(WorkflowRunRecord.id.in_(ids)).update(
-            {WorkflowRunRecord.failure_notified: True}, synchronize_session=False
+        await db.execute(
+            update(WorkflowRunRecord)
+            .where(WorkflowRunRecord.id.in_(ids))
+            .values(failure_notified=True)
         )
-        db.commit()
+        await db.commit()

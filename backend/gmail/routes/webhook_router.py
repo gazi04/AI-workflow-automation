@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Request, BackgroundTasks, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from google.oauth2 import id_token as google_id_token
 from google.auth.transport import requests as google_requests
@@ -67,11 +67,11 @@ def _verify_pubsub_token(request: Request) -> None:
 
 @webhook_router.get("/listen-to-gmail")
 async def listen_gmail(
-    db: Session = Depends(get_db), user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
 ):
     """Initiate the webhook to get gmail push notifications"""
     try:
-        google_account = AccountService.get_account_by_user_and_provider(
+        google_account = await AccountService.get_account_by_user_and_provider(
             db, user.id, "google"
         )
         if not google_account:
@@ -88,10 +88,10 @@ async def listen_gmail(
             detail="Failed to retrieve connected account.",
         )
 
-    watch_response = GmailService.watch_mailbox_for_updates(user_id=user.id)
+    watch_response = await GmailService.watch_mailbox_for_updates(user_id=user.id)
 
     if watch_response and watch_response.get("historyId"):
-        AccountService.update_history_id(
+        await AccountService.update_history_id(
             db, google_account, watch_response["historyId"]
         )
 
@@ -110,14 +110,14 @@ async def webhook_trigger(
     workflow_id: UUID,
     request: Request,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Generic HTTP webhook entry point. An external caller starts a workflow by
     POSTing here with the workflow's per-workflow secret in the
     `X-Webhook-Secret` header (falling back to a `?secret=` query param).
     """
-    workflow = WorkflowService.get_by_id(db, workflow_id)
+    workflow = await WorkflowService.get_by_id(db, workflow_id)
 
     # 404 (not 401) on a missing/inactive/non-webhook workflow so we never leak
     # which workflow ids exist or whether one has a webhook trigger.

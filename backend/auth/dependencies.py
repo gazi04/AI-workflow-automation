@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import PyJWTError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.cookies import ACCESS_COOKIE
 from core.database import get_db
@@ -19,7 +19,7 @@ bearer_scheme = HTTPBearer(auto_error=False)
 async def get_current_user(
     request: Request,
     token: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ) -> User:
     """
     Retrieve and validate the current authenticated user. The access token is read
@@ -53,7 +53,7 @@ async def get_current_user(
     except PyJWTError:
         raise credentials_exception
 
-    user = UserService.get(db, user_id)
+    user = await UserService.get(db, user_id)
 
     if user is None:
         raise credentials_exception

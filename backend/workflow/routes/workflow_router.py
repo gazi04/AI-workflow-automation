@@ -8,7 +8,7 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
 )
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from jwt import PyJWTError
 
@@ -55,13 +55,13 @@ def get_catalog():
 
 @workflow_router.get("/get_workflows")
 async def get_workflows(
-    db: Session = Depends(get_db), user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
 ):
     """
     Get a list of the all the workflows from the current user
     """
     try:
-        return WorkflowService.get_by_user_id(db, user.id)
+        return await WorkflowService.get_by_user_id(db, user.id)
     except Exception as e:
         logger.error(f"Error fetching workflows: {e}")
         raise HTTPException(
@@ -73,11 +73,11 @@ async def get_workflows(
 @workflow_router.get("/get_workflow/{workflow_id}")
 async def get_workflow(
     workflow_id: UUID,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     try:
-        workflow = WorkflowService.get_by_id_and_user(db, workflow_id, user.id)
+        workflow = await WorkflowService.get_by_id_and_user(db, workflow_id, user.id)
         if workflow is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -97,11 +97,11 @@ async def get_workflow(
 @workflow_router.post("/run")
 async def run_workflow(
     request: RunWorkflowRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     try:
-        workflow = WorkflowService.get_by_id_and_user(
+        workflow = await WorkflowService.get_by_id_and_user(
             db, request.deployment_id, user.id
         )
         if workflow is None:
@@ -123,7 +123,7 @@ async def run_workflow(
 @workflow_router.patch("/toggle")
 async def toggle_workflow(
     request: ToggleWorkflowRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """
@@ -131,7 +131,7 @@ async def toggle_workflow(
     """
     try:
         if (
-            WorkflowService.get_by_id_and_user(db, request.deployment_id, user.id)
+            await WorkflowService.get_by_id_and_user(db, request.deployment_id, user.id)
             is None
         ):
             raise HTTPException(
@@ -139,13 +139,13 @@ async def toggle_workflow(
                 detail="Workflow not found.",
             )
 
-        WorkflowService.update_is_active(db, request.deployment_id, request.status)
+        await WorkflowService.update_is_active(db, request.deployment_id, request.status)
 
         result = await DeploymentService.toggle_workflow(
             deployment_id=request.deployment_id, active=request.status
         )
 
-        db.commit()  # we commit the database changes here because of sequential dependencies between service and manager
+        await db.commit()  # we commit the database changes here because of sequential dependencies between service and manager
         return result
     except HTTPException:
         raise
@@ -160,7 +160,7 @@ async def toggle_workflow(
 @workflow_router.post("/create")
 async def create_workflow(
     schema: WorkflowSchema,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """
@@ -178,7 +178,7 @@ async def create_workflow(
             else None
         )
 
-        new_workflow = WorkflowService.create(
+        new_workflow = await WorkflowService.create(
             db=db,
             workflow_id=deployment_id,
             user_id=user.id,
@@ -209,7 +209,7 @@ async def create_workflow(
 @workflow_router.patch("/update-config")
 async def update_workflow_config(
     request: UpdateWorkflowRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """
@@ -217,7 +217,7 @@ async def update_workflow_config(
     """
     try:
         if (
-            WorkflowService.get_by_id_and_user(db, request.deployment_id, user.id)
+            await WorkflowService.get_by_id_and_user(db, request.deployment_id, user.id)
             is None
         ):
             raise HTTPException(
@@ -228,13 +228,13 @@ async def update_workflow_config(
         workflow_config_dict = request.schema.execution_config.model_dump(
             by_alias=True, exclude_none=True
         )
-        WorkflowService.update_config(db, request.deployment_id, request.schema)
+        await WorkflowService.update_config(db, request.deployment_id, request.schema)
 
         result = await DeploymentService.update_workflow_config(
             deployment_id=request.deployment_id, new_params=workflow_config_dict
         )
 
-        db.commit()  # we commit the config update here because of sequential dependencies between service and manager
+        await db.commit()  # we commit the config update here because of sequential dependencies between service and manager
         return result
     except HTTPException:
         raise
@@ -249,22 +249,22 @@ async def update_workflow_config(
 @workflow_router.delete("/delete")
 async def delete_workflow(
     deployment_id: UUID,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """
     Deletes a workflow from the database and deletes it's deployment from Prefect
     """
     try:
-        if WorkflowService.get_by_id_and_user(db, deployment_id, user.id) is None:
+        if await WorkflowService.get_by_id_and_user(db, deployment_id, user.id) is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Workflow not found.",
             )
 
-        WorkflowService.delete_by_id(db, deployment_id)
+        await WorkflowService.delete_by_id(db, deployment_id)
         await DeploymentService.delete(deployment_id)
-        db.commit()  # to actually commit the changes to the database
+        await db.commit()  # to actually commit the changes to the database
     except HTTPException:
         raise
     except Exception as e:
@@ -291,12 +291,12 @@ async def get_workflow_histories(user: User = Depends(get_current_user)):
 @workflow_router.get("/{deployement_id}/history", response_model=List[WorkflowRun])
 async def get_workflow_history(
     deployement_id: UUID,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """Fetches only the history for a specific deployment"""
     try:
-        if WorkflowService.get_by_id_and_user(db, deployement_id, user.id) is None:
+        if await WorkflowService.get_by_id_and_user(db, deployement_id, user.id) is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Workflow not found.",
@@ -316,7 +316,7 @@ async def get_workflow_history(
 @workflow_router.get("/runs/{run_id}/audit", response_model=WorkflowRunDetail)
 async def get_run_audit(
     run_id: UUID,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """Returns the persisted per-node execution audit for a run.
@@ -324,7 +324,7 @@ async def get_run_audit(
     `run_id` is the Prefect run id (the same value the history list rows carry).
     Surfaces node_results / trigger_data that Prefect introspection lacks.
     """
-    record = WorkflowRunService.get_by_prefect_run_id(db, run_id, user.id)
+    record = await WorkflowRunService.get_by_prefect_run_id(db, run_id, user.id)
     if record is None:
         # 404 (not 403): don't leak another user's run; also covers runs that
         # predate the audit table or have no prefect_run_id.
@@ -400,8 +400,8 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
         # Live per-node events now arrive via the Postgres LISTEN listener
         # (core/event_listener.py) — no per-connection poll loop.
         try:
-            with db_session() as db:
-                failed_runs = WorkflowRunService.get_undelivered_failures(db, uid)
+            async with db_session() as db:
+                failed_runs = await WorkflowRunService.get_undelivered_failures(db, uid)
                 for record in failed_runs:
                     for node_id, result in (record.node_results or {}).items():
                         if result.get("status") != "failed":
@@ -417,7 +417,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                             },
                         )
                 if failed_runs:
-                    WorkflowRunService.mark_notified(
+                    await WorkflowRunService.mark_notified(
                         db, [record.id for record in failed_runs]
                     )
         except Exception as e:

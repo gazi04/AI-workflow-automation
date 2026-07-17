@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.dependencies import get_current_user
 from auth.schemas.connection_status_response import (
@@ -18,12 +18,12 @@ logger = setup_logger("Connection Router")
 
 @connection_router.get("/status", response_model=ConnectionStatusResponse)
 async def get_connection_status(
-    db: Session = Depends(get_db), user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
 ):
     """
     Returns the connectivity status of all supported integrations for the current user.
     """
-    accounts = AccountService.get_all_user_accounts(db, user.id)
+    accounts = await AccountService.get_all_user_accounts(db, user.id)
 
     account_map = {acc.provider: acc for acc in accounts}
 

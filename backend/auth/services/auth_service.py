@@ -1,9 +1,10 @@
 from datetime import timezone
+
 from fastapi import HTTPException
 from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.models.refresh_token import RefreshToken
 from auth.services.account_service import AccountService
@@ -30,13 +31,13 @@ logger = setup_logger("Auth Service")
 class AuthService:
     # 🔴 todo: need to handle exceptions
     @staticmethod
-    def register_user(db: Session, user_data: UserLogin) -> User:
+    async def register_user(db: AsyncSession, user_data: UserLogin) -> User:
         hashed_password = get_password_hash(user_data.password)
 
-        return UserService.create(db, user_data.email, hashed_password)
+        return await UserService.create(db, user_data.email, hashed_password)
 
     @staticmethod
-    def create_token_pair(db: Session, user: User) -> dict:
+    async def create_token_pair(db: AsyncSession, user: User) -> dict:
         access_token = create_access_token(
             data={"sub": str(user.id), "email": user.email}
         )
@@ -48,15 +49,15 @@ class AuthService:
             expires_at=expires_at,
         )
         db.add(new_refresh_token)
-        db.commit()
+        await db.commit()
 
         return {"access_token": access_token, "refresh_token": refresh_token_string}
 
     @staticmethod
-    def get_google_credentials(
-        db: Session, user_id: uuid.UUID, provider: str, scopes: list
+    async def get_google_credentials(
+        db: AsyncSession, user_id: uuid.UUID, provider: str, scopes: list
     ) -> Credentials:
-        connected_account = AccountService.get_account_by_user_and_provider(
+        connected_account = await AccountService.get_account_by_user_and_provider(
             db, user_id, provider
         )  # 🔴 todo: make a provider emun for cleaner code
 
@@ -87,7 +88,7 @@ class AuthService:
         if not creds.valid and creds.refresh_token:
             try:
                 creds.refresh(Request())
-                AccountService.refresh_tokens(
+                await AccountService.refresh_tokens(
                     db,
                     account=connected_account,
                     token=creds.token,
@@ -109,7 +110,7 @@ class AuthService:
                     connected_account.access_token = None
                     connected_account.refresh_token = None
                     db.add(connected_account)
-                    db.commit()
+                    await db.commit()
 
                     raise ValueError(
                         "GOOGLE_AUTH_EXPIRED: User needs to log in again via the dashboard."

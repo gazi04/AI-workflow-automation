@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from google_auth_oauthlib.flow import Flow
 from google.oauth2 import id_token
 from google.auth.transport import requests
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.dependencies import get_current_user
 from auth.models import RefreshToken, ConnectedAccount
@@ -46,13 +46,13 @@ async def protected_route(user: User = Depends(get_current_user)):
 
 @auth_router.get("/exchange")
 @limiter.limit("20/minute")
-def exchange_code(request: Request, code: str, db: Session = Depends(get_db)):
+async def exchange_code(request: Request, code: str, db: AsyncSession = Depends(get_db)):
     """Exchange a short-lived one-time code for auth cookies.
 
     Tokens are set as HttpOnly cookies (plus a readable CSRF cookie) instead of
     being returned in the body, so client-side JS never holds them.
     """
-    access_token, refresh_token = AuthCodeService.consume(db, code)
+    access_token, refresh_token = await AuthCodeService.consume(db, code)
     if access_token is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -69,13 +69,13 @@ def exchange_code(request: Request, code: str, db: Session = Depends(get_db)):
 
 @auth_router.post("/refresh")
 @limiter.limit("20/minute")
-async def refresh_access_token(request: Request, db: Session = Depends(get_db)):
+async def refresh_access_token(request: Request, db: AsyncSession = Depends(get_db)):
     """Rotate tokens using the refresh-token cookie; set the new tokens as cookies."""
     refresh_token = request.cookies.get(REFRESH_COOKIE)
     if not refresh_token:
         raise HTTPException(status_code=401, detail="Missing refresh token")
 
-    new_tokens = TokenService.refresh_token(db, refresh_token)
+    new_tokens = await TokenService.refresh_token(db, refresh_token)
     if not new_tokens:
         logger.warning("Invalid refresh token")
         raise HTTPException(status_code=401, detail="Invalid refresh token")
@@ -94,11 +94,11 @@ async def refresh_access_token(request: Request, db: Session = Depends(get_db)):
 
 
 @auth_router.post("/logout")
-async def logout(request: Request, db: Session = Depends(get_db)):
+async def logout(request: Request, db: AsyncSession = Depends(get_db)):
     """Revoke the current refresh token and clear all auth cookies."""
     refresh_token = request.cookies.get(REFRESH_COOKIE)
     if refresh_token:
-        TokenService.revoke(db, refresh_token)
+        await TokenService.revoke(db, refresh_token)
 
     response = JSONResponse(content={"detail": "Logged out"})
     clear_auth_cookies(response)
@@ -138,13 +138,13 @@ def get_google_flow():
 
 
 @auth_router.get("/connect/google")
-async def connect_google(request: Request, db: Session = Depends(get_db)):
+async def connect_google(request: Request, db: AsyncSession = Depends(get_db)):
     flow = get_google_flow()
     auth_url, state = flow.authorization_url(
         access_type="offline", include_granted_scopes="true", prompt="consent"
     )
 
-    OAuthStateService.create(db, state)
+    await OAuthStateService.create(db, state)
 
     return {"auth_url": auth_url}
 
@@ -155,12 +155,12 @@ async def connect_google(request: Request, db: Session = Depends(get_db)):
 async def callback_google(
     code: str,
     state: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     saved_account = None
 
     try:
-        if not OAuthStateService.consume(db, state):
+        if not await OAuthStateService.consume(db, state):
             raise HTTPException(
                 status_code=400, detail="Invalid or expired state parameter"
             )
@@ -182,9 +182,9 @@ async def callback_google(
             logger.error(f"ValueError: Invalid ID token: {e}")
             raise HTTPException(status_code=400, detail=f"Invalid ID token: {e}")
 
-        user = UserService.get_or_create(db, provider_account_email)
+        user = await UserService.get_or_create(db, provider_account_email)
 
-        existing_account = AccountService.get_account_by_user_and_provider(
+        existing_account = await AccountService.get_account_by_user_and_provider(
             db, user.id, "google"
         )
 
@@ -225,7 +225,7 @@ async def callback_google(
 
             saved_account = connected_account
 
-        db.commit()
+        await db.commit()
 
         access_token = create_access_token(
             data={"sub": str(user.id), "email": user.email}
@@ -238,19 +238,19 @@ async def callback_google(
             expires_at=expires_at,
         )
         db.add(new_refresh_token)
-        db.commit()
+        await db.commit()
 
         # After a successfull login with google enable gmail listener for push notifications
-        watch_response = GmailService.watch_mailbox_for_updates(
+        watch_response = await GmailService.watch_mailbox_for_updates(
             user_id=user.id,
         )
 
         if watch_response and watch_response.get("historyId"):
-            AccountService.update_history_id(
+            await AccountService.update_history_id(
                 db, saved_account, watch_response["historyId"]
             )
 
-        code = AuthCodeService.create(db, access_token, refresh_token_string)
+        code = await AuthCodeService.create(db, access_token, refresh_token_string)
         frontend_url = f"{settings.frontend_url}/auth/success?code={code}"
 
         return RedirectResponse(url=frontend_url)

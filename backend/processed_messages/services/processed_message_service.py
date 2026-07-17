@@ -1,31 +1,30 @@
 from uuid import UUID
-from sqlalchemy.orm import Session
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from processed_messages.models.processed_messages import ProcessedMessages
 
 
 class ProcessedMessageService:
     @staticmethod
-    def create(db: Session, message_id: str, workflow_id: UUID):
+    async def create(db: AsyncSession, message_id: str, workflow_id: UUID):
         new_processed_message = ProcessedMessages(
             message_id=message_id, workflow_id=workflow_id
         )
         db.add(new_processed_message)
-        db.commit()
-        db.refresh(new_processed_message)
+        await db.commit()
+        await db.refresh(new_processed_message)
         return new_processed_message
 
     @staticmethod
-    def get_by_message_id_and_workflow_id(
-        db: Session, message_id: str, workflow_id: UUID
+    async def get_by_message_id_and_workflow_id(
+        db: AsyncSession, message_id: str, workflow_id: UUID
     ) -> ProcessedMessages:
-        processed_message = (
-            db.query(ProcessedMessages)
-            .filter(
+        result = await db.execute(
+            select(ProcessedMessages).where(
                 ProcessedMessages.message_id == message_id,
                 ProcessedMessages.workflow_id == workflow_id,
             )
-            .first()
         )
-
-        return processed_message
+        return result.scalar_one_or_none()

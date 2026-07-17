@@ -1,3 +1,4 @@
+import asyncio
 import time
 from collections import deque
 from uuid import UUID
@@ -95,18 +96,28 @@ def execute_automation_flow(
     emit_workflow_id = _runtime_id(lambda: workflow_id or prefect_deployment.id)
     emit_run_id = _runtime_id(lambda: prefect_flow_run.id)
 
+    # A single event loop for every async bridge call in this run (emit() fires
+    # once per node event, and _persist_run() fires once at the end). asyncpg
+    # connections are bound to the event loop that created them, so a fresh
+    # asyncio.run() per call would hand the second call a pooled connection
+    # tied to the first call's already-closed loop — reusing one loop for the
+    # whole run keeps the shared `engine`'s connection pool valid throughout.
+    bridge_loop = asyncio.new_event_loop()
+
     def emit(event_type, node_id, *, node_type=None, error=None, status=None):
-        publish_event(
-            {
-                "type": event_type,
-                "user_id": str(user_id),
-                "workflow_id": str(emit_workflow_id) if emit_workflow_id else None,
-                "run_id": str(emit_run_id) if emit_run_id else None,
-                "node_id": node_id,
-                "node_type": node_type,
-                "error": error,
-                "status": status,
-            }
+        bridge_loop.run_until_complete(
+            publish_event(
+                {
+                    "type": event_type,
+                    "user_id": str(user_id),
+                    "workflow_id": str(emit_workflow_id) if emit_workflow_id else None,
+                    "run_id": str(emit_run_id) if emit_run_id else None,
+                    "node_id": node_id,
+                    "node_type": node_type,
+                    "error": error,
+                    "status": status,
+                }
+            )
         )
 
     while queue:
@@ -281,6 +292,7 @@ def execute_automation_flow(
     # never masks the real run outcome.
     _persist_run(
         run_logger,
+        bridge_loop,
         user_id=user_id,
         workflow_id=workflow_id,
         trigger_data=trigger_payload or None,
@@ -291,6 +303,7 @@ def execute_automation_flow(
 
     _, overall_status = build_run_audit(run_context["node_outputs"], failed_nodes)
     emit("flow_finished", None, status=overall_status)
+    bridge_loop.close()
 
     if failed_nodes:
         # Independent branches have finished; now fail the run so the frontend
@@ -361,6 +374,7 @@ def _runtime_id(accessor) -> Optional[UUID]:
 
 def _persist_run(
     run_logger,
+    bridge_loop: asyncio.AbstractEventLoop,
     *,
     user_id: UUID,
     workflow_id: Optional[str],
@@ -379,9 +393,9 @@ def _persist_run(
 
     node_results, status = build_run_audit(node_outputs, failed_nodes)
 
-    try:
-        with db_session() as db:
-            WorkflowRunService.create(
+    async def _persist():
+        async with db_session() as db:
+            await WorkflowRunService.create(
                 db,
                 workflow_id=UUID(str(resolved_workflow_id)),
                 user_id=UUID(str(user_id)),
@@ -393,5 +407,8 @@ def _persist_run(
                 trigger_data=trigger_data,
                 duration_ms=duration_ms,
             )
+
+    try:
+        bridge_loop.run_until_complete(_persist())
     except Exception as e:
         run_logger.error(f"Failed to persist workflow run audit record: {e}")

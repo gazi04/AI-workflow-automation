@@ -5,6 +5,7 @@ import core.models  # noqa: F401
 from datetime import datetime, timezone
 
 from prefect import flow, get_run_logger
+from sqlalchemy import delete
 
 from core.database import db_session
 from core.setup_logging import setup_logger
@@ -14,7 +15,7 @@ from auth.models.refresh_token import RefreshToken
 
 
 @flow(name="Cleanup Expired Auth", log_prints=True)
-def cleanup_expired_auth():
+async def cleanup_expired_auth():
     """Delete expired auth rows so the tables don't grow without bound.
 
     `oauth_states` and `auth_codes` are deleted on use but linger when a flow is
@@ -32,16 +33,19 @@ def cleanup_expired_auth():
 
     now = datetime.now(timezone.utc)
 
-    with db_session() as db:
+    async with db_session() as db:
         for model in (OAuthState, AuthCode, RefreshToken):
             try:
-                deleted = (
-                    db.query(model)
-                    .filter(model.expires_at < now)
-                    .delete(synchronize_session=False)
+                stmt = (
+                    delete(model)
+                    .where(model.expires_at < now)
+                    .execution_options(synchronize_session=False)
                 )
-                db.commit()
-                logger.info(f"Purged {deleted} expired {model.__tablename__} row(s)")
+                result = await db.execute(stmt)
+                await db.commit()
+                logger.info(
+                    f"Purged {result.rowcount} expired {model.__tablename__} row(s)"
+                )
             except Exception as e:
-                db.rollback()
+                await db.rollback()
                 logger.error(f"Purge failed for {model.__tablename__}: {e}")

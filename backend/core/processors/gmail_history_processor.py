@@ -14,8 +14,6 @@ from processed_messages.services import ProcessedMessageService
 from workflow.schemas import WorkflowExecutionConfig
 from workflow.services.workflow_service import WorkflowService
 
-import anyio
-
 
 class DeploymentTriggerError(Exception):
     """Raised when one or more deployment triggers failed during a sync pass.
@@ -37,16 +35,16 @@ class GmailHistoryProcessor:
         self.user_id = user_id
         self.service = None
 
-    def __enter__(self):
+    async def __aenter__(self):
         self.service = build("gmail", "v1", credentials=self.creds)
         self.logger = setup_logger("Gmail History Processor")
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.service:
             self.service.close()
 
-    def fetch_and_process(self, start_history_id: str) -> None:
+    async def fetch_and_process(self, start_history_id: str) -> None:
         unique_message_ids: set[str] = set()
         page_token = None
 
@@ -76,11 +74,11 @@ class GmailHistoryProcessor:
 
         active_workflows = None
         if unique_message_ids:
-            with db_session() as db:
-                active_workflows = self._load_active_workflows(db)
+            async with db_session() as db:
+                active_workflows = await self._load_active_workflows(db)
 
         for message_id in unique_message_ids:
-            self._process_single_message(message_id, active_workflows)
+            await self._process_single_message(message_id, active_workflows)
 
         if self._trigger_failed:
             raise DeploymentTriggerError(
@@ -96,8 +94,8 @@ class GmailHistoryProcessor:
                 message_id = message_item["message"]["id"]
                 sink.add(message_id)
 
-    def _load_active_workflows(self, db):
-        workflows = WorkflowService.get_by_user_id(db, self.user_id)
+    async def _load_active_workflows(self, db):
+        workflows = await WorkflowService.get_by_user_id(db, self.user_id)
         active = []
         for workflow in workflows:
             if not workflow.is_active:
@@ -108,7 +106,7 @@ class GmailHistoryProcessor:
 
         return active
 
-    def _process_single_message(self, message_id: str, active_workflows=None):
+    async def _process_single_message(self, message_id: str, active_workflows=None):
         try:
             raw_message = (
                 self.service.users()
@@ -150,10 +148,10 @@ class GmailHistoryProcessor:
             email_from = email_data["from"].lower()
             email_subject = email_data["subject"].lower()
 
-            with db_session() as db:
+            async with db_session() as db:
                 workflows = active_workflows
                 if workflows is None:
-                    workflows = self._load_active_workflows(db)
+                    workflows = await self._load_active_workflows(db)
 
                 for workflow, workflow_config in workflows:
                     start_node_ids = workflow_config.start_node_ids
@@ -202,7 +200,7 @@ class GmailHistoryProcessor:
                         continue
 
                     exists_processed_message = (
-                        ProcessedMessageService.get_by_message_id_and_workflow_id(
+                        await ProcessedMessageService.get_by_message_id_and_workflow_id(
                             db, email_data["message_id"], workflow.id
                         )
                     )
@@ -222,9 +220,7 @@ class GmailHistoryProcessor:
                     # successfully scheduled. On failure, flag the batch and move
                     # on so the baseline is withheld and this message is retried.
                     try:
-                        anyio.from_thread.run(
-                            DeploymentService.run, workflow.id, trigger_context
-                        )
+                        await DeploymentService.run(workflow.id, trigger_context)
                     except Exception as e:
                         self.logger.error(
                             f"Failed to trigger deployment for workflow {workflow.id}: {e}"
@@ -233,13 +229,13 @@ class GmailHistoryProcessor:
                         continue
 
                     try:
-                        ProcessedMessageService.create(
+                        await ProcessedMessageService.create(
                             db, email_data["message_id"], workflow.id
                         )
                     except IntegrityError:
                         # Concurrent insert or a re-drain raced us — the message is
                         # already recorded for this workflow, so treat as handled.
-                        db.rollback()
+                        await db.rollback()
         except HttpError as e:
             if e.resp.status == 404:
                 self.logger.warning(

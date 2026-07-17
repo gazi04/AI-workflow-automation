@@ -5,8 +5,7 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from core.config_loader import settings
-from core.database import Base
+from core.database import Base, engine
 from user.models import User
 from workflow.models import Workflow, WorkflowRunRecord
 from auth.models import ConnectedAccount, RefreshToken
@@ -45,7 +44,9 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = settings.database_url
+    url = engine.url.set(drivername="postgresql+psycopg2").render_as_string(
+        hide_password=False
+    )
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -64,9 +65,12 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    # Override the sqlalchemy.url in the config with our settings
+    # Override the sqlalchemy.url in the config with a sync (psycopg2) URL —
+    # the app's engine is async (asyncpg), Alembic needs a sync driver.
     configuration = config.get_section(config.config_ini_section, {})
-    configuration["sqlalchemy.url"] = settings.database_url
+    configuration["sqlalchemy.url"] = engine.url.set(
+        drivername="postgresql+psycopg2"
+    ).render_as_string(hide_password=False)
 
     connectable = engine_from_config(
         configuration,

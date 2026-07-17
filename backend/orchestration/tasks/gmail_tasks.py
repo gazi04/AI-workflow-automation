@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import contextmanager
 from email.message import EmailMessage
 from typing import Any, Dict, Optional
@@ -40,13 +41,19 @@ def _get_gmail_service(user_id: UUID):
     Private helper to handle DB session, credentials, and service building.
     Uses a context manager to ensure the service is built and closed correctly.
     """
-    with db_session() as db:
-        creds = AuthService.get_google_credentials(
-            db, user_id, PROVIDER, DEFAULT_SCOPES
-        )
-        # Service build as a context manager (supported by google-api-python-client)
-        with build("gmail", "v1", credentials=creds) as service:
-            yield service, db
+
+    async def _fetch():
+        async with db_session() as db:
+            creds = await AuthService.get_google_credentials(
+                db, user_id, PROVIDER, DEFAULT_SCOPES
+            )
+            user_email = await UserService.get_email(db, user_id)
+            return creds, user_email
+
+    creds, user_email = asyncio.run(_fetch())
+    # Service build as a context manager (supported by google-api-python-client)
+    with build("gmail", "v1", credentials=creds) as service:
+        yield service, user_email
 
 
 def create_draft(user_id: UUID, body: str, original_email: Dict[str, Any]):
@@ -57,9 +64,7 @@ def create_draft(user_id: UUID, body: str, original_email: Dict[str, Any]):
     """
 
     try:
-        with _get_gmail_service(user_id) as (service, db):
-            user_email = UserService.get_email(db, user_id)
-
+        with _get_gmail_service(user_id) as (service, user_email):
             message = EmailMessage()
             message.set_content(body)
 
@@ -110,9 +115,7 @@ def send_message(user_id: UUID, to: str, subject: str, body: str):
     Returns: Message object, including message id
     """
     try:
-        with _get_gmail_service(user_id) as (service, db):
-            user_email = UserService.get_email(db, user_id)
-
+        with _get_gmail_service(user_id) as (service, user_email):
             message = EmailMessage()
 
             message.set_content(body)
@@ -150,7 +153,7 @@ def reply_email(user_id: UUID, body: str, original_email: Dict[str, Any]):
     """
 
     try:
-        with _get_gmail_service(user_id) as (service, db):
+        with _get_gmail_service(user_id) as (service, _user_email):
             message = EmailMessage()
             message.set_content(body)
 
@@ -203,7 +206,7 @@ def label_mail(
     """
 
     try:
-        with _get_gmail_service(user_id) as (service, db):
+        with _get_gmail_service(user_id) as (service, _user_email):
             response = service.users().labels().list(userId="me").execute()
             labels = response.get("labels", [])
             label_exists = next(

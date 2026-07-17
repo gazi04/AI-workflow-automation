@@ -21,7 +21,7 @@ CHANNEL = "wf_events"
 _MAX_ERROR_LEN = 500
 
 
-def publish_event(payload: dict) -> None:
+async def publish_event(payload: dict) -> None:
     """Emit a workflow event on the ``wf_events`` channel.
 
     Best-effort: a publish failure is logged but never propagated, so a broken
@@ -33,9 +33,9 @@ def publish_event(payload: dict) -> None:
 
         message = json.dumps(payload)
         # pg_notify only delivers on COMMIT, so commit immediately.
-        with db_session() as db:
-            db.execute(text("SELECT pg_notify(:channel, :payload)"),
-                       {"channel": CHANNEL, "payload": message})
-            db.commit()
+        async with db_session() as db:
+            await db.execute(text("SELECT pg_notify(:channel, :payload)"),
+                              {"channel": CHANNEL, "payload": message})
+            await db.commit()
     except Exception as e:
         logger.error(f"Failed to publish workflow event {payload.get('type')}: {e}")

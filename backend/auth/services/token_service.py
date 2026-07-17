@@ -1,6 +1,9 @@
 from datetime import datetime, timezone
-from sqlalchemy.orm import Session
 from typing import Optional
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from auth.models.refresh_token import RefreshToken
 from auth.utils import create_access_token, create_refresh_token, hash_refresh_token
@@ -9,20 +12,21 @@ from user.models.user import User
 
 class TokenService:
     @staticmethod
-    def refresh_token(db: Session, refresh_token: str) -> Optional[dict]:
+    async def refresh_token(db: AsyncSession, refresh_token: str) -> Optional[dict]:
         try:
-            with db.begin():
-                token_record = (
-                    db.query(RefreshToken)
+            async with db.begin():
+                result = await db.execute(
+                    select(RefreshToken)
                     .join(User)
-                    .filter(
+                    .options(selectinload(RefreshToken.user))
+                    .where(
                         RefreshToken.token == hash_refresh_token(refresh_token),
                         RefreshToken.is_revoked == False,  # noqa: E712
                         RefreshToken.expires_at > datetime.now(timezone.utc),
                         User.is_active,
                     )
-                    .first()
                 )
+                token_record = result.scalar_one_or_none()
 
                 if not token_record:
                     return None
@@ -51,17 +55,18 @@ class TokenService:
                     "refresh_token": new_refresh_token_string,
                 }
         except Exception:
-            db.rollback()
+            await db.rollback()
             raise
 
     @staticmethod
-    def revoke(db: Session, refresh_token: str) -> None:
+    async def revoke(db: AsyncSession, refresh_token: str) -> None:
         """Mark a refresh token revoked (used on logout). No-op if not found."""
-        token_record = (
-            db.query(RefreshToken)
-            .filter(RefreshToken.token == hash_refresh_token(refresh_token))
-            .first()
+        result = await db.execute(
+            select(RefreshToken).where(
+                RefreshToken.token == hash_refresh_token(refresh_token)
+            )
         )
+        token_record = result.scalar_one_or_none()
         if token_record:
             token_record.is_revoked = True
-            db.commit()
+            await db.commit()

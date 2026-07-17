@@ -3,6 +3,7 @@
 import core.models  # noqa: F401
 
 from prefect import flow, get_run_logger
+from sqlalchemy import select
 
 from core.database import db_session
 from core.setup_logging import setup_logger
@@ -12,7 +13,7 @@ from gmail.services.gmail_service import GmailService
 
 
 @flow(name="Renew Gmail Watches", log_prints=True)
-def renew_gmail_watches():
+async def renew_gmail_watches():
     """Re-arm the Gmail `users.watch` for every connected Google account.
 
     Gmail push subscriptions expire after ~7 days and are otherwise only armed at
@@ -27,15 +28,14 @@ def renew_gmail_watches():
     except Exception:
         logger = setup_logger("Renew Gmail Watches")
 
-    with db_session() as db:
-        accounts = (
-            db.query(ConnectedAccount)
-            .filter(
+    async with db_session() as db:
+        result = await db.execute(
+            select(ConnectedAccount).where(
                 ConnectedAccount.provider == "google",
                 ConnectedAccount.is_connected.is_(True),
             )
-            .all()
         )
+        accounts = result.scalars().all()
         # Snapshot the ids before re-watching so the session can close.
         user_ids = [account.user_id for account in accounts]
 
@@ -43,13 +43,15 @@ def renew_gmail_watches():
 
     for user_id in user_ids:
         try:
-            resp = GmailService.watch_mailbox_for_updates(user_id=user_id)
+            resp = await GmailService.watch_mailbox_for_updates(user_id=user_id)
             if resp and resp.get("historyId"):
-                with db_session() as db:
-                    account = AccountService.get_account_by_user_and_provider(
+                async with db_session() as db:
+                    account = await AccountService.get_account_by_user_and_provider(
                         db, user_id, "google"
                     )
-                    AccountService.update_history_id(db, account, resp["historyId"])
+                    await AccountService.update_history_id(
+                        db, account, resp["historyId"]
+                    )
                 logger.info(f"Re-watched account for user {user_id}")
             else:
                 logger.warning(f"Re-watch returned no historyId for user {user_id}")

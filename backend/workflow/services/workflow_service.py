@@ -1,7 +1,9 @@
 import secrets
 from typing import List, Optional
 from uuid import UUID
-from sqlalchemy.orm import Session
+
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from workflow.models.workflow import Workflow
 from workflow.schemas import WorkflowSchema
@@ -24,8 +26,8 @@ class WorkflowService:
         return secrets.token_urlsafe(32)
 
     @staticmethod
-    def create(
-        db: Session,
+    async def create(
+        db: AsyncSession,
         workflow_id: UUID,
         user_id: UUID,
         schema: WorkflowSchema,
@@ -42,24 +44,26 @@ class WorkflowService:
             webhook_secret=webhook_secret,
         )
         db.add(new_workflow)
-        db.commit()
-        db.refresh(new_workflow)
+        await db.commit()
+        await db.refresh(new_workflow)
         return new_workflow
 
     @staticmethod
-    def update_is_active(db: Session, id: UUID, is_active: bool) -> Workflow:
-        workflow = db.query(Workflow).filter(Workflow.id == id).first()
+    async def update_is_active(db: AsyncSession, id: UUID, is_active: bool) -> Optional[Workflow]:
+        result = await db.execute(select(Workflow).where(Workflow.id == id))
+        workflow = result.scalar_one_or_none()
 
         if workflow:
             workflow.is_active = is_active
             # we use flush because workflow and deployment services are sequantially dependent
-            db.flush()  # in the workflow router the changes are commited
+            await db.flush()  # in the workflow router the changes are commited
 
         return workflow
 
     @staticmethod
-    def update_config(db: Session, id: UUID, schema: WorkflowSchema) -> Workflow:
-        workflow = db.query(Workflow).filter(Workflow.id == id).first()
+    async def update_config(db: AsyncSession, id: UUID, schema: WorkflowSchema) -> Optional[Workflow]:
+        result = await db.execute(select(Workflow).where(Workflow.id == id))
+        workflow = result.scalar_one_or_none()
 
         if workflow:
             ui_metadata = (
@@ -79,26 +83,32 @@ class WorkflowService:
                 workflow.webhook_secret = WorkflowService.generate_webhook_secret()
 
             # we use flush because workflow and deployment services are sequantially dependent
-            db.flush()  # in the workflow router the changes are commited
+            await db.flush()  # in the workflow router the changes are commited
 
         return workflow
 
     @staticmethod
-    def get_by_user_id(db: Session, id: UUID) -> List[Workflow]:
-        return db.query(Workflow).filter(Workflow.user_id == id).all()
+    async def get_by_user_id(db: AsyncSession, id: UUID) -> List[Workflow]:
+        result = await db.execute(select(Workflow).where(Workflow.user_id == id))
+        return list(result.scalars().all())
 
     @staticmethod
-    def get_by_id(db: Session, id: UUID) -> Optional[Workflow]:
-        return db.query(Workflow).filter(Workflow.id == id).first()
+    async def get_by_id(db: AsyncSession, id: UUID) -> Optional[Workflow]:
+        result = await db.execute(select(Workflow).where(Workflow.id == id))
+        return result.scalar_one_or_none()
 
     @staticmethod
-    def get_by_id_and_user(db: Session, id: UUID, user_id: UUID) -> Optional[Workflow]:
-        return (
-            db.query(Workflow)
-            .filter(Workflow.id == id, Workflow.user_id == user_id)
-            .first()
+    async def get_by_id_and_user(db: AsyncSession, id: UUID, user_id: UUID) -> Optional[Workflow]:
+        result = await db.execute(
+            select(Workflow).where(Workflow.id == id, Workflow.user_id == user_id)
         )
+        return result.scalar_one_or_none()
 
     @staticmethod
-    def delete_by_id(db: Session, id: UUID) -> None:
-        db.query(Workflow).filter(Workflow.id == id).delete(synchronize_session="fetch")
+    async def delete_by_id(db: AsyncSession, id: UUID) -> None:
+        stmt = (
+            delete(Workflow)
+            .where(Workflow.id == id)
+            .execution_options(synchronize_session="fetch")
+        )
+        await db.execute(stmt)
