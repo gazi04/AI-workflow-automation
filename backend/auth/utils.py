@@ -60,10 +60,12 @@ def decode_access_token(token: str) -> dict:
             # or implicitly in PyJWT compared to python-jose.
         )
         return payload
+    except jwt.ExpiredSignatureError as e:
+        raise PyJWTError(f"Token expired: {e}") from e
+    except jwt.InvalidSignatureError as e:
+        raise PyJWTError(f"Invalid token signature: {e}") from e
     except PyJWTError as e:
-        # 🔴 todo: catch specific PyJWT exceptions (ExpiredSignatureError, InvalidSignatureError, etc.)
-        # and re-raise them as the standard PyJWTError
-        raise PyJWTError(f"Token validation failed: {e}")
+        raise PyJWTError(f"Token validation failed: {e}") from e
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
