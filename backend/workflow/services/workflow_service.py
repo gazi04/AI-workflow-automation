@@ -74,6 +74,8 @@ class WorkflowService:
             if ui_metadata is not None:
                 workflow.ui_metadata = ui_metadata
 
+            workflow.version += 1
+
             # Backfill a secret when a webhook trigger is added to an existing
             # workflow that never had one, so it gets a usable webhook URL.
             if (
