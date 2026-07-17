@@ -48,13 +48,14 @@ services:
       dockerfile: Dockerfile
     restart: always
     entrypoint: ["/bin/bash", "-c"]
-    command: 
+    command:
       - |
         uv run prefect config set PREFECT_API_URL=http://prefect-server:4200/api &&
         uv run prefect worker start --pool 'my-process-pool' --type process
+    env_file:
+      - ./backend/.env
     environment:
       - PREFECT_API_URL=http://prefect-server:4200/api
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/workflow_automation
     volumes:
       - ./backend:/app
       - /app/.venv
@@ -68,8 +69,9 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    env_file:
+      - ./backend/.env
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/workflow_automation
       - PREFECT_API_URL=http://prefect-server:4200/api
     depends_on:
       postgres:
