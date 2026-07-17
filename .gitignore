@@ -12,7 +12,6 @@ wheels/
 
 # Virtual environments
 .venv
-uv.lock
 
 # Obsidian-generated files
 .obsidian
