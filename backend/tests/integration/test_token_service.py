@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 
@@ -21,13 +21,21 @@ def make_token_record(user_id=None, is_revoked=False, days_until_expiry=7):
 
 
 def make_db(token_record):
-    """Returns a mock session whose query chain returns token_record."""
-    db = MagicMock()
-    # session.begin() context manager
-    db.begin.return_value.__enter__ = MagicMock(return_value=None)
-    db.begin.return_value.__exit__ = MagicMock(return_value=False)
-    # query chain: db.query(...).join(...).filter(...).first()
-    db.query.return_value.join.return_value.filter.return_value.first.return_value = token_record
+    """Returns a mock session whose execute chain returns token_record."""
+    db = AsyncMock()
+    # session.begin() returns an async context manager (begin() itself is
+    # NOT awaited by the code under test, so it must be a plain MagicMock).
+    begin_cm = MagicMock()
+    begin_cm.__aenter__ = AsyncMock(return_value=None)
+    begin_cm.__aexit__ = AsyncMock(return_value=False)
+    db.begin = MagicMock(return_value=begin_cm)
+    # db.execute(...) -> result.scalar_one_or_none()
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = token_record
+    db.execute = AsyncMock(return_value=mock_result)
+    # db.add(...) is called synchronously (never awaited) by the code under
+    # test; keep it a plain MagicMock to avoid "coroutine was never awaited".
+    db.add = MagicMock()
     return db
 
 
@@ -35,31 +43,31 @@ def make_db(token_record):
 # Tests
 # ---------------------------------------------------------------------------
 
-def test_valid_token_returns_access_and_refresh():
+async def test_valid_token_returns_access_and_refresh():
     record = make_token_record()
     db = make_db(record)
 
-    result = TokenService.refresh_token(db, "valid-token-string")
+    result = await TokenService.refresh_token(db, "valid-token-string")
 
     assert result is not None
     assert "access_token" in result
     assert "refresh_token" in result
 
 
-def test_valid_token_old_record_marked_revoked():
+async def test_valid_token_old_record_marked_revoked():
     record = make_token_record()
     db = make_db(record)
 
-    TokenService.refresh_token(db, "valid-token-string")
+    await TokenService.refresh_token(db, "valid-token-string")
 
     assert record.is_revoked is True
 
 
-def test_valid_token_new_refresh_record_added():
+async def test_valid_token_new_refresh_record_added():
     record = make_token_record()
     db = make_db(record)
 
-    TokenService.refresh_token(db, "valid-token-string")
+    await TokenService.refresh_token(db, "valid-token-string")
 
     db.add.assert_called_once()
     added = db.add.call_args[0][0]
@@ -69,32 +77,34 @@ def test_valid_token_new_refresh_record_added():
     assert added.user_id == record.user_id
 
 
-def test_token_not_found_returns_none():
+async def test_token_not_found_returns_none():
     db = make_db(token_record=None)
 
-    result = TokenService.refresh_token(db, "nonexistent-token")
+    result = await TokenService.refresh_token(db, "nonexistent-token")
 
     assert result is None
     db.add.assert_not_called()
 
 
-def test_revoked_token_not_found_via_filter():
+async def test_revoked_token_not_found_via_filter():
     # The DB query filters is_revoked==False, so revoked tokens return None
     db = make_db(token_record=None)
 
-    result = TokenService.refresh_token(db, "revoked-token")
+    result = await TokenService.refresh_token(db, "revoked-token")
 
     assert result is None
 
 
-def test_exception_in_query_triggers_rollback():
-    db = MagicMock()
-    db.begin.return_value.__enter__ = MagicMock(return_value=None)
-    db.begin.return_value.__exit__ = MagicMock(return_value=False)
-    db.query.side_effect = Exception("DB error")
+async def test_exception_in_query_triggers_rollback():
+    db = AsyncMock()
+    begin_cm = MagicMock()
+    begin_cm.__aenter__ = AsyncMock(return_value=None)
+    begin_cm.__aexit__ = AsyncMock(return_value=False)
+    db.begin = MagicMock(return_value=begin_cm)
+    db.execute = AsyncMock(side_effect=Exception("DB error"))
 
     try:
-        TokenService.refresh_token(db, "any-token")
+        await TokenService.refresh_token(db, "any-token")
     except Exception:
         pass
 

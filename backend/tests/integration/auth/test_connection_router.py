@@ -8,21 +8,21 @@ from auth.models.connected_account import ConnectedAccount
 # GET /api/connection/status
 # ---------------------------------------------------------------------------
 
-def test_connection_status_requires_auth(client):
-    response = client.get("/api/connection/status")
+async def test_connection_status_requires_auth(client):
+    response = await client.get("/api/connection/status")
     assert response.status_code == 401
 
 
-def test_connection_status_no_accounts(client, auth_headers):
-    response = client.get("/api/connection/status", headers=auth_headers)
+async def test_connection_status_no_accounts(client, auth_headers):
+    response = await client.get("/api/connection/status", headers=auth_headers)
     assert response.status_code == 200
     body = response.json()
     assert "integrations" in body
     assert all(not i["is_connected"] for i in body["integrations"])
 
 
-def test_connection_status_with_google_account(client, db_session, test_user, auth_headers, test_connected_account):
-    response = client.get("/api/connection/status", headers=auth_headers)
+async def test_connection_status_with_google_account(client, db_session, test_user, auth_headers, test_connected_account):
+    response = await client.get("/api/connection/status", headers=auth_headers)
     assert response.status_code == 200
 
     integrations = response.json()["integrations"]
@@ -34,7 +34,7 @@ def test_connection_status_with_google_account(client, db_session, test_user, au
     assert google["email"] == test_user.email
 
 
-def test_connection_status_needs_reconnect_when_no_refresh_token(client, db_session, test_user, auth_headers):
+async def test_connection_status_needs_reconnect_when_no_refresh_token(client, db_session, test_user, auth_headers):
     account = ConnectedAccount(
         user_id=test_user.id,
         provider="google",
@@ -46,9 +46,9 @@ def test_connection_status_needs_reconnect_when_no_refresh_token(client, db_sess
         metadata_account={"email": test_user.email},
     )
     db_session.add(account)
-    db_session.flush()
+    await db_session.flush()
 
-    response = client.get("/api/connection/status", headers=auth_headers)
+    response = await client.get("/api/connection/status", headers=auth_headers)
     assert response.status_code == 200
 
     integrations = response.json()["integrations"]

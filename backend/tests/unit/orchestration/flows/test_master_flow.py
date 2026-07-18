@@ -417,6 +417,97 @@ def test_diamond_failed_branch_fails_run_but_independent_branch_runs():
 
 
 # ---------------------------------------------------------------------------
+# Independent siblings (perf #7) — a whole BFS level's tasks must all be
+# submitted before any of them is awaited, so independent branches actually
+# run concurrently on Prefect's ThreadPoolTaskRunner instead of one-at-a-time.
+# ---------------------------------------------------------------------------
+
+
+def make_parallel_siblings_workflow() -> dict:
+    """trigger → two independent actions with no edge between them and no
+    shared downstream node — a true "wave" of concurrent siblings."""
+    return {
+        "name": "Parallel Siblings",
+        "description": "Two independent branches off one trigger",
+        "execution_config": {
+            "start_node_ids": ["trigger_1"],
+            "nodes": {
+                "trigger_1": {
+                    "id": "trigger_1",
+                    "type": "trigger",
+                    "config": {
+                        "type": "email_received",
+                        "config": {"from": None, "subject_contains": None},
+                    },
+                },
+                "node_a": {
+                    "id": "node_a",
+                    "type": "action",
+                    "config": {
+                        "type": "send_email",
+                        "config": {"to": "a@example.com", "subject": "A", "body": "ok"},
+                    },
+                },
+                "node_b": {
+                    "id": "node_b",
+                    "type": "action",
+                    "config": {
+                        "type": "smart_draft",
+                        "config": {"user_prompt": "draft it"},
+                    },
+                },
+            },
+            "edges": [
+                {"id": "e1", "source": "trigger_1", "target": "node_a"},
+                {"id": "e2", "source": "trigger_1", "target": "node_b"},
+            ],
+        },
+    }
+
+
+def test_independent_siblings_all_submitted_before_any_result_is_awaited():
+    """Both siblings' tasks must be submitted before either .result() is
+    awaited — the invariant that lets Prefect's ThreadPoolTaskRunner actually
+    run independent branches concurrently instead of one-at-a-time."""
+    events = []
+
+    def make_recording_mock(name, return_value):
+        m = MagicMock()
+
+        def fake_submit(*args, **kwargs):
+            events.append(f"submit:{name}")
+            future = MagicMock()
+            future.result.side_effect = lambda: (
+                events.append(f"result:{name}") or return_value
+            )
+            return future
+
+        m.submit.side_effect = fake_submit
+        return m
+
+    mock_send = make_recording_mock("A", {"id": "sent_a"})
+    mock_draft = make_recording_mock("B", {"id": "draft_b"})
+
+    with (
+        patch("orchestration.flows.master_flow.send_message", mock_send),
+        patch("orchestration.flows.master_flow.smart_draft", mock_draft),
+    ):
+        execute_automation_flow.fn(
+            USER_ID,
+            make_parallel_siblings_workflow(),
+            make_trigger_context("trigger_1"),
+        )
+
+    mock_send.submit.assert_called_once()
+    mock_draft.submit.assert_called_once()
+    # Both submits must precede both results — proves the whole level was
+    # submitted before any .result() blocked (not submit→result→submit→result).
+    submit_positions = [i for i, e in enumerate(events) if e.startswith("submit:")]
+    result_positions = [i for i, e in enumerate(events) if e.startswith("result:")]
+    assert max(submit_positions) < min(result_positions)
+
+
+# ---------------------------------------------------------------------------
 # Condition evaluation failure — must be caught, not crash the flow uncaught
 # ---------------------------------------------------------------------------
 
@@ -444,6 +535,61 @@ def test_condition_eval_failure_fails_run():
 
     # Neither path action ran — the condition never produced a result.
     mock_send.submit.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Webhook trigger — posted payload is bound into run_context for {{var}} use
+# ---------------------------------------------------------------------------
+
+
+def make_webhook_workflow() -> dict:
+    return {
+        "name": "Webhook Test",
+        "description": "Triggered by HTTP",
+        "execution_config": {
+            "start_node_ids": ["trigger_1"],
+            "nodes": {
+                "trigger_1": {
+                    "id": "trigger_1",
+                    "type": "trigger",
+                    "config": {"type": "webhook", "config": {}},
+                },
+                "action_1": {
+                    "id": "action_1",
+                    "type": "action",
+                    "config": {
+                        "type": "send_email",
+                        "config": {
+                            "to": "bob@example.com",
+                            "subject": "Hi {{trigger_1.body.name}}",
+                            "body": "Hello",
+                        },
+                    },
+                },
+            },
+            "edges": [{"id": "e1", "source": "trigger_1", "target": "action_1"}],
+        },
+    }
+
+
+def test_webhook_payload_binds_into_run_context():
+    mock_send = mock_task({"id": "sent_wh"})
+    ctx = {
+        "trigger_context": {
+            "matched_trigger_node_id": "trigger_1",
+            "webhook_payload": {
+                "body": {"name": "Alice"},
+                "headers": {},
+                "query": {},
+            },
+        }
+    }
+
+    with patch("orchestration.flows.master_flow.send_message", mock_send):
+        execute_automation_flow.fn(USER_ID, make_webhook_workflow(), ctx)
+
+    args = mock_send.submit.call_args[0]
+    assert args[2] == "Hi Alice"  # {{trigger_1.body.name}} resolved from webhook body
 
 
 # ---------------------------------------------------------------------------

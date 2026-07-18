@@ -1,4 +1,3 @@
-import pytest
 from utils.evaluate_condition import evaluate_condition
 from workflow.schemas.condition_nodes import (
     ConditionOperators,
@@ -97,9 +96,35 @@ def test_exists_variable_resolves():
 
 
 def test_exists_variable_resolves_to_empty_string():
-    # Empty string is still different from the original template → EXISTS is True
+    # The path resolves (key is present), so EXISTS is True even when the value is empty.
     ctx = {"trigger": {"subject": ""}}
     condition = make_condition([make_rule("{{trigger.subject}}", ConditionOperators.EXISTS, None)])
+    assert evaluate_condition(condition, ctx) is True
+
+
+def test_exists_variable_missing_returns_false():
+    # Missing path: resolve_variables raises → EXISTS is False, not an exception.
+    ctx = {"trigger": {"subject": "Hello"}}
+    condition = make_condition([make_rule("{{trigger.nonexistent}}", ConditionOperators.EXISTS, None)])
+    assert evaluate_condition(condition, ctx) is False
+
+
+def test_exists_missing_nested_path_returns_false():
+    ctx = {"trigger": {}}
+    condition = make_condition([make_rule("{{trigger.body.from}}", ConditionOperators.EXISTS, None)])
+    assert evaluate_condition(condition, ctx) is False
+
+
+def test_exists_missing_rule_does_not_abort_any_match():
+    # A missing EXISTS rule evaluates to False without throwing; ANY still sees the passing rule.
+    ctx = {"trigger": {"subject": "Hello"}}
+    condition = make_condition(
+        [
+            make_rule("{{trigger.nonexistent}}", ConditionOperators.EXISTS, None),
+            make_rule("{{trigger.subject}}", ConditionOperators.EXISTS, None),
+        ],
+        match_type="ANY",
+    )
     assert evaluate_condition(condition, ctx) is True
 
 

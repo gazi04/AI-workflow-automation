@@ -1,5 +1,5 @@
 import pytest
-from utils.resolve_variables import resolve_variables
+from utils.resolve_variables import resolve_variables, VariableResolutionError
 
 
 # ---------------------------------------------------------------------------
@@ -35,14 +35,21 @@ def test_nested_path_resolved():
     assert resolve_variables("{{trigger.email.from}}", ctx) == "alice@example.com"
 
 
+def test_missing_key_raises_dedicated_type():
+    """The raised error is the dedicated VariableResolutionError, not bare Exception."""
+    ctx = {"node_1": {"subject": "Meeting"}}
+    with pytest.raises(VariableResolutionError):
+        resolve_variables("{{node_1.missing_key}}", ctx)
+
+
 def test_missing_key_raises():
     ctx = {"node_1": {"subject": "Hi"}}
-    with pytest.raises(Exception, match="Could not resolve variable"):
+    with pytest.raises(VariableResolutionError, match="Could not resolve variable"):
         resolve_variables("{{node_1.missing_key}}", ctx)
 
 
 def test_missing_top_level_key_raises():
-    with pytest.raises(Exception, match="Could not resolve variable"):
+    with pytest.raises(VariableResolutionError, match="Could not resolve variable"):
         resolve_variables("{{nonexistent.key}}", {})
 
 
@@ -93,7 +100,7 @@ def test_whitespace_around_pipe_trimmed():
 
 
 def test_missing_without_default_still_raises():
-    with pytest.raises(Exception, match="Could not resolve variable"):
+    with pytest.raises(VariableResolutionError, match="Could not resolve variable"):
         resolve_variables("{{node_1.subject}}", {})
 
 
