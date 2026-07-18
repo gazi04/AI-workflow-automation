@@ -9,6 +9,8 @@ from fastapi import (
     WebSocketDisconnect,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 
 from jwt import PyJWTError
 
@@ -20,7 +22,8 @@ from orchestration.services import DeploymentService
 from user.models import User
 from utils.catalog_introspector import build_catalog
 from workflow.schemas.catalog import WorkflowCatalog
-from workflow.schemas import WorkflowSchema
+from workflow.schemas import WorkflowSchema, WorkflowExecutionConfig
+from workflow.schemas.ui_metadata_workflow import UIMetadata
 from workflow.schemas.workflow_run import WorkflowRun, WorkflowRunDetail
 from workflow.schemas import (
     RunWorkflowRequest,
@@ -310,6 +313,47 @@ async def get_workflow_history(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not fetch the history of the workflow.",
+        )
+
+
+@workflow_router.get("/{workflow_id}/export")
+async def export_workflow(
+    workflow_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Export a workflow's full definition as a downloadable JSON file."""
+    try:
+        workflow = await WorkflowService.get_by_id_and_user(db, workflow_id, user.id)
+        if workflow is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Workflow not found.",
+            )
+
+        schema = WorkflowSchema(
+            name=workflow.name,
+            description=workflow.description,
+            is_active=workflow.is_active,
+            execution_config=WorkflowExecutionConfig(**workflow.config),
+            ui_metadata=UIMetadata(**workflow.ui_metadata)
+            if workflow.ui_metadata
+            else None,
+        )
+
+        return JSONResponse(
+            content=jsonable_encoder(schema.model_dump(mode="json")),
+            headers={
+                "Content-Disposition": f'attachment; filename="{workflow.name}.json"'
+            },
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error exporting workflow {workflow_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Could not export the workflow {workflow_id}.",
         )
 
 
