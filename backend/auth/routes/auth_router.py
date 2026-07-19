@@ -53,7 +53,7 @@ async def exchange_code(request: Request, code: str, db: AsyncSession = Depends(
     being returned in the body, so client-side JS never holds them.
     """
     access_token, refresh_token = await AuthCodeService.consume(db, code)
-    if access_token is None:
+    if access_token is None or refresh_token is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired code.",
@@ -172,7 +172,7 @@ async def callback_google(
 
         try:
             user_info = id_token.verify_oauth2_token(
-                credentials.id_token,
+                credentials.id_token,  # pyright: ignore[reportAttributeAccessIssue]
                 requests.Request(),
                 settings.google_oauth_client_id,
             )

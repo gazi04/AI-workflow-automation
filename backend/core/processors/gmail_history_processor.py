@@ -1,5 +1,6 @@
 import base64
 from email.utils import parseaddr
+from typing import Any
 from uuid import UUID
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -33,7 +34,7 @@ class GmailHistoryProcessor:
     def __init__(self, creds: Credentials, user_id: UUID):
         self.creds = creds
         self.user_id = user_id
-        self.service = None
+        self.service: Any = None
 
     async def __aenter__(self):
         self.service = build("gmail", "v1", credentials=self.creds)

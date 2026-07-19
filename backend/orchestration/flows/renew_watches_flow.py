@@ -49,6 +49,11 @@ async def renew_gmail_watches():
                     account = await AccountService.get_account_by_user_and_provider(
                         db, user_id, "google"
                     )
+                    if account is None:
+                        logger.warning(
+                            f"Account disappeared before re-watch could be recorded for user {user_id}"
+                        )
+                        continue
                     await AccountService.update_history_id(
                         db, account, resp["historyId"]
                     )

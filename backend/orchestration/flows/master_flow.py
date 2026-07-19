@@ -7,7 +7,7 @@ from prefect.runtime import (
     deployment as prefect_deployment,
     flow_run as prefect_flow_run,
 )
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, cast
 from core.setup_logging import setup_logger
 from core.database import db_session
 from core.events import publish_event
@@ -16,6 +16,13 @@ from utils.build_adjacency_list import build_adjacency_list
 from utils.evaluate_condition import evaluate_condition
 from utils.resolve_variables import resolve_variables
 from workflow.schemas import WorkflowSchema
+from workflow.schemas.action import (
+    SendEmailConfig,
+    ReplyEmailConfig,
+    LabelEmailConfig,
+    SmartDraftConfig,
+)
+from workflow.schemas.condition_nodes import IfCondition
 from workflow.services import WorkflowRunService
 
 # Loading the models ensuring that the SQLAlchemy Base registry is fully populated before any database operation
@@ -142,7 +149,9 @@ def execute_automation_flow(
             if node.type == "condition":
                 emit("node_started", current_node_id, node_type="condition")
                 try:
-                    condition_result = evaluate_condition(node.config, run_context)
+                    condition_result = evaluate_condition(
+                        cast(IfCondition, node.config), run_context
+                    )
                     run_context["node_outputs"][current_node_id] = {
                         "result": condition_result
                     }
@@ -201,27 +210,35 @@ def execute_automation_flow(
                             "Action requires an email trigger context, but none was provided."
                         )
 
+                    # The guard above already ensures original_email is truthy
+                    # whenever action_type is one of email_dependent_actions.
+                    email_context = cast(Dict[str, Any], original_email)
+
                     if action_type == "send_email":
+                        email_config = cast(SendEmailConfig, action_data)
                         future = send_message.submit(
                             user_id,
-                            action_data.to,
-                            action_data.subject,
-                            action_data.body,
+                            email_config.to,
+                            email_config.subject,
+                            email_config.body,
                         )
 
                     elif action_type == "reply_email":
+                        reply_config = cast(ReplyEmailConfig, action_data)
                         future = reply_email.submit(
-                            user_id, action_data.body, original_email
+                            user_id, reply_config.body, email_context
                         )
 
                     elif action_type == "label_email":
+                        label_config = cast(LabelEmailConfig, action_data)
                         future = label_mail.submit(
-                            user_id, action_data.label_info, original_email
+                            user_id, label_config.label_info, email_context
                         )
 
                     elif action_type == "smart_draft":
+                        smart_draft_config = cast(SmartDraftConfig, action_data)
                         future = smart_draft.submit(
-                            user_id, original_email, action_data.user_prompt
+                            user_id, email_context, smart_draft_config.user_prompt
                         )
 
                     elif action_type == "send_slack_message":
@@ -229,6 +246,11 @@ def execute_automation_flow(
 
                     elif action_type == "create_document":
                         raise NotImplementedError()
+
+                    else:
+                        raise NotImplementedError(
+                            f"Unhandled action type: {action_type}"
+                        )
 
                     # Don't wait here — stash the future and resolve it after the
                     # whole level has been submitted, so siblings run concurrently.

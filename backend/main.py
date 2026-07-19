@@ -63,7 +63,7 @@ app = FastAPI(title="AI Workflow Orchestrator API", lifespan=lifespan)
 
 # Rate limiting (slowapi): register the shared limiter and its 429 handler.
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
 app.include_router(auth_router, prefix="/api")
 app.include_router(connection_router, prefix="/api")

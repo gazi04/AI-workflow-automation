@@ -11,7 +11,7 @@ scheduled runs.
 
 import asyncio
 
-from prefect.client.schemas.schedules import CronSchedule
+from prefect.schedules import Cron
 
 from orchestration.flows.renew_watches_flow import renew_gmail_watches
 from orchestration.flows.cleanup_auth_flow import cleanup_expired_auth
@@ -25,7 +25,7 @@ async def register_renewal_deployment(retries: int = 5, delay: float = 3.0):
     prefect-server may not be reachable the instant the backend starts (compose
     `depends_on` is `service_started`, not ready).
     """
-    flow_from_source = await renew_gmail_watches.from_source(
+    flow_from_source = await renew_gmail_watches.from_source(  # pyright: ignore[reportGeneralTypeIssues]
         source=".",
         entrypoint="orchestration/flows/renew_watches_flow.py:renew_gmail_watches",
     )
@@ -33,9 +33,9 @@ async def register_renewal_deployment(retries: int = 5, delay: float = 3.0):
     last_err = None
     for _ in range(retries):
         try:
-            return await flow_from_source.deploy(
+            return await flow_from_source.deploy(  # pyright: ignore[reportGeneralTypeIssues]
                 name="renew-gmail-watches-daily",
-                schedule=CronSchedule(cron="0 3 * * *", timezone="UTC"),  # daily 03:00 UTC
+                schedule=Cron("0 3 * * *", timezone="UTC"),  # daily 03:00 UTC
                 tags=["system", "gmail-maintenance"],
                 work_pool_name="my-process-pool",
                 build=False,
@@ -44,6 +44,7 @@ async def register_renewal_deployment(retries: int = 5, delay: float = 3.0):
             last_err = e
             await asyncio.sleep(delay)
 
+    assert last_err is not None
     raise last_err
 
 
@@ -52,7 +53,7 @@ async def register_cleanup_deployment(retries: int = 5, delay: float = 3.0):
 
     Same idempotent-upsert + retry contract as `register_renewal_deployment`.
     """
-    flow_from_source = await cleanup_expired_auth.from_source(
+    flow_from_source = await cleanup_expired_auth.from_source(  # pyright: ignore[reportGeneralTypeIssues]
         source=".",
         entrypoint="orchestration/flows/cleanup_auth_flow.py:cleanup_expired_auth",
     )
@@ -60,9 +61,9 @@ async def register_cleanup_deployment(retries: int = 5, delay: float = 3.0):
     last_err = None
     for _ in range(retries):
         try:
-            return await flow_from_source.deploy(
+            return await flow_from_source.deploy(  # pyright: ignore[reportGeneralTypeIssues]
                 name="cleanup-expired-auth-daily",
-                schedule=CronSchedule(cron="15 3 * * *", timezone="UTC"),  # daily 03:15 UTC
+                schedule=Cron("15 3 * * *", timezone="UTC"),  # daily 03:15 UTC
                 tags=["system", "auth-maintenance"],
                 work_pool_name="my-process-pool",
                 build=False,
@@ -71,6 +72,7 @@ async def register_cleanup_deployment(retries: int = 5, delay: float = 3.0):
             last_err = e
             await asyncio.sleep(delay)
 
+    assert last_err is not None
     raise last_err
 
 

@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import select
@@ -20,7 +21,7 @@ class ProcessedMessageService:
     @staticmethod
     async def get_by_message_id_and_workflow_id(
         db: AsyncSession, message_id: str, workflow_id: UUID
-    ) -> ProcessedMessages:
+    ) -> Optional[ProcessedMessages]:
         result = await db.execute(
             select(ProcessedMessages).where(
                 ProcessedMessages.message_id == message_id,

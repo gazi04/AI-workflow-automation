@@ -51,6 +51,11 @@ class AccountService:
                 db, user_id, provider
             )
 
+        if account is None:
+            raise ValueError(
+                f"No connected account to refresh (user_id={user_id}, provider={provider})"
+            )
+
         account.access_token = encrypt_token(token)
         account.token_expires_at = expiry
 

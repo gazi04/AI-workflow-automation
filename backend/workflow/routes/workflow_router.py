@@ -228,10 +228,12 @@ async def update_workflow_config(
                 detail="Workflow not found.",
             )
 
-        workflow_config_dict = request.schema.execution_config.model_dump(
+        workflow_config_dict = request.workflow_schema.execution_config.model_dump(
             by_alias=True, exclude_none=True
         )
-        await WorkflowService.update_config(db, request.deployment_id, request.schema)
+        await WorkflowService.update_config(
+            db, request.deployment_id, request.workflow_schema
+        )
 
         result = await DeploymentService.update_workflow_config(
             deployment_id=request.deployment_id, new_params=workflow_config_dict
@@ -333,7 +335,7 @@ async def export_workflow(
 
         schema = WorkflowSchema(
             name=workflow.name,
-            description=workflow.description,
+            description=workflow.description or "",
             is_active=workflow.is_active,
             execution_config=WorkflowExecutionConfig(**workflow.config),
             ui_metadata=UIMetadata(**workflow.ui_metadata)

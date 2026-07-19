@@ -32,7 +32,8 @@ class LabelEmailConfig(BaseModel):
         return GmailLabel(
             name=self.label_name,
             color=LabelColor(
-                backgroundColor=self.background_color, textColor=self.text_color
+                backgroundColor=self.background_color,  # pyright: ignore[reportArgumentType]
+                textColor=self.text_color,  # pyright: ignore[reportArgumentType]
             ),
         )
 

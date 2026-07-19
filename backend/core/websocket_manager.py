@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import Any, List, Dict
 from fastapi import WebSocket
 
 from core.setup_logging import setup_logger
@@ -27,10 +27,10 @@ class ConnectionManager:
         if not connections:
             del self.active_connections[user_id]
 
-    async def send_personal_message(self, message: any, websocket: WebSocket):
+    async def send_personal_message(self, message: Any, websocket: WebSocket):
         await websocket.send_json(message)
 
-    async def broadcast_to_user(self, user_id: str, message: any):
+    async def broadcast_to_user(self, user_id: str, message: Any):
         connections = self.active_connections.get(user_id)
         if not connections:
             return

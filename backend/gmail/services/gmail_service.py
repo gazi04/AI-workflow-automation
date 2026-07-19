@@ -175,6 +175,11 @@ class GmailService:
                 account = await AccountService.get_account_by_user_and_provider(
                     db, user_id, "google"
                 )
+                if account is None:
+                    logger.error(
+                        f"Account disappeared mid-sync for {email_address}; aborting drain."
+                    )
+                    return
                 baseline = account.last_synced_history_id
                 # Snapshot the high-water mark BEFORE fetching.
                 target = account.latest_observed_history_id or new_history_id
@@ -211,6 +216,11 @@ class GmailService:
             # baseline and decide whether another pass is needed.
             async with db_session() as db:
                 account = await GmailService._acquire_account_locked(db, user_id)
+                if account is None:
+                    logger.error(
+                        f"Account disappeared mid-sync for {email_address}; aborting drain."
+                    )
+                    return
                 account.last_synced_history_id = target
 
                 if account.sync_pending:

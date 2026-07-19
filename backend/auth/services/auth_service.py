@@ -61,6 +61,11 @@ class AuthService:
             db, user_id, provider
         )  # 🔴 todo: make a provider emun for cleaner code
 
+        if connected_account is None:
+            raise HTTPException(
+                status_code=404, detail="No connected Google account found."
+            )
+
         expiry_time = connected_account.token_expires_at
 
         if expiry_time:
@@ -88,6 +93,8 @@ class AuthService:
         if not creds.valid and creds.refresh_token:
             try:
                 creds.refresh(Request())
+                # refresh() either raises (caught below) or populates .token.
+                assert creds.token is not None
                 await AccountService.refresh_tokens(
                     db,
                     account=connected_account,

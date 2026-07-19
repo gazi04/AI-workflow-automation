@@ -23,8 +23,9 @@ def _map_annotation_to_ui_type(annotation, field_info: FieldInfo) -> str:
     if isinstance(annotation, type) and issubclass(annotation, BaseModel):
         return "object"  # TODO: flatten nested models in a future phase
     # check for manual override via json_schema_extra: {"widget": "password"}
-    extra = field_info.json_schema_extra or {}
-    return extra.get("widget", "text")
+    extra = field_info.json_schema_extra
+    extra_dict = extra if isinstance(extra, dict) else {}
+    return str(extra_dict.get("widget", "text"))
 
 
 def _build_node_definitions(union_type) -> list[NodeDefinition]:

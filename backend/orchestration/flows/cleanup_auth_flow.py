@@ -44,7 +44,7 @@ async def cleanup_expired_auth():
                 result = await db.execute(stmt)
                 await db.commit()
                 logger.info(
-                    f"Purged {result.rowcount} expired {model.__tablename__} row(s)"
+                    f"Purged {result.rowcount} expired {model.__tablename__} row(s)"  # type: ignore[attr-defined]
                 )
             except Exception as e:
                 await db.rollback()

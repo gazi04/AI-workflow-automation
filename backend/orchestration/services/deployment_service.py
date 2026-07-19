@@ -13,7 +13,7 @@ from prefect.client.schemas.objects import Log
 from prefect.client.schemas.sorting import FlowRunSort, LogSort
 from prefect.deployments import run_deployment
 from prefect.client.schemas.actions import DeploymentUpdate
-from prefect.client.schemas.schedules import CronSchedule
+from prefect.schedules import Cron
 from core.setup_logging import setup_logger
 from orchestration.flows.master_flow import execute_automation_flow
 from utils.translate_workflow_runs_schema import translate_flow_runs_schema
@@ -51,7 +51,7 @@ class DeploymentService:
             # blocking until it completes. The caller treats "scheduled" (not "ran
             # to success") as the signal to mark the message processed, so a
             # workflow that later fails mid-run is never re-triggered.
-            await run_deployment(workflow_id, parameters=config, timeout=0)
+            await run_deployment(workflow_id, parameters=config, timeout=0)  # pyright: ignore[reportGeneralTypeIssues]
             logger.info(f"Triggering workflow {workflow_id}")
         except Exception as e:
             logger.error(f"Unexpected error occurred: \n{e}")
@@ -76,27 +76,23 @@ class DeploymentService:
             trigger = node.config
 
             if trigger.type == "schedule":
-                cron_expression = (
-                    getattr(trigger, "config", trigger).cron
-                    if hasattr(getattr(trigger, "config", trigger), "cron")
-                    else getattr(trigger, "cron", None)
-                )
+                cron_expression = trigger.config.cron
 
                 if cron_expression and schedule is None:
                     # Note: Prefect deploy() param 'schedule' takes a single schedule.
                     # If a user adds multiple schedule nodes, we use the first one here.
-                    schedule = CronSchedule(cron=cron_expression, timezone="UTC")
+                    schedule = Cron(cron_expression, timezone="UTC")
 
         safe_name = schema.name.replace(" ", "-").lower()
         deployment_name = f"user-{user_id}-{safe_name}"
         workflow_data = workflow.model_dump()
 
-        flow_from_source = await execute_automation_flow.from_source(
+        flow_from_source = await execute_automation_flow.from_source(  # pyright: ignore[reportGeneralTypeIssues]
             source=".",
             entrypoint="orchestration/flows/master_flow.py:execute_automation_flow",
         )
 
-        deployment_id = await flow_from_source.deploy(
+        deployment_id = await flow_from_source.deploy(  # pyright: ignore[reportGeneralTypeIssues]
             name=deployment_name,
             parameters={"user_id": str(user_id), "workflow_data": workflow_data},
             schedule=schedule,

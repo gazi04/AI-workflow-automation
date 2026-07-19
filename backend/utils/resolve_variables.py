@@ -26,6 +26,7 @@ def resolve_variables(value: Any, context: Dict[str, Any]) -> Any:
             raw_match = match.group(0)
             inner = match.group(1).strip()
 
+            default: str | None = None
             has_default = "|" in inner
             if has_default:
                 path_str, default_raw = inner.split("|", 1)

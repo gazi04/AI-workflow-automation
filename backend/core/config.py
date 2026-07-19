@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,7 +18,7 @@ class Settings(BaseSettings):
     # production cross-domain needs cookie_secure=True + cookie_samesite="none".
     frontend_url: str = "http://localhost:5173"
     cookie_secure: bool = False
-    cookie_samesite: str = "lax"
+    cookie_samesite: Literal["lax", "strict", "none"] = "lax"
     cookie_domain: str | None = None
 
     database_url: str
