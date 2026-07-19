@@ -6,10 +6,7 @@ from sqlalchemy import pool
 from alembic import context
 
 from core.database import Base, engine
-from user.models import User
-from workflow.models import Workflow, WorkflowRunRecord
-from auth.models import ConnectedAccount, RefreshToken
-from processed_messages.models import ProcessedMessages
+import core.models  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
