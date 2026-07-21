@@ -2,6 +2,15 @@ import { env } from '$env/dynamic/public';
 
 export const BASE_URL = env.PUBLIC_API_URL || 'http://localhost:8000';
 
+/**
+ * Build a WebSocket URL against the same origin as the REST API, so both follow
+ * PUBLIC_API_URL. Replacing the leading `http` maps http:// -> ws:// and
+ * https:// -> wss://.
+ */
+export function wsUrl(path: string): string {
+	return `${BASE_URL.replace(/^http/, 'ws')}${path}`;
+}
+
 let refreshPromise: Promise<boolean> | null = null;
 
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);

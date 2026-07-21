@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { api } from '$lib/api/client';
+	import { api, wsUrl } from '$lib/api/client';
 	import { toast, Toaster } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -16,6 +16,10 @@
 	let userId = $state<string | null>(null);
 	let userInitials = $state('?');
 	let socket: WebSocket | null = null;
+	let retryTimer: ReturnType<typeof setTimeout> | null = null;
+	// Set on teardown so a closing socket doesn't schedule a reconnect for a
+	// component that no longer exists.
+	let disposed = false;
 
 	type IntegrationStatus = {
 		provider: string;
@@ -92,11 +96,11 @@
 	let knownRunStates = new Map<string, string>();
 
 	async function initWorkflowWebSocket() {
-		if (!userId) return;
+		// The disposed check also covers loadUser() resolving after unmount.
+		if (disposed || !userId) return;
 
 		// Auth comes from the HttpOnly access_token cookie sent on the WS handshake.
-		const wsUrl = `ws://localhost:8000/api/workflow/ws/workflows/${userId}`;
-		socket = new WebSocket(wsUrl);
+		socket = new WebSocket(wsUrl(`/api/workflow/ws/workflows/${userId}`));
 
 		socket.onmessage = (event) => {
 			const message = JSON.parse(event.data);
@@ -152,8 +156,9 @@
 		};
 
 		socket.onclose = () => {
+			if (disposed) return;
 			console.log('Workflow WebSocket closed. Retrying in 5s...');
-			setTimeout(initWorkflowWebSocket, 5000);
+			retryTimer = setTimeout(initWorkflowWebSocket, 5000);
 		};
 
 		socket.onerror = (err) => {
@@ -169,7 +174,11 @@
 		const connInterval = setInterval(checkAndRecoverConnections, 1000 * 60 * 45);
 
 		return () => {
+			// Order matters: disposed must be set before close() fires onclose,
+			// otherwise onclose schedules a reconnect for the torn-down component.
+			disposed = true;
 			clearInterval(connInterval);
+			if (retryTimer) clearTimeout(retryTimer);
 			if (socket) socket.close();
 		};
 	});

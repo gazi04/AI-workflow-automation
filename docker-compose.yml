@@ -91,7 +91,9 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_URL=http://localhost:8000
+      # Must be browser-reachable: all API calls are client-side, so this is the
+      # host URL, not the container-internal http://backend:8000.
+      - PUBLIC_API_URL=http://localhost:8000
     depends_on:
       - backend
     volumes:
