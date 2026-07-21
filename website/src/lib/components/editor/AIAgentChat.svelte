@@ -1,8 +1,10 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { Send, Bot, X, Loader2, Sparkles } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { api } from '$lib/api/client';
 	import { slide, fade } from 'svelte/transition';
+	import type { components } from '$lib/types/schema';
 
 	let { onAIUpdate, getCurrentConfig } = $props();
 
@@ -13,13 +15,15 @@
 		{ role: 'ai', content: 'Hi! Describe how you want to modify or create your workflow.' }
 	]);
 
-	// Auto-scroll reference
-	let chatContainer: HTMLElement;
+	// Auto-scroll reference. Null before mount and whenever the chat is closed,
+	// since bind:this lives inside the {#if isOpen} block.
+	let chatContainer = $state<HTMLElement | null>(null);
 
-	function scrollToBottom() {
-		setTimeout(() => {
-			if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
-		}, 50);
+	// tick() resolves right after the DOM flush, so the new message is already
+	// laid out when we measure scrollHeight.
+	async function scrollToBottom() {
+		await tick();
+		chatContainer?.scrollTo({ top: chatContainer.scrollHeight });
 	}
 
 	async function handleSubmit() {
@@ -29,12 +33,12 @@
 		messages = [...messages, { role: 'user', content: userText }];
 		prompt = '';
 		isLoading = true;
-		scrollToBottom();
+		await scrollToBottom();
 
 		try {
 			const currentWorkflow = getCurrentConfig();
 
-			const res = await api.post('/api/ai/interpret', {
+			const res = await api.post<components['schemas']['AIResponse']>('/api/ai/interpret', {
 				text: userText,
 				current_workflow: currentWorkflow
 			});
@@ -55,7 +59,7 @@
 			];
 		} finally {
 			isLoading = false;
-			scrollToBottom();
+			await scrollToBottom();
 		}
 	}
 </script>
