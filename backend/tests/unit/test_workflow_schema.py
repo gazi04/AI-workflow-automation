@@ -1,3 +1,5 @@
+from typing import Optional
+
 import pytest
 from workflow.schemas.workflow_schema import WorkflowExecutionConfig
 from workflow.schemas.workflow_nodes import WorkflowNode
@@ -49,7 +51,9 @@ def make_condition(node_id: str) -> WorkflowNode:
     )
 
 
-def make_edge(edge_id: str, source: str, target: str, source_handle: str = None) -> Edge:
+def make_edge(
+    edge_id: str, source: str, target: str, source_handle: Optional[str] = None
+) -> Edge:
     return Edge(id=edge_id, source=source, target=target, sourceHandle=source_handle)
 
 

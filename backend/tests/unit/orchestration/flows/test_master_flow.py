@@ -1,3 +1,4 @@
+from typing import Optional
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
@@ -127,7 +128,7 @@ def make_condition_workflow() -> dict:
     }
 
 
-def make_trigger_context(trigger_node_id: str, email: dict = None) -> dict:
+def make_trigger_context(trigger_node_id: str, email: Optional[dict] = None) -> dict:
     return {
         "trigger_context": {
             "matched_trigger_node_id": trigger_node_id,

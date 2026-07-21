@@ -24,7 +24,7 @@ def _patched_client(delete_side_effect):
 async def test_delete_swallows_object_not_found():
     """A deployment already gone in Prefect is treated as a successful delete."""
     dep_id = uuid4()
-    ctx, client = _patched_client(ObjectNotFound("gone"))
+    ctx, client = _patched_client(ObjectNotFound(Exception("gone")))
     with ctx:
         await DeploymentService.delete(dep_id)  # must not raise
     client.delete_deployment.assert_awaited_once_with(dep_id)

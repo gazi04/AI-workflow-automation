@@ -54,5 +54,6 @@ async def test_connection_status_needs_reconnect_when_no_refresh_token(client, d
     integrations = response.json()["integrations"]
     google = next((i for i in integrations if i["provider"] == "google"), None)
 
+    assert google is not None
     assert google["is_connected"] is True
     assert google["needs_reconnect"] is True

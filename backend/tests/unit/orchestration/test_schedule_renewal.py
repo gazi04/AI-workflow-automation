@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from prefect.client.schemas.schedules import CronSchedule
+from prefect.schedules import Schedule
 
 from scripts.register_renewal import (
     register_renewal_deployment,
@@ -27,7 +27,7 @@ async def test_registers_cleanup_daily_cron_deployment():
     kwargs = flow_mock.deploy.await_args.kwargs
     assert kwargs["name"] == "cleanup-expired-auth-daily"
     assert kwargs["work_pool_name"] == "my-process-pool"
-    assert isinstance(kwargs["schedule"], CronSchedule)
+    assert isinstance(kwargs["schedule"], Schedule)
     assert kwargs["schedule"].cron == "15 3 * * *"
 
 
@@ -47,7 +47,7 @@ async def test_registers_daily_cron_deployment():
     kwargs = flow_mock.deploy.await_args.kwargs
     assert kwargs["name"] == "renew-gmail-watches-daily"
     assert kwargs["work_pool_name"] == "my-process-pool"
-    assert isinstance(kwargs["schedule"], CronSchedule)
+    assert isinstance(kwargs["schedule"], Schedule)
     assert kwargs["schedule"].cron == "0 3 * * *"
 
 

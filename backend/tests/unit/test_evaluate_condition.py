@@ -1,3 +1,5 @@
+from typing import Literal
+
 from utils.evaluate_condition import evaluate_condition
 from workflow.schemas.condition_nodes import (
     ConditionOperators,
@@ -11,7 +13,9 @@ from workflow.schemas.condition_nodes import (
 # Helpers
 # ---------------------------------------------------------------------------
 
-def make_condition(rules: list[ConditionRule], match_type: str = "ALL") -> IfCondition:
+def make_condition(
+    rules: list[ConditionRule], match_type: Literal["ANY", "ALL"] = "ALL"
+) -> IfCondition:
     return IfCondition(
         type="if_condition",
         config=IfConditionConfig(rules=rules, match_type=match_type),

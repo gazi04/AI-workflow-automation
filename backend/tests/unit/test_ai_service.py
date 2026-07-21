@@ -10,7 +10,7 @@ def test_get_azure_client_is_cached(mock_settings):
     mock_settings.azure_api_key = "fake-key"
     mock_settings.azure_endpoint = "https://example.invalid"
 
-    get_client = AiService._AiService__get_azure_client
+    get_client = AiService._AiService__get_azure_client  # pyright: ignore[reportAttributeAccessIssue]
     get_client.cache_clear()
     try:
         client1 = get_client()

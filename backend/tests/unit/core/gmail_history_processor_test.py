@@ -601,6 +601,7 @@ def _text_part(raw_bytes: bytes):
         body=GmailMessagePartBody(
             size=len(raw_bytes),
             data=base64.urlsafe_b64encode(raw_bytes).decode("ascii"),
+            attachmentId=None,
         ),
     )
 

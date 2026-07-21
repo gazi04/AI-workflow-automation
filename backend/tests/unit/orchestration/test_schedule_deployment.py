@@ -1,10 +1,10 @@
-"""Unit test for the schedule-trigger → Prefect CronSchedule wiring in
+"""Unit test for the schedule-trigger → Prefect Cron schedule wiring in
 DeploymentService.create_deployment_for_workflow."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
-from prefect.client.schemas.schedules import CronSchedule
+from prefect.schedules import Schedule
 
 from orchestration.services.deployment_service import DeploymentService
 from workflow.schemas import WorkflowSchema
@@ -55,5 +55,5 @@ async def test_schedule_trigger_creates_cron_schedule():
         )
 
     schedule = flow_mock.deploy.await_args.kwargs["schedule"]
-    assert isinstance(schedule, CronSchedule)
+    assert isinstance(schedule, Schedule)
     assert schedule.cron == "0 9 * * *"
