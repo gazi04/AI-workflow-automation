@@ -1,18 +1,28 @@
 <script lang="ts">
+	import { getContext } from 'svelte';
 	import { Handle, Position } from '@xyflow/svelte';
 	import { Settings2 } from 'lucide-svelte';
 	import { catalogStore } from '$lib/store/catalogStore.svelte';
+	import { workflowStore } from '$lib/store/workflowStore.svelte';
 	import { ICON_MAP, DEFAULT_ICON } from '$lib/utils/icons';
+	import { statusRingClass } from '$lib/utils/nodeStatus';
 	import { formatLabel } from '$lib/utils';
 
-	let { data } = $props();
+	let { id, data } = $props();
 
 	let definition = $derived(catalogStore.getNodeDef(data.type));
 	let Icon = $derived(ICON_MAP[definition?.icon || ''] || DEFAULT_ICON);
+
+	const getWorkflowId = getContext<() => string>('workflowId');
+	let runStatus = $derived(
+		getWorkflowId?.() ? workflowStore.getNodeStatus(getWorkflowId(), id) : undefined
+	);
 </script>
 
 <div
-	class="w-64 rounded-xl border-2 border-slate-200 bg-white px-4 py-3 shadow-lg ring-primary/20 transition-all hover:ring-4"
+	class="w-64 rounded-xl border-2 border-slate-200 bg-white px-4 py-3 shadow-lg ring-primary/20 transition-all hover:ring-4 {statusRingClass(
+		runStatus
+	)}"
 >
 	<Handle type="target" position={Position.Left} class="h-3! w-3! bg-slate-400!" />
 
@@ -28,9 +38,12 @@
 		<Settings2 size={14} class="text-slate-400" />
 	</div>
 
-  <div class="text-sm font-medium text-slate-900 truncate max-w-[200px]" title={data.config.user_prompt || definition?.description || formatLabel(data.type)}>
-    {data.config.user_prompt || definition?.description || formatLabel(data.type)}
-  </div>
+	<div
+		class="max-w-[200px] truncate text-sm font-medium text-slate-900"
+		title={data.config.user_prompt || definition?.description || formatLabel(data.type)}
+	>
+		{data.config.user_prompt || definition?.description || formatLabel(data.type)}
+	</div>
 
 	<Handle type="source" position={Position.Right} class="h-3! w-3! bg-slate-400!" />
 </div>

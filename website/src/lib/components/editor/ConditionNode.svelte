@@ -1,12 +1,20 @@
 <script lang="ts">
+	import { getContext } from 'svelte';
 	import { Handle, Position, type NodeProps } from '@xyflow/svelte';
 	import { catalogStore } from '$lib/store/catalogStore.svelte';
+	import { workflowStore } from '$lib/store/workflowStore.svelte';
 	import { ICON_MAP, DEFAULT_ICON } from '$lib/utils/icons';
+	import { statusRingClass } from '$lib/utils/nodeStatus';
 
-	let { data }: NodeProps = $props();
+	let { id, data }: NodeProps = $props();
 
 	let definition = $derived(catalogStore.getNodeDef(data.type as string));
 	let Icon = $derived(ICON_MAP[definition?.icon || ''] || DEFAULT_ICON);
+
+	const getWorkflowId = getContext<() => string>('workflowId');
+	let runStatus = $derived(
+		getWorkflowId?.() ? workflowStore.getNodeStatus(getWorkflowId(), id) : undefined
+	);
 
 	// Safely extract rules and match_type using derived state so the node updates instantly
 	let rules = $derived(
@@ -34,7 +42,9 @@
 </script>
 
 <div
-	class="min-w-45 rounded-lg border-2 border-orange-500 bg-card p-3 shadow-lg transition-all hover:shadow-xl"
+	class="min-w-45 rounded-lg border-2 border-orange-500 bg-card p-3 shadow-lg transition-all hover:shadow-xl {statusRingClass(
+		runStatus
+	)}"
 >
 	<div class="mb-2 flex items-center gap-2 border-b border-orange-100 pb-2">
 		<div class="rounded-md bg-orange-100 p-1.5 text-orange-600">

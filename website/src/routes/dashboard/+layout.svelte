@@ -4,7 +4,15 @@
 	import { toast, Toaster } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { LayoutDashboard, CirclePlus, Plug, LogOut, User, History } from 'lucide-svelte';
+	import {
+		LayoutDashboard,
+		CirclePlus,
+		Plug,
+		LogOut,
+		User,
+		History,
+		Settings
+	} from 'lucide-svelte';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { workflowStore } from '$lib/store/workflowStore.svelte';
 	import { logout } from '$lib/utils';
@@ -128,10 +136,16 @@
 					knownRunStates.set(run.id, run.state_name);
 				}
 			} else if (message.type === 'node_started') {
+				workflowStore.setNodeStatus(message.workflow_id, message.node_id, 'running');
 				toast.info(`Step running: ${message.node_id}`);
 			} else if (message.type === 'node_completed') {
+				workflowStore.setNodeStatus(message.workflow_id, message.node_id, 'completed');
 				toast.success(`Step done: ${message.node_id}`);
 			} else if (message.type === 'flow_finished') {
+				// Let the final node states linger briefly, then reset the canvas.
+				if (message.workflow_id) {
+					setTimeout(() => workflowStore.clearRun(message.workflow_id), 2500);
+				}
 				if (message.status === 'success') {
 					toast.success('Workflow finished');
 				} else if (message.status === 'partial') {
@@ -140,6 +154,7 @@
 					toast.error('Workflow failed');
 				}
 			} else if (message.type === 'node_failed') {
+				workflowStore.setNodeStatus(message.workflow_id, message.node_id, 'failed');
 				toast.error(`Step Failed: ${message.node_id}`, {
 					description: message.error || 'A workflow step encountered an error.',
 					action: {
@@ -231,6 +246,17 @@
 			>
 				<History class="h-4 w-4" />
 				History
+			</a>
+
+			<a
+				href="/dashboard/settings"
+				class="flex items-center gap-2 text-sm font-medium transition-colors {page.url.pathname ===
+				'/dashboard/settings'
+					? 'text-foreground'
+					: 'text-muted-foreground hover:text-foreground'}"
+			>
+				<Settings class="h-4 w-4" />
+				Settings
 			</a>
 
 			<div class="ml-auto">

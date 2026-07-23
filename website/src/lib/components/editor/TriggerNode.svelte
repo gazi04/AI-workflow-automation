@@ -1,17 +1,27 @@
 <script lang="ts">
+	import { getContext } from 'svelte';
 	import { Handle, Position } from '@xyflow/svelte';
 	import { catalogStore } from '$lib/store/catalogStore.svelte';
+	import { workflowStore } from '$lib/store/workflowStore.svelte';
 	import { ICON_MAP, DEFAULT_ICON } from '$lib/utils/icons';
+	import { statusRingClass } from '$lib/utils/nodeStatus';
 	import { formatLabel } from '$lib/utils';
 
-	let { data } = $props();
+	let { id, data } = $props();
 
 	let definition = $derived(catalogStore.getNodeDef(data.type));
 	let Icon = $derived(ICON_MAP[definition?.icon || ''] || DEFAULT_ICON);
+
+	const getWorkflowId = getContext<() => string>('workflowId');
+	let runStatus = $derived(
+		getWorkflowId?.() ? workflowStore.getNodeStatus(getWorkflowId(), id) : undefined
+	);
 </script>
 
 <div
-	class="w-64 rounded-xl border-2 border-blue-200 bg-blue-50 px-4 py-3 shadow-lg ring-primary/20 transition-all hover:ring-4"
+	class="w-64 rounded-xl border-2 border-blue-200 bg-blue-50 px-4 py-3 shadow-lg ring-primary/20 transition-all hover:ring-4 {statusRingClass(
+		runStatus
+	)}"
 >
 	<div class="mb-2 flex items-center gap-2">
 		<div class="rounded bg-blue-500 p-1 text-white">

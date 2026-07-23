@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, setContext } from 'svelte';
 	import { type Node, type Edge, SvelteFlowProvider } from '@xyflow/svelte';
 	import '@xyflow/svelte/dist/style.css';
 	import { api } from '$lib/api/client';
@@ -17,6 +17,10 @@
 	import type { components } from '$lib/types/schema';
 
 	const history = new HistoryManager<{ nodes: Node[]; edges: Edge[] }>();
+
+	// Node components read this to light up on live run events (matches the
+	// workflow id the backend emits). 'new' never matches, so drafts stay dark.
+	setContext('workflowId', () => page.params.id ?? '');
 
 	type WorkflowDef = components['schemas']['WorkflowSchema-Output'];
 
