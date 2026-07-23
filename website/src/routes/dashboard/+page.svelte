@@ -1,12 +1,22 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { api } from '$lib/api/client';
+	import { api, BASE_URL } from '$lib/api/client';
 	import type { components } from '$lib/types/schema';
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Switch } from '$lib/components/ui/switch';
-	import { Eye, Loader, Mail, Trash2, Play, Settings2, RefreshCw } from 'lucide-svelte';
+	import {
+		Eye,
+		Loader,
+		Mail,
+		Trash2,
+		Play,
+		Settings2,
+		RefreshCw,
+		Upload,
+		Download
+	} from 'lucide-svelte';
 	import { formatLabel } from '$lib/utils';
 	import { toast, Toaster } from 'svelte-sonner';
 
@@ -25,6 +35,8 @@
 	let workflows = $state<Workflow[]>([]);
 	let isLoading = $state(true);
 	let runningIds = $state<Set<string>>(new Set());
+	let importInput: HTMLInputElement;
+	let isImporting = $state(false);
 
 	async function fetchWorkflows() {
 		try {
@@ -100,6 +112,26 @@
 		}
 	}
 
+	async function handleImport(event: Event) {
+		const input = event.target as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+
+		isImporting = true;
+		try {
+			const parsed = JSON.parse(await file.text());
+			await api.post('/api/workflow/import', parsed);
+			await fetchWorkflows();
+			toast.success('Workflow imported. It starts paused — review, then activate.');
+		} catch (err: any) {
+			console.error('Import failed', err);
+			toast.error(err?.detail || 'Import failed. Check the file is a valid workflow export.');
+		} finally {
+			isImporting = false;
+			input.value = ''; // allow re-importing the same file
+		}
+	}
+
 	onMount(fetchWorkflows);
 </script>
 
@@ -109,7 +141,24 @@
 			<h1 class="text-3xl font-bold tracking-tight">Agent Control Center</h1>
 			<p class="text-muted-foreground">Monitoring {workflows.length} active automations.</p>
 		</div>
-		<Button href="/dashboard/edit/new">Create New Agent</Button>
+		<div class="flex gap-2">
+			<input
+				bind:this={importInput}
+				type="file"
+				accept="application/json,.json"
+				class="hidden"
+				onchange={handleImport}
+			/>
+			<Button variant="outline" disabled={isImporting} onclick={() => importInput.click()}>
+				{#if isImporting}
+					<Loader class="mr-1 h-4 w-4 animate-spin" />
+				{:else}
+					<Upload class="mr-1 h-4 w-4" />
+				{/if}
+				Import
+			</Button>
+			<Button href="/dashboard/edit/new">Create New Agent</Button>
+		</div>
 	</header>
 
 	{#if isLoading}
@@ -202,6 +251,14 @@
 							</Button>
 							<Button variant="ghost" size="sm" href="/dashboard/agent/{wf.id}/history">
 								<Eye class="mr-1 h-4 w-4" /> History
+							</Button>
+							<Button
+								variant="ghost"
+								size="sm"
+								href="{BASE_URL}/api/workflow/{wf.id}/export"
+								download
+							>
+								<Download class="mr-1 h-4 w-4" /> Export
 							</Button>
 						</div>
 						<Button variant="secondary" size="sm" href="/dashboard/edit/{wf.id}">

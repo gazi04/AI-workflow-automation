@@ -30,6 +30,7 @@ from workflow.schemas import (
     UpdateWorkflowRequest,
     ToggleWorkflowRequest,
 )
+from workflow.models.workflow import Workflow
 from workflow.services import WorkflowService, WorkflowRunService
 from core.websocket_manager import manager
 
@@ -142,7 +143,9 @@ async def toggle_workflow(
                 detail="Workflow not found.",
             )
 
-        await WorkflowService.update_is_active(db, request.deployment_id, request.status)
+        await WorkflowService.update_is_active(
+            db, request.deployment_id, request.status
+        )
 
         result = await DeploymentService.toggle_workflow(
             deployment_id=request.deployment_id, active=request.status
@@ -160,14 +163,17 @@ async def toggle_workflow(
         )
 
 
-@workflow_router.post("/create")
-async def create_workflow(
+async def _persist_new_workflow(
+    db: AsyncSession,
+    user: User,
     schema: WorkflowSchema,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    """
-    Register a new workflow in Prefect and save it to the local database.
+    *,
+    is_active: bool,
+) -> Workflow:
+    """Register a Prefect deployment for the schema and save the backing DB row.
+
+    On DB failure the orphaned deployment is rolled back. When ``is_active`` is
+    False the deployment is also paused so it can't fire before review.
     """
     deployment_id = None
     try:
@@ -187,11 +193,16 @@ async def create_workflow(
             user_id=user.id,
             schema=schema,
             webhook_secret=webhook_secret,
+            is_active=is_active,
         )
 
+        if not is_active:
+            # Deployments are created active; pause so an imported schedule
+            # trigger can't fire before the user reviews it.
+            await DeploymentService.toggle_workflow(deployment_id, active=False)
+
         return new_workflow
-    except Exception as e:
-        logger.error(f"Error creating workflow: {e}")
+    except Exception:
         # The Prefect deployment is created before the DB row; if the DB write
         # failed, roll back the now-orphaned deployment so its schedule can't
         # fire with no backing workflow.
@@ -203,9 +214,49 @@ async def create_workflow(
                 logger.error(
                     f"Failed to roll back orphan deployment {deployment_id}: {cleanup_err}"
                 )
+        raise
+
+
+@workflow_router.post("/create")
+async def create_workflow(
+    schema: WorkflowSchema,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    Register a new workflow in Prefect and save it to the local database.
+    """
+    try:
+        return await _persist_new_workflow(db, user, schema, is_active=True)
+    except Exception as e:
+        logger.error(f"Error creating workflow: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not create the workflow.",
+        )
+
+
+@workflow_router.post("/import")
+async def import_workflow(
+    schema: WorkflowSchema,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    Create a workflow from an exported definition (the /export JSON).
+
+    Pydantic already validates the DAG (cycles/reachability) on parse; a
+    malformed body returns 422. Imported workflows land **paused** so a foreign
+    schedule/webhook trigger can't fire before the user reviews it.
+    """
+    schema.is_active = False
+    try:
+        return await _persist_new_workflow(db, user, schema, is_active=False)
+    except Exception as e:
+        logger.error(f"Error importing workflow: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not import the workflow.",
         )
 
 
@@ -301,7 +352,10 @@ async def get_workflow_history(
 ):
     """Fetches only the history for a specific deployment"""
     try:
-        if await WorkflowService.get_by_id_and_user(db, deployement_id, user.id) is None:
+        if (
+            await WorkflowService.get_by_id_and_user(db, deployement_id, user.id)
+            is None
+        ):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Workflow not found.",

@@ -32,12 +32,14 @@ class WorkflowService:
         user_id: UUID,
         schema: WorkflowSchema,
         webhook_secret: Optional[str] = None,
+        is_active: bool = True,
     ) -> Workflow:
         new_workflow = Workflow(
             id=workflow_id,
             user_id=user_id,
             name=schema.name,
             description=schema.description,
+            is_active=is_active,
             config=schema.execution_config.model_dump(),
             ui_metadata=schema.ui_metadata.model_dump() if schema.ui_metadata else {},
             version=1,
