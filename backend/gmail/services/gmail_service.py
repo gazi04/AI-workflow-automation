@@ -21,8 +21,9 @@ logger = setup_logger("Gmail Service")
 class GmailService:
     @staticmethod
     async def watch_mailbox_for_updates(
-        user_id: UUID, label_ids: list = ["INBOX"]
+        user_id: UUID, label_ids: list[str] | None = None
     ) -> dict[str, str] | None:
+        label_ids = label_ids or ["INBOX"]
         provider = "google"
         scopes = [
             "https://www.googleapis.com/auth/gmail.readonly",

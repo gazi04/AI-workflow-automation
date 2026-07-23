@@ -26,7 +26,9 @@ class UserSettings(Base):
     timezone: Mapped[str] = mapped_column(String(50), default="UTC")
     default_llm_provider: Mapped[str] = mapped_column(String(50), default="deepseek")
     notification_preferences: Mapped[dict] = mapped_column(
-        JSONB, default={"email": True, "slack": False}
+        # Callable default: each row gets its own dict, never a shared instance.
+        JSONB,
+        default=lambda: {"email": True, "slack": False},
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
