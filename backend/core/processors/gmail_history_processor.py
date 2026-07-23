@@ -1,4 +1,5 @@
 import base64
+from email.message import Message
 from email.utils import parseaddr
 from typing import Any
 from uuid import UUID
@@ -247,21 +248,41 @@ class GmailHistoryProcessor:
         except Exception as e:
             self.logger.error(f"Unhandled error occurred: {e}")
 
+    @staticmethod
+    def _charset_for(part: GmailMessagePart) -> str:
+        """Read the declared charset from the part's Content-Type header.
+
+        Falls back to utf-8 when absent so non-UTF-8 bodies (latin-1,
+        windows-1252) decode correctly instead of being mangled.
+        """
+        ct = next(
+            (h.value for h in part.headers if h.name.lower() == "content-type"),
+            "",
+        )
+        msg = Message()
+        msg["content-type"] = ct
+        return msg.get_content_charset() or "utf-8"
+
+    def _decode_part(self, part: GmailMessagePart) -> str:
+        """Decode a part's base64 body using its declared charset."""
+        raw = base64.urlsafe_b64decode(part.body.data)  # type: ignore[union-attr]
+        try:
+            return raw.decode(self._charset_for(part), errors="replace")
+        except LookupError:
+            # Unknown/invalid codec name — fall back to lossy utf-8.
+            return raw.decode("utf-8", errors="replace")
+
     def _get_email_body(self, payload: GmailMessagePart) -> str:
         """
         Recursively extracts the plain text body from the email payload.
         """
         if payload.body and payload.body.data:
             if payload.mime_type == "text/plain":
-                return base64.urlsafe_b64decode(payload.body.data).decode(
-                    "utf-8", errors="replace"
-                )
+                return self._decode_part(payload)
 
         for part in payload.parts:
             if part.mime_type == "text/plain" and part.body and part.body.data:
-                return base64.urlsafe_b64decode(part.body.data).decode(
-                    "utf-8", errors="replace"
-                )
+                return self._decode_part(part)
 
             if part.mime_type.startswith("multipart"):
                 body = self._get_email_body(part)

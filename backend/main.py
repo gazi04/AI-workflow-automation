@@ -21,6 +21,7 @@ from auth.routes import auth_router, connection_router
 from ai.routes.ai_router import ai_router
 from gmail.routes.webhook_router import webhook_router
 from workflow.routes.workflow_router import workflow_router
+from user.routes import user_router
 
 # The models are imported as a top level to resolve some issues
 # first is the circular dependecies that the models import eachother
@@ -59,7 +60,13 @@ async def lifespan(app: FastAPI):
         listener.stop()
 
 
-app = FastAPI(title="AI Workflow Orchestrator API", lifespan=lifespan)
+app = FastAPI(
+    title="AI Workflow Orchestrator API",
+    lifespan=lifespan,
+    docs_url="/docs" if settings.enable_api_docs else None,
+    redoc_url="/redoc" if settings.enable_api_docs else None,
+    openapi_url="/openapi.json" if settings.enable_api_docs else None,
+)
 
 # Rate limiting (slowapi): register the shared limiter and its 429 handler.
 app.state.limiter = limiter
@@ -70,6 +77,7 @@ app.include_router(connection_router, prefix="/api")
 app.include_router(ai_router, prefix="/api")
 app.include_router(webhook_router, prefix="/api")
 app.include_router(workflow_router, prefix="/api")
+app.include_router(user_router, prefix="/api")
 
 # Paths exempt from CSRF: Pub/Sub webhooks (no cookie, verified via OIDC) and
 # the OAuth callback (cross-site redirect from Google).
@@ -100,7 +108,7 @@ async def csrf_protect(request: Request, call_next):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

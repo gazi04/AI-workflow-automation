@@ -14,6 +14,7 @@ from core.processors.gmail_history_processor import DeploymentTriggerError
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def mock_credentials():
     return MagicMock()
@@ -42,6 +43,7 @@ def processor(mock_credentials, user_id, mock_service):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def make_workflow_config(trigger_from=None, trigger_subject=None):
     """Build a valid WorkflowExecutionConfig dict for a trigger→send_email workflow."""
@@ -85,7 +87,9 @@ def create_mock_workflow(active=True, trigger_from=None, trigger_subject=None):
     return workflow
 
 
-def create_email_payload(message_id, labels=None, subject="Hello", sender="test@example.com"):
+def create_email_payload(
+    message_id, labels=None, subject="Hello", sender="test@example.com"
+):
     if labels is None:
         labels = ["INBOX"]
     return {
@@ -135,6 +139,7 @@ def _mock_db_session_ctx(mock_db_session):
 # Tests
 # ---------------------------------------------------------------------------
 
+
 @patch(_DEPLOYMENT_SVC)
 @patch(_PROCESSED_SVC)
 @patch(_WORKFLOW_SVC)
@@ -166,7 +171,9 @@ async def test_process_message_success_trigger(
 
     mock_db = _mock_db_session_ctx(mock_db_session)
     mock_workflow_service.get_by_user_id = AsyncMock(return_value=[matching_workflow])
-    mock_processed_service.get_by_message_id_and_workflow_id = AsyncMock(return_value=None)
+    mock_processed_service.get_by_message_id_and_workflow_id = AsyncMock(
+        return_value=None
+    )
 
     # The record must be created only AFTER the deployment is triggered.
     order = []
@@ -182,7 +189,9 @@ async def test_process_message_success_trigger(
 
     await processor._process_single_message(message_id)
 
-    mock_processed_service.create.assert_called_once_with(mock_db, message_id, matching_workflow.id)
+    mock_processed_service.create.assert_called_once_with(
+        mock_db, message_id, matching_workflow.id
+    )
     mock_deployment_service.run.assert_called_once()
     call_args = mock_deployment_service.run.call_args[0]
     assert call_args[0] == matching_workflow.id
@@ -192,6 +201,7 @@ async def test_process_message_success_trigger(
 # ---------------------------------------------------------------------------
 # fetch_and_process — pagination (2.4)
 # ---------------------------------------------------------------------------
+
 
 def _page(message_ids, next_token=None):
     page = {
@@ -215,7 +225,9 @@ def _list_call_tokens(mock_service):
 
 @patch(_WORKFLOW_SVC)
 @patch(_DB_SESSION)
-async def test_fetch_processes_all_pages(mock_db_session, mock_workflow_service, processor, mock_service):
+async def test_fetch_processes_all_pages(
+    mock_db_session, mock_workflow_service, processor, mock_service
+):
     """Messages beyond the first page must still be processed."""
     _mock_db_session_ctx(mock_db_session)
     mock_workflow_service.get_by_user_id = AsyncMock(return_value=[])
@@ -232,7 +244,9 @@ async def test_fetch_processes_all_pages(mock_db_session, mock_workflow_service,
 
 @patch(_WORKFLOW_SVC)
 @patch(_DB_SESSION)
-async def test_fetch_single_page_stops(mock_db_session, mock_workflow_service, processor, mock_service):
+async def test_fetch_single_page_stops(
+    mock_db_session, mock_workflow_service, processor, mock_service
+):
     """No nextPageToken → exactly one history.list call."""
     _mock_db_session_ctx(mock_db_session)
     mock_workflow_service.get_by_user_id = AsyncMock(return_value=[])
@@ -247,7 +261,9 @@ async def test_fetch_single_page_stops(mock_db_session, mock_workflow_service, p
 
 @patch(_WORKFLOW_SVC)
 @patch(_DB_SESSION)
-async def test_fetch_dedups_message_ids_across_pages(mock_db_session, mock_workflow_service, processor, mock_service):
+async def test_fetch_dedups_message_ids_across_pages(
+    mock_db_session, mock_workflow_service, processor, mock_service
+):
     """A message id repeated across pages is processed once."""
     _mock_db_session_ctx(mock_db_session)
     mock_workflow_service.get_by_user_id = AsyncMock(return_value=[])
@@ -271,7 +287,9 @@ async def test_fetch_empty_history_processes_nothing(processor, mock_service):
 
 @patch(_WORKFLOW_SVC)
 @patch(_DB_SESSION)
-async def test_fetch_empty_history_never_queries_workflows(mock_db_session, mock_workflow_service, processor, mock_service):
+async def test_fetch_empty_history_never_queries_workflows(
+    mock_db_session, mock_workflow_service, processor, mock_service
+):
     """No messages in the batch → the workflow cache query is skipped entirely."""
     _set_history_pages(mock_service, [_page([])])
     processor._process_single_message = AsyncMock()
@@ -284,7 +302,9 @@ async def test_fetch_empty_history_never_queries_workflows(mock_db_session, mock
 
 @patch(_WORKFLOW_SVC)
 @patch(_DB_SESSION)
-async def test_fetch_builds_workflow_cache_once_for_many_messages(mock_db_session, mock_workflow_service, processor, mock_service):
+async def test_fetch_builds_workflow_cache_once_for_many_messages(
+    mock_db_session, mock_workflow_service, processor, mock_service
+):
     """N messages in one batch must fetch+validate the workflow list only once,
     and every _process_single_message call must reuse the same cached list."""
     _mock_db_session_ctx(mock_db_session)
@@ -296,14 +316,18 @@ async def test_fetch_builds_workflow_cache_once_for_many_messages(mock_db_sessio
     await processor.fetch_and_process("100")
 
     mock_workflow_service.get_by_user_id.assert_called_once()
-    passed_caches = [c.args[1] for c in processor._process_single_message.call_args_list]
+    passed_caches = [
+        c.args[1] for c in processor._process_single_message.call_args_list
+    ]
     assert len(passed_caches) == 3
     assert all(cache is passed_caches[0] for cache in passed_caches)
     assert passed_caches[0][0][0] is workflow
 
 
 @patch(_DB_SESSION)
-async def test_process_message_skips_wrong_label(mock_db_session, processor, mock_service):
+async def test_process_message_skips_wrong_label(
+    mock_db_session, processor, mock_service
+):
     """Email not in INBOX returns early — DB never queried."""
     message_id = "msg-skipped-label"
     email_payload = create_email_payload(message_id, labels=["SENT", "IMPORTANT"])
@@ -328,7 +352,9 @@ async def test_process_message_skips_mismatch_trigger(
 ):
     """Subject mismatch: no deployment triggered, no processed record created."""
     message_id = "msg-mismatch"
-    email_payload = create_email_payload(message_id, subject="Random Newsletter", sender="news@example.com")
+    email_payload = create_email_payload(
+        message_id, subject="Random Newsletter", sender="news@example.com"
+    )
     mock_service.users.return_value.messages.return_value.get.return_value.execute.return_value = email_payload
 
     workflow = create_mock_workflow(active=True, trigger_subject="Urgent")
@@ -400,7 +426,9 @@ async def test_process_message_from_email_matches_address_inside_display_name(
 
     mock_db = _mock_db_session_ctx(mock_db_session)
     mock_workflow_service.get_by_user_id = AsyncMock(return_value=[workflow])
-    mock_processed_service.get_by_message_id_and_workflow_id = AsyncMock(return_value=None)
+    mock_processed_service.get_by_message_id_and_workflow_id = AsyncMock(
+        return_value=None
+    )
     mock_deployment_service.run = AsyncMock()
     mock_processed_service.create = AsyncMock()
 
@@ -426,14 +454,18 @@ async def test_process_message_skips_already_processed(
 ):
     """Message already in ProcessedMessages: skip to avoid duplicate run."""
     message_id = "msg-duplicate"
-    email_payload = create_email_payload(message_id, subject="Hello", sender="me@test.com")
+    email_payload = create_email_payload(
+        message_id, subject="Hello", sender="me@test.com"
+    )
     mock_service.users.return_value.messages.return_value.get.return_value.execute.return_value = email_payload
 
     workflow = create_mock_workflow(active=True, trigger_from="me@test.com")
 
     _mock_db_session_ctx(mock_db_session)
     mock_workflow_service.get_by_user_id = AsyncMock(return_value=[workflow])
-    mock_processed_service.get_by_message_id_and_workflow_id = AsyncMock(return_value=MagicMock())
+    mock_processed_service.get_by_message_id_and_workflow_id = AsyncMock(
+        return_value=MagicMock()
+    )
     mock_deployment_service.run = AsyncMock()
     mock_processed_service.create = AsyncMock()
 
@@ -444,7 +476,9 @@ async def test_process_message_skips_already_processed(
 
 
 @patch(_DB_SESSION)
-async def test_process_message_skips_spam_label(mock_db_session, processor, mock_service):
+async def test_process_message_skips_spam_label(
+    mock_db_session, processor, mock_service
+):
     """INBOX+SPAM combination returns early — DB never queried."""
     message_id = "msg-spam"
     email_payload = create_email_payload(message_id, labels=["INBOX", "SPAM"])
@@ -487,6 +521,7 @@ async def test_inactive_workflow_skipped(
 # 2.7 — processed-after-trigger ordering, retry on failure, dedup race
 # ---------------------------------------------------------------------------
 
+
 @patch(_DEPLOYMENT_SVC)
 @patch(_PROCESSED_SVC)
 @patch(_WORKFLOW_SVC)
@@ -509,7 +544,9 @@ async def test_trigger_failure_does_not_create_record_and_flags_batch(
 
     _mock_db_session_ctx(mock_db_session)
     mock_workflow_service.get_by_user_id = AsyncMock(return_value=[workflow])
-    mock_processed_service.get_by_message_id_and_workflow_id = AsyncMock(return_value=None)
+    mock_processed_service.get_by_message_id_and_workflow_id = AsyncMock(
+        return_value=None
+    )
     mock_processed_service.create = AsyncMock()
 
     mock_deployment_service.run = AsyncMock(side_effect=RuntimeError("prefect down"))
@@ -522,7 +559,9 @@ async def test_trigger_failure_does_not_create_record_and_flags_batch(
 
 @patch(_WORKFLOW_SVC)
 @patch(_DB_SESSION)
-async def test_fetch_raises_when_a_trigger_failed(mock_db_session, mock_workflow_service, processor, mock_service):
+async def test_fetch_raises_when_a_trigger_failed(
+    mock_db_session, mock_workflow_service, processor, mock_service
+):
     """fetch_and_process surfaces a DeploymentTriggerError so the drain loop
     withholds the baseline advance and retries next pass."""
     _mock_db_session_ctx(mock_db_session)
@@ -540,7 +579,9 @@ async def test_fetch_raises_when_a_trigger_failed(mock_db_session, mock_workflow
 
 @patch(_WORKFLOW_SVC)
 @patch(_DB_SESSION)
-async def test_fetch_does_not_raise_when_all_triggers_succeed(mock_db_session, mock_workflow_service, processor, mock_service):
+async def test_fetch_does_not_raise_when_all_triggers_succeed(
+    mock_db_session, mock_workflow_service, processor, mock_service
+):
     """No failure flag → fetch_and_process returns cleanly (baseline advances)."""
     _mock_db_session_ctx(mock_db_session)
     mock_workflow_service.get_by_user_id = AsyncMock(return_value=[])
@@ -573,7 +614,9 @@ async def test_create_integrity_error_is_swallowed(
     mock_db = _mock_db_session_ctx(mock_db_session)
     mock_db.rollback = AsyncMock()
     mock_workflow_service.get_by_user_id = AsyncMock(return_value=[workflow])
-    mock_processed_service.get_by_message_id_and_workflow_id = AsyncMock(return_value=None)
+    mock_processed_service.get_by_message_id_and_workflow_id = AsyncMock(
+        return_value=None
+    )
     mock_processed_service.create = AsyncMock(
         side_effect=IntegrityError("stmt", {}, Exception("dup"))
     )
@@ -620,3 +663,41 @@ def test_get_email_body_utf8_round_trips(processor):
     part = _text_part("héllo 🌍".encode("utf-8"))
 
     assert processor._get_email_body(part) == "héllo 🌍"
+
+
+def _text_part_with_charset(raw_bytes: bytes, charset: str):
+    from gmail.schemas.message import (
+        GmailHeader,
+        GmailMessagePart,
+        GmailMessagePartBody,
+    )
+
+    return GmailMessagePart(
+        partId="0",
+        mimeType="text/plain",
+        headers=[
+            GmailHeader(name="Content-Type", value=f"text/plain; charset={charset}")
+        ],
+        body=GmailMessagePartBody(
+            size=len(raw_bytes),
+            data=base64.urlsafe_b64encode(raw_bytes).decode("ascii"),
+            attachmentId=None,
+        ),
+    )
+
+
+def test_get_email_body_honors_declared_charset(processor):
+    # "café" declared as ISO-8859-1 must decode losslessly, not with replacement chars.
+    part = _text_part_with_charset("café".encode("latin-1"), "ISO-8859-1")
+
+    assert processor._get_email_body(part) == "café"
+
+
+def test_get_email_body_unknown_charset_falls_back(processor):
+    # A bogus codec name must not raise — lossy utf-8 fallback.
+    part = _text_part_with_charset("café".encode("latin-1"), "definitely-not-a-codec")
+
+    body = processor._get_email_body(part)
+
+    assert isinstance(body, str)
+    assert "caf" in body

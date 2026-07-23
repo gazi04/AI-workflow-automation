@@ -14,6 +14,12 @@ import json
 logger = setup_logger("AI Service")
 
 
+@lru_cache(maxsize=1)
+def _workflow_schema_json() -> str:
+    """Serialize the workflow JSON schema once — it's identical every call."""
+    return json.dumps(WorkflowSchema.model_json_schema(), indent=2)
+
+
 class AiService:
     @staticmethod
     @lru_cache(maxsize=1)
@@ -72,7 +78,7 @@ class AiService:
         """
         Makes a request to create or modify a workflow.
         """
-        workflow_schema = json.dumps(WorkflowSchema.model_json_schema(), indent=2)
+        workflow_schema = _workflow_schema_json()
 
         base_prompt = f"{settings.system_prompt}"
 

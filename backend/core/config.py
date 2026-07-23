@@ -27,6 +27,14 @@ class Settings(BaseSettings):
     # don't flake; a dedicated test flips it back on.
     rate_limit_enabled: bool = True
 
+    # Serve the OpenAPI UI (/docs, /redoc, /openapi.json). Default on for local
+    # dev; set ENABLE_API_DOCS=false in prod to hide the schema.
+    enable_api_docs: bool = True
+
+    # Browser origins allowed by CORS. Defaults suit local dev; override per
+    # environment (JSON array or comma-separated list in the env var).
+    cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
     # Register the daily system-maintenance deployments (Gmail-watch renewal,
     # expired-auth cleanup) on API startup. Disabled in tests so the TestClient
     # lifespan doesn't block retrying Prefect.
