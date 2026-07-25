@@ -1,3 +1,4 @@
+import asyncio
 from datetime import timezone
 
 from fastapi import HTTPException
@@ -92,7 +93,9 @@ class AuthService:
 
         if not creds.valid and creds.refresh_token:
             try:
-                creds.refresh(Request())
+                # google.auth's refresh is a blocking HTTPS round-trip; off the
+                # event loop it goes.
+                await asyncio.to_thread(creds.refresh, Request())
                 # refresh() either raises (caught below) or populates .token.
                 assert creds.token is not None
                 await AccountService.refresh_tokens(

@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -47,12 +48,16 @@ class GmailService:
                 "labelFilterBehavior": "INCLUDE",
             }
 
-            with build("gmail", "v1", credentials=creds) as service:
-                watch_response = (
-                    service.users()
-                    .watch(userId="me", body=watch_request_body)
-                    .execute()
+            # googleapiclient is synchronous: both the discovery build and the
+            # HTTP round-trip would block the event loop for every other request
+            # in this process, so hand them to a worker thread.
+            service = await asyncio.to_thread(build, "gmail", "v1", credentials=creds)
+            try:
+                watch_response = await asyncio.to_thread(
+                    service.users().watch(userId="me", body=watch_request_body).execute
                 )
+            finally:
+                service.close()
 
             return watch_response
 

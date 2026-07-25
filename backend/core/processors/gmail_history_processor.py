@@ -1,3 +1,4 @@
+import asyncio
 import base64
 from email.message import Message
 from email.utils import parseaddr
@@ -38,7 +39,12 @@ class GmailHistoryProcessor:
         self.service: Any = None
 
     async def __aenter__(self):
-        self.service = build("gmail", "v1", credentials=self.creds)
+        # Discovery build does I/O and googleapiclient is synchronous — keep it
+        # off the event loop, which this processor shares with the API process
+        # when it runs as a webhook BackgroundTask.
+        self.service = await asyncio.to_thread(
+            build, "gmail", "v1", credentials=self.creds
+        )
         self.logger = setup_logger("Gmail History Processor")
         return self
 
@@ -58,7 +64,7 @@ class GmailHistoryProcessor:
         # history.list is paged; loop until there is no nextPageToken so messages
         # beyond the first page (busy mailbox / after downtime) aren't dropped.
         while True:
-            history_response = (
+            history_response = await asyncio.to_thread(
                 self.service.users()
                 .history()
                 .list(
@@ -66,7 +72,7 @@ class GmailHistoryProcessor:
                     startHistoryId=start_history_id,
                     pageToken=page_token,
                 )
-                .execute()
+                .execute
             )
             self._collect_message_ids(history_response, unique_message_ids)
 
@@ -110,11 +116,8 @@ class GmailHistoryProcessor:
 
     async def _process_single_message(self, message_id: str, active_workflows=None):
         try:
-            raw_message = (
-                self.service.users()
-                .messages()
-                .get(userId="me", id=message_id)
-                .execute()
+            raw_message = await asyncio.to_thread(
+                self.service.users().messages().get(userId="me", id=message_id).execute
             )
 
             message = GmailMessage.model_validate(raw_message)

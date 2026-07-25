@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 from fastapi import APIRouter, Request, HTTPException, Depends, status
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -167,11 +168,15 @@ async def callback_google(
 
         flow = get_google_flow()
 
-        flow.fetch_token(code=code)
+        # google_auth_oauthlib and google.auth are synchronous: the token
+        # exchange and the id_token verification (which fetches Google's signing
+        # certs) both block the event loop for the whole process.
+        await asyncio.to_thread(flow.fetch_token, code=code)
         credentials = flow.credentials
 
         try:
-            user_info = id_token.verify_oauth2_token(
+            user_info = await asyncio.to_thread(
+                id_token.verify_oauth2_token,
                 credentials.id_token,  # pyright: ignore[reportAttributeAccessIssue]
                 requests.Request(),
                 settings.google_oauth_client_id,
