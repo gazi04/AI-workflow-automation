@@ -11,7 +11,6 @@ dependencies = [
   "asyncpg",
   "pydantic[email]",
   "azure-ai-inference",
-  "httpx",
   "google-api-python-client",
   "google-auth",
   "google-auth-oauthlib",
@@ -29,10 +28,56 @@ dependencies = [
 venvPath = "."
 venv = ".venv"
 
+[tool.ruff.lint]
+# Beyond ruff's default E+F: B catches raise-without-from and mutable defaults,
+# ASYNC catches blocking calls in async functions, SIM/C4/RUF catch the rest.
+select = ["E", "F", "W", "B", "C4", "SIM", "ASYNC", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# S101: asserts are the point of a test file.
+# SIM105/SIM117: stacked `with patch(...)` blocks and deliberate swallow-and-
+# assert are clearer left as-is in tests than collapsed.
+"tests/*" = ["S101", "SIM105", "SIM117"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency-injection idiom is a call in the argument default; it is
+# evaluated once at import and never mutated, so B008 does not apply.
+extend-immutable-calls = [
+  "fastapi.Depends",
+  "fastapi.Query",
+  "fastapi.Path",
+  "fastapi.Body",
+  "fastapi.Header",
+  "fastapi.Cookie",
+  "fastapi.File",
+  "fastapi.Form",
+  "fastapi.Security",
+]
+
+[tool.mypy]
+# Explicit package bases keep same-named subpackages across domains (ai/schemas,
+# gmail/schemas, workflow/schemas) resolving to distinct modules.
+explicit_package_bases = true
+namespace_packages = true
+ignore_missing_imports = true
+exclude = ["alembic/versions"]
+
+[tool.deptry]
+known_first_party = ["ai", "gmail", "utils"]
+
+[tool.deptry.per_rule_ignores]
+# Both are used without ever being imported by name: asyncpg is the driver named
+# in the DATABASE_URL scheme, google-auth-httplib2 is the transport
+# google-api-python-client selects at runtime.
+DEP002 = ["asyncpg", "google-auth-httplib2"]
+
 [dependency-groups]
 dev = [
+    "asgi-lifespan>=2.1.0",
     "bandit>=1.9.4",
     "deptry>=0.25.1",
+    "httpx",
     "import-linter>=2.13",
     "ipython>=9.11.0",
     "mypy>=2.3.0",
