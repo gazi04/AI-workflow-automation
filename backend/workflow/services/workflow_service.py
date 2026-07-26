@@ -51,7 +51,9 @@ class WorkflowService:
         return new_workflow
 
     @staticmethod
-    async def update_is_active(db: AsyncSession, id: UUID, is_active: bool) -> Optional[Workflow]:
+    async def update_is_active(
+        db: AsyncSession, id: UUID, is_active: bool
+    ) -> Optional[Workflow]:
         result = await db.execute(select(Workflow).where(Workflow.id == id))
         workflow = result.scalar_one_or_none()
 
@@ -63,7 +65,9 @@ class WorkflowService:
         return workflow
 
     @staticmethod
-    async def update_config(db: AsyncSession, id: UUID, schema: WorkflowSchema) -> Optional[Workflow]:
+    async def update_config(
+        db: AsyncSession, id: UUID, schema: WorkflowSchema
+    ) -> Optional[Workflow]:
         result = await db.execute(select(Workflow).where(Workflow.id == id))
         workflow = result.scalar_one_or_none()
 
@@ -102,7 +106,9 @@ class WorkflowService:
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def get_by_id_and_user(db: AsyncSession, id: UUID, user_id: UUID) -> Optional[Workflow]:
+    async def get_by_id_and_user(
+        db: AsyncSession, id: UUID, user_id: UUID
+    ) -> Optional[Workflow]:
         result = await db.execute(
             select(Workflow).where(Workflow.id == id, Workflow.user_id == user_id)
         )

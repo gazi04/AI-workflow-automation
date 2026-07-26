@@ -49,7 +49,7 @@ def resolve_variables(value: Any, context: Dict[str, Any]) -> Any:
                 raise VariableResolutionError(
                     f"Could not resolve variable '{raw_match}'. "
                     f"The path '{path}' does not exist in the current context."
-                )
+                ) from None
 
         # Regex to find {{ anything }}
         return re.sub(r"\{\{\s*(.*?)\s*\}\}", repl, value)

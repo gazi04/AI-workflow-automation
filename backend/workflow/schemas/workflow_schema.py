@@ -52,12 +52,11 @@ class WorkflowExecutionConfig(BaseModel):
             return False
 
         for start_node in self.start_node_ids:
-            if start_node not in visited:
-                if has_cycle(start_node):
-                    raise ValueError(
-                        f"Circular dependency detected starting from node '{start_node}'. "
-                        "Workflows must be Directed Acyclic Graphs (DAGs)."
-                    )
+            if start_node not in visited and has_cycle(start_node):
+                raise ValueError(
+                    f"Circular dependency detected starting from node '{start_node}'. "
+                    "Workflows must be Directed Acyclic Graphs (DAGs)."
+                )
 
         return self
 

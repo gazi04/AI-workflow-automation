@@ -268,7 +268,7 @@ class GmailHistoryProcessor:
 
     def _decode_part(self, part: GmailMessagePart) -> str:
         """Decode a part's base64 body using its declared charset."""
-        raw = base64.urlsafe_b64decode(part.body.data)  # type: ignore[union-attr]
+        raw = base64.urlsafe_b64decode(part.body.data)  # type: ignore[union-attr,arg-type]
         try:
             return raw.decode(self._charset_for(part), errors="replace")
         except LookupError:
@@ -279,9 +279,8 @@ class GmailHistoryProcessor:
         """
         Recursively extracts the plain text body from the email payload.
         """
-        if payload.body and payload.body.data:
-            if payload.mime_type == "text/plain":
-                return self._decode_part(payload)
+        if payload.mime_type == "text/plain" and payload.body and payload.body.data:
+            return self._decode_part(payload)
 
         for part in payload.parts:
             if part.mime_type == "text/plain" and part.body and part.body.data:

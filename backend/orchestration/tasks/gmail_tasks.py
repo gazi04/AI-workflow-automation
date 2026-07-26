@@ -238,7 +238,7 @@ def label_mail(
                 logger.info("The label is created with success")
 
             label_id = label_exists.get("id", None)
-            message_id = original_email.get("message_id", None)
+            message_id = original_email.get("message_id")
 
             if not message_id or not label_id:
                 raise ValueError("Either label id or message id is none.")

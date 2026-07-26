@@ -47,7 +47,9 @@ async def protected_route(user: User = Depends(get_current_user)):
 
 @auth_router.get("/exchange")
 @limiter.limit("20/minute")
-async def exchange_code(request: Request, code: str, db: AsyncSession = Depends(get_db)):
+async def exchange_code(
+    request: Request, code: str, db: AsyncSession = Depends(get_db)
+):
     """Exchange a short-lived one-time code for auth cookies.
 
     Tokens are set as HttpOnly cookies (plus a readable CSRF cookie) instead of
@@ -185,7 +187,7 @@ async def callback_google(
             provider_account_email = user_info["email"]
         except ValueError as e:
             logger.error(f"ValueError: Invalid ID token: {e}")
-            raise HTTPException(status_code=400, detail=f"Invalid ID token: {e}")
+            raise HTTPException(status_code=400, detail=f"Invalid ID token: {e}") from e
 
         user = await UserService.get_or_create(db, provider_account_email)
 

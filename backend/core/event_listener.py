@@ -30,8 +30,8 @@ _RECONNECT_BACKOFF = 2  # seconds
 
 class EventListener:
     def __init__(self) -> None:
-        self._loop = None
-        self._thread = None
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._thread: threading.Thread | None = None
         self._stop = threading.Event()
 
     def start(self, loop: asyncio.AbstractEventLoop) -> None:
@@ -56,9 +56,7 @@ class EventListener:
             conn = None
             try:
                 conn = psycopg2.connect(self._dsn())
-                conn.set_isolation_level(
-                    psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
-                )
+                conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
                 with conn.cursor() as cur:
                     cur.execute(f"LISTEN {CHANNEL};")
                 logger.info(f"Listening on Postgres channel '{CHANNEL}'")
@@ -77,8 +75,11 @@ class EventListener:
                 if conn is not None:
                     try:
                         conn.close()
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        # Never mask the original failure that landed us here,
+                        # but don't lose the leak either: a close() that keeps
+                        # failing means the reconnect loop is stranding sockets.
+                        logger.debug(f"Failed to close listener connection: {e}")
 
     def _dispatch(self, raw: str) -> None:
         try:

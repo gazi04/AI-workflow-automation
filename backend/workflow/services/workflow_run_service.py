@@ -51,7 +51,9 @@ class WorkflowRunService:
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def get_undelivered_failures(db: AsyncSession, user_id: UUID) -> List[WorkflowRunRecord]:
+    async def get_undelivered_failures(
+        db: AsyncSession, user_id: UUID
+    ) -> List[WorkflowRunRecord]:
         """Runs that failed (fully or partially) and whose node_failed event has
         not yet been broadcast to the user."""
         result = await db.execute(

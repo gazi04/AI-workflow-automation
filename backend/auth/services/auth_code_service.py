@@ -14,12 +14,21 @@ class AuthCodeService:
     async def create(db: AsyncSession, access_token: str, refresh_token: str) -> str:
         code = secrets.token_urlsafe(32)
         expires_at = datetime.now(timezone.utc) + timedelta(seconds=_CODE_TTL_SECONDS)
-        db.add(AuthCode(code=code, access_token=access_token, refresh_token=refresh_token, expires_at=expires_at))
+        db.add(
+            AuthCode(
+                code=code,
+                access_token=access_token,
+                refresh_token=refresh_token,
+                expires_at=expires_at,
+            )
+        )
         await db.commit()
         return code
 
     @staticmethod
-    async def consume(db: AsyncSession, code: str) -> tuple[str, str] | tuple[None, None]:
+    async def consume(
+        db: AsyncSession, code: str
+    ) -> tuple[str, str] | tuple[None, None]:
         result = await db.execute(select(AuthCode).filter_by(code=code))
         record = result.scalar_one_or_none()
         if not record or record.expires_at < datetime.now(timezone.utc):

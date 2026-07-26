@@ -60,4 +60,4 @@ async def health(request: Request):
         raise HTTPException(
             status_code=500,
             detail="The AI service is currently unavailable. Please try again later.",
-        )
+        ) from e

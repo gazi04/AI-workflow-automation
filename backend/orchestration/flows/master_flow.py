@@ -53,7 +53,7 @@ def execute_automation_flow(
         schema = WorkflowSchema.model_validate(workflow_data)
     except Exception as e:
         logger.error(f"Invalid workflow data for user {user_id}: {e}")
-        raise Exception("Invalid workflow data.")
+        raise Exception("Invalid workflow data.") from e
 
     workflow = schema.execution_config
 
@@ -241,10 +241,10 @@ def execute_automation_flow(
                             user_id, email_context, smart_draft_config.user_prompt
                         )
 
-                    elif action_type == "send_slack_message":
-                        raise NotImplementedError()
-
-                    elif action_type == "create_document":
+                    elif (
+                        action_type == "send_slack_message"
+                        or action_type == "create_document"
+                    ):
                         raise NotImplementedError()
 
                     else:

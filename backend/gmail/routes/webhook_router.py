@@ -62,7 +62,7 @@ def _verify_pubsub_token(request: Request) -> None:
         logger.warning(f"Pub/Sub OIDC token verification failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized"
-        )
+        ) from e
 
 
 @webhook_router.get("/listen-to-gmail")
@@ -86,7 +86,7 @@ async def listen_gmail(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve connected account.",
-        )
+        ) from e
 
     watch_response = await GmailService.watch_mailbox_for_updates(user_id=user.id)
 

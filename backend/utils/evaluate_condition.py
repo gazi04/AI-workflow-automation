@@ -64,8 +64,4 @@ def evaluate_condition(condition: IfCondition, run_context: Dict[str, Any]) -> b
 
         results.append(res)
 
-    if match_type == "ANY":
-        final_res = any(results)
-    else:
-        final_res = all(results)
-    return final_res
+    return any(results) if match_type == "ANY" else all(results)

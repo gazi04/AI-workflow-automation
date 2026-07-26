@@ -48,10 +48,10 @@ async def get_current_user(
         try:
             user_id = uuid.UUID(user_id_str)
         except ValueError:
-            raise credentials_exception
+            raise credentials_exception from None
 
     except PyJWTError:
-        raise credentials_exception
+        raise credentials_exception from None
 
     user = await UserService.get(db, user_id)
 

@@ -54,7 +54,7 @@ def get_catalog():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate workflow catalog.",
-        )
+        ) from e
 
 
 @workflow_router.get("/get_workflows")
@@ -71,7 +71,7 @@ async def get_workflows(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not fetch the workflow.",
-        )
+        ) from e
 
 
 @workflow_router.get("/get_workflow/{workflow_id}")
@@ -95,7 +95,7 @@ async def get_workflow(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Could not fetch the workflow {workflow_id}.",
-        )
+        ) from e
 
 
 @workflow_router.post("/run")
@@ -121,7 +121,7 @@ async def run_workflow(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Could not run the workflow {request.deployment_id}",
-        )
+        ) from e
 
 
 @workflow_router.patch("/toggle")
@@ -160,7 +160,7 @@ async def toggle_workflow(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Could not toggle workflow {request.deployment_id}.",
-        )
+        ) from e
 
 
 async def _persist_new_workflow(
@@ -233,7 +233,7 @@ async def create_workflow(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not create the workflow.",
-        )
+        ) from e
 
 
 @workflow_router.post("/import")
@@ -257,7 +257,7 @@ async def import_workflow(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not import the workflow.",
-        )
+        ) from e
 
 
 @workflow_router.patch("/update-config")
@@ -299,7 +299,7 @@ async def update_workflow_config(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Could not update the workflow {request.deployment_id}.",
-        )
+        ) from e
 
 
 @workflow_router.delete("/delete")
@@ -328,7 +328,7 @@ async def delete_workflow(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not delete workflow.",
-        )
+        ) from e
 
 
 @workflow_router.get("/histories", response_model=List[WorkflowRun])
@@ -341,7 +341,7 @@ async def get_workflow_histories(user: User = Depends(get_current_user)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not fetch the workflow histories.",
-        )
+        ) from e
 
 
 @workflow_router.get("/{deployement_id}/history", response_model=List[WorkflowRun])
@@ -369,7 +369,7 @@ async def get_workflow_history(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not fetch the history of the workflow.",
-        )
+        ) from e
 
 
 @workflow_router.get("/{workflow_id}/export")
@@ -410,7 +410,7 @@ async def export_workflow(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Could not export the workflow {workflow_id}.",
-        )
+        ) from e
 
 
 @workflow_router.get("/runs/{run_id}/audit", response_model=WorkflowRunDetail)
@@ -457,7 +457,7 @@ async def get_run_logs(run_id: UUID, user: User = Depends(get_current_user)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not retrieve logs for this run.",
-        )
+        ) from e
 
 
 @workflow_router.websocket("/ws/workflows/{user_id}")

@@ -26,6 +26,7 @@ AsyncSessionLocal = async_sessionmaker(
     autocommit=False, autoflush=False, expire_on_commit=False, bind=engine
 )
 
+
 class Base(AsyncAttrs, DeclarativeBase):
     pass
 

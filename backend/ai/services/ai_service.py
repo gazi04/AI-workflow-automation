@@ -53,7 +53,9 @@ class AiService:
 
         except Exception as e:
             logger.error(f"Unhandled error: {e}")
-            raise HTTPException(status_code=500, detail=f"AI API call failed: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"AI API call failed: {e!s}"
+            ) from e
 
     @staticmethod
     def __clean_json_response(raw_response: str) -> str:
@@ -99,7 +101,7 @@ class AiService:
 
         strict_system_prompt = f"""
         {base_prompt}
-        
+
         {context_modifier}
 
         CRITICAL OUTPUT INSTRUCTIONS:

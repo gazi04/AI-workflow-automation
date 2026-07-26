@@ -96,8 +96,16 @@ class AuthService:
                 # google.auth's refresh is a blocking HTTPS round-trip; off the
                 # event loop it goes.
                 await asyncio.to_thread(creds.refresh, Request())
-                # refresh() either raises (caught below) or populates .token.
-                assert creds.token is not None
+
+                # refresh() should either raise (caught below) or populate
+                # .token. Enforce it with a real raise rather than an assert,
+                # which `python -O` strips — a None token here would be
+                # encrypted and persisted as the account's access token.
+                if creds.token is None:
+                    raise RefreshError(
+                        f"Google refresh returned no access token for user {user_id}."
+                    )
+
                 await AccountService.refresh_tokens(
                     db,
                     account=connected_account,
@@ -124,14 +132,14 @@ class AuthService:
 
                     raise ValueError(
                         "GOOGLE_AUTH_EXPIRED: User needs to log in again via the dashboard."
-                    )
+                    ) from e
 
                 raise HTTPException(
                     status_code=401, detail=f"Google token refresh failed: {e}"
-                )
+                ) from e
             except Exception as e:
                 raise HTTPException(
                     status_code=401, detail=f"Google token refresh failed {e}"
-                )
+                ) from e
 
         return creds

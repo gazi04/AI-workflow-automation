@@ -22,7 +22,9 @@ class AccountService:
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def get_all_user_accounts(db: AsyncSession, user_id: UUID) -> List[ConnectedAccount]:
+    async def get_all_user_accounts(
+        db: AsyncSession, user_id: UUID
+    ) -> List[ConnectedAccount]:
         result = await db.execute(
             select(ConnectedAccount).where(ConnectedAccount.user_id == user_id)
         )
@@ -36,7 +38,7 @@ class AccountService:
         account: ConnectedAccount | None = None,
         user_id: UUID | None = None,
         provider: str | None = None,
-        refresh_token: None | Any = None,
+        refresh_token: Any | None = None,
     ) -> ConnectedAccount:
         """
         Refreshes the tokens of a account, first reason to implement was the mainly for

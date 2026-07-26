@@ -39,9 +39,7 @@ class ConnectedAccount(Base):
 
     # Set when a Pub/Sub notification arrives while a sync is in progress, so the
     # owning sync re-runs one more fetch after finishing instead of dropping it.
-    sync_pending: Mapped[bool] = mapped_column(
-        Boolean, default=False, nullable=False
-    )
+    sync_pending: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     # High-water mark of the newest historyId observed across notifications. The
     # baseline is advanced to this after a successful drain, not to any single
     # notification's id.

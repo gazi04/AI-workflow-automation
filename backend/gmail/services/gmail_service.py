@@ -37,7 +37,7 @@ class GmailService:
                 )
         except Exception as e:
             logger.error(f"Error retrieving credentials: {e}")
-            return
+            return None
 
         try:
             watch_request_body = {
@@ -63,7 +63,7 @@ class GmailService:
 
         except HttpError as error:
             logger.error(f"An error occurred during users.watch: {error}")
-            return
+            return None
 
     @staticmethod
     async def _acquire_account_locked(

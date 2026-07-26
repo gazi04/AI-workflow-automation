@@ -44,7 +44,10 @@ async def register_renewal_deployment(retries: int = 5, delay: float = 3.0):
             last_err = e
             await asyncio.sleep(delay)
 
-    assert last_err is not None
+    if last_err is None:
+        raise RuntimeError(
+            f"Deployment registration never attempted (retries={retries})."
+        )
     raise last_err
 
 
@@ -72,7 +75,10 @@ async def register_cleanup_deployment(retries: int = 5, delay: float = 3.0):
             last_err = e
             await asyncio.sleep(delay)
 
-    assert last_err is not None
+    if last_err is None:
+        raise RuntimeError(
+            f"Deployment registration never attempted (retries={retries})."
+        )
     raise last_err
 
 
