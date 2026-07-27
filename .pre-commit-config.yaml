@@ -1,0 +1,88 @@
+default_stages: [pre-commit]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+        exclude: ^website/tsconfig\.json$  # JSONC (has comments), not plain JSON
+      - id: mixed-line-ending
+      - id: detect-private-key
+
+  - repo: local
+    hooks:
+      - id: block-secret-files
+        name: block .env / credentials.json
+        language: fail
+        entry: "Refusing to commit .env or credentials.json - check .gitignore"
+        files: '(^|/)(\.env(\.|$)|credentials\.json)'
+        exclude: '(^|/)\.env\.(example|sample|template)$'
+
+      - id: ruff-check
+        name: ruff check (backend)
+        language: system
+        entry: uv run --project backend ruff check --fix
+        files: ^backend/.*\.py$
+
+      - id: ruff-format
+        name: ruff format (backend)
+        language: system
+        entry: uv run --project backend ruff format
+        files: ^backend/.*\.py$
+
+      # Scoped to staged files (not the whole tree) because the frontend has
+      # pre-existing eslint debt outside the files a given commit touches;
+      # whole-tree linting would block unrelated commits on unrelated files.
+      - id: frontend-format
+        name: prettier --write (website)
+        language: system
+        entry: >-
+          bash -c 'cd website && rel=(); for f in "$@"; do rel+=("${f#website/}"); done;
+          npx prettier --write "${rel[@]}"' --
+        files: ^website/.*\.(js|ts|svelte|json|css|md)$
+
+      - id: frontend-lint
+        name: eslint --fix (website)
+        language: system
+        entry: >-
+          bash -c 'cd website && rel=(); for f in "$@"; do rel+=("${f#website/}"); done;
+          npx eslint --fix "${rel[@]}"' --
+        files: ^website/.*\.(js|ts|svelte)$
+
+      - id: mypy
+        name: mypy (backend)
+        language: system
+        entry: bash -c 'cd backend && uv run mypy .'
+        pass_filenames: false
+        files: ^backend/
+        stages: [pre-push]
+
+      - id: deptry
+        name: deptry (backend)
+        language: system
+        entry: bash -c 'cd backend && uv run deptry .'
+        pass_filenames: false
+        files: ^backend/
+        stages: [pre-push]
+
+      - id: import-linter
+        name: import-linter (backend)
+        language: system
+        entry: bash -c 'cd backend && uv run lint-imports'
+        pass_filenames: false
+        files: ^backend/
+        stages: [pre-push]
+
+      - id: bandit
+        name: bandit (backend)
+        language: system
+        entry: bash -c 'cd backend && uv run bandit -q -r . -x ./.venv,./tests,./alembic/versions'
+        pass_filenames: false
+        files: ^backend/
+        stages: [pre-push]
