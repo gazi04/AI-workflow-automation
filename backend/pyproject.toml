@@ -82,6 +82,7 @@ dev = [
     "ipython>=9.11.0",
     "mypy>=2.3.0",
     "pip-audit>=2.10.1",
+    "pre-commit>=4.0",
     "py-spy>=0.4.2",
     "pydeps>=3.0.6",
     "pyright>=1.1.408",
