@@ -84,7 +84,8 @@ class AuthService:
         creds = Credentials(
             token=decrypt_token(connected_account.access_token),
             refresh_token=decrypt_token(connected_account.refresh_token),
-            token_uri="https://oauth2.googleapis.com/token",
+            # Google's public OAuth token endpoint, not a credential.
+            token_uri="https://oauth2.googleapis.com/token",  # nosec B106
             client_id=settings.google_oauth_client_id,
             client_secret=settings.google_oauth_client_secret,
             scopes=scopes,

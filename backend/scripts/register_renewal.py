@@ -25,7 +25,7 @@ async def register_renewal_deployment(retries: int = 5, delay: float = 3.0):
     prefect-server may not be reachable the instant the backend starts (compose
     `depends_on` is `service_started`, not ready).
     """
-    flow_from_source = await renew_gmail_watches.from_source(  # pyright: ignore[reportGeneralTypeIssues]
+    flow_from_source = await renew_gmail_watches.from_source(  # type: ignore[misc]  # pyright: ignore[reportGeneralTypeIssues]
         source=".",
         entrypoint="orchestration/flows/renew_watches_flow.py:renew_gmail_watches",
     )
@@ -56,7 +56,7 @@ async def register_cleanup_deployment(retries: int = 5, delay: float = 3.0):
 
     Same idempotent-upsert + retry contract as `register_renewal_deployment`.
     """
-    flow_from_source = await cleanup_expired_auth.from_source(  # pyright: ignore[reportGeneralTypeIssues]
+    flow_from_source = await cleanup_expired_auth.from_source(  # type: ignore[misc]  # pyright: ignore[reportGeneralTypeIssues]
         source=".",
         entrypoint="orchestration/flows/cleanup_auth_flow.py:cleanup_expired_auth",
     )

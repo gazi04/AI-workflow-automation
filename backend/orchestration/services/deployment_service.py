@@ -51,7 +51,7 @@ class DeploymentService:
             # blocking until it completes. The caller treats "scheduled" (not "ran
             # to success") as the signal to mark the message processed, so a
             # workflow that later fails mid-run is never re-triggered.
-            await run_deployment(workflow_id, parameters=config, timeout=0)  # pyright: ignore[reportGeneralTypeIssues]
+            await run_deployment(workflow_id, parameters=config, timeout=0)  # type: ignore[misc]  # pyright: ignore[reportGeneralTypeIssues]
             logger.info(f"Triggering workflow {workflow_id}")
         except Exception as e:
             logger.error(f"Unexpected error occurred: \n{e}")
@@ -87,7 +87,7 @@ class DeploymentService:
         deployment_name = f"user-{user_id}-{safe_name}"
         workflow_data = workflow.model_dump()
 
-        flow_from_source = await execute_automation_flow.from_source(  # pyright: ignore[reportGeneralTypeIssues]
+        flow_from_source = await execute_automation_flow.from_source(  # type: ignore[misc]  # pyright: ignore[reportGeneralTypeIssues]
             source=".",
             entrypoint="orchestration/flows/master_flow.py:execute_automation_flow",
         )

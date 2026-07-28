@@ -117,6 +117,11 @@ async def get_me(user: User = Depends(get_current_user)):
 # ==================================================
 # Configure OAuth flow
 # ==================================================
+# Google's public OAuth token endpoint, not a credential. Bound to a name here rather
+# than inline so bandit's nosec applies to this line alone instead of the whole dict.
+GOOGLE_TOKEN_URI = "https://oauth2.googleapis.com/token"  # nosec B105
+
+
 def get_google_flow():
     return Flow.from_client_config(
         {
@@ -124,7 +129,7 @@ def get_google_flow():
                 "client_id": settings.google_oauth_client_id,
                 "client_secret": settings.google_oauth_client_secret,
                 "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                "token_uri": "https://oauth2.googleapis.com/token",
+                "token_uri": GOOGLE_TOKEN_URI,
             }
         },
         scopes=[
