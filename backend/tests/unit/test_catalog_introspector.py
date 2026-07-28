@@ -1,3 +1,6 @@
+from typing import get_args
+
+from gmail.schemas.colors import GmailBackgroundHex, GmailTextHex
 from utils.catalog_introspector import build_catalog
 
 
@@ -76,16 +79,18 @@ def test_label_email_action_has_label_name_field():
     assert "label_name" in field_keys
 
 
-def test_label_email_color_fields_use_color_widget():
-    """background_color and text_color declare widget='color' in json_schema_extra."""
+def test_label_email_color_fields_offer_the_gmail_palette():
+    """background_color and text_color are Literals, so the catalog must render them as
+    a select with the palette as options — a free-text widget is how off-palette colors
+    used to reach the executor and blow up the node at run time."""
     catalog = build_catalog()
     label_email = next(a for a in catalog.actions if a.type == "label_email")
-    color_fields = [
-        f for f in label_email.fields if f.key in ("background_color", "text_color")
-    ]
-    assert len(color_fields) == 2
-    for field in color_fields:
-        assert field.type == "color"
+    fields = {f.key: f for f in label_email.fields}
+
+    assert fields["background_color"].type == "select"
+    assert fields["background_color"].options == list(get_args(GmailBackgroundHex))
+    assert fields["text_color"].type == "select"
+    assert fields["text_color"].options == list(get_args(GmailTextHex))
 
 
 def test_all_nodes_have_category():

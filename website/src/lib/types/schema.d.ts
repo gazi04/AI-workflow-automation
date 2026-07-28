@@ -710,13 +710,35 @@ export interface components {
 			/**
 			 * Background Color
 			 * @default #999999
+			 * @enum {string}
 			 */
-			background_color: string;
+			background_color:
+				| '#cc3a21'
+				| '#ffad47'
+				| '#f2c960'
+				| '#16a766'
+				| '#4a86e8'
+				| '#a479e2'
+				| '#f691b3'
+				| '#000000'
+				| '#999999'
+				| '#ffffff';
 			/**
 			 * Text Color
 			 * @default #f3f3f3
+			 * @enum {string}
 			 */
-			text_color: string;
+			text_color:
+				| '#ffffff'
+				| '#000000'
+				| '#434343'
+				| '#f3f3f3'
+				| '#efefef'
+				| '#cccccc'
+				| '#999999'
+				| '#fce8b3'
+				| '#c9daf8'
+				| '#b9e4d0';
 		};
 		/** ManualConfig */
 		ManualConfig: {

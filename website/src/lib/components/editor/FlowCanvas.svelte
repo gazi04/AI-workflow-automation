@@ -6,7 +6,8 @@
 		addEdge,
 		useSvelteFlow,
 		type Node,
-		type Connection
+		type Connection,
+		type NodeTypes
 	} from '@xyflow/svelte';
 	import ActionNode from './ActionNode.svelte';
 	import TriggerNode from './TriggerNode.svelte';
@@ -14,7 +15,7 @@
 
 	let { nodes = $bindable(), edges = $bindable(), onNodeClick, takeSnapshot } = $props();
 
-	const nodeTypes: any = {
+	const nodeTypes: NodeTypes = {
 		trigger: TriggerNode,
 		action: ActionNode,
 		condition: ConditionNode
@@ -42,12 +43,13 @@
 		if (!nodeType || !catalogType) return;
 
 		const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-		const config: Record<string, any> = {};
+		const config: Record<string, unknown> = {};
 		if (catalogType === 'label_email') {
-			config.label_info = {
-				name: '',
-				color: { backgroundColor: '#ffffff', textColor: '#000000' }
-			};
+			// Flat fields matching LabelEmailConfig — seeding the old nested `label_info`
+			// shape made a node 422 on save unless the config panel was opened first.
+			config.label_name = '';
+			config.background_color = '#999999';
+			config.text_color = '#f3f3f3';
 		}
 
 		const newNode: Node = {
@@ -75,8 +77,8 @@
 		setTimeout(takeSnapshot, 0);
 	}
 
-	function onEdgesChange(changes: any) {
-		const isSignificant = changes.some((c: any) => c.type === 'remove' || c.type === 'reset');
+	function onEdgesChange(changes: { type: string }[]) {
+		const isSignificant = changes.some((c) => c.type === 'remove' || c.type === 'reset');
 		if (isSignificant) {
 			setTimeout(takeSnapshot, 0);
 		}

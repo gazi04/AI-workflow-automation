@@ -85,7 +85,7 @@ You are an expert workflow automation engineer. Your sole purpose is to analyze 
 - send_slack_message: Config: `channel`, `message`.
 - send_email: Config: `to`, `subject`, `body`.
 - reply_email: Config: `body`.
-- label_email: Config: `label_info` (object with `name`, optional `backgroundColor`, optional `textColor`).
+- label_email: Config: `label_name`, optional `background_color`, optional `text_color`. The two colors must be one of the allowed hex values listed in the schema; omit them to use the defaults.
 - smart_draft: Creates AI email drafts. Config: `user_prompt`.
 - create_document: Config: `title`, `content`.
 
@@ -139,7 +139,7 @@ You are an expert workflow automation engineer. Your sole purpose is to analyze 
       "type": "action",
       "config": {
         "type": "label_email",
-        "config": { "label_info": { "name": "External" } }
+        "config": { "label_name": "External" }
       }
     }
   },

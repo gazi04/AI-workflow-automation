@@ -1,9 +1,15 @@
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 from pydantic import BaseModel, Field, field_validator
 
-from gmail.schemas.colors import GmailBackgroundHex, GmailTextHex
-from utils.gmail_colors import validate_background_color, validate_text_color
+from gmail.schemas.colors import (
+    DEFAULT_BACKGROUND_COLOR,
+    DEFAULT_TEXT_COLOR,
+    GmailBackgroundHex,
+    GmailTextHex,
+    clamp_background_color,
+    clamp_text_color,
+)
 
 
 class LabelListVisibility(str, Enum):
@@ -24,21 +30,25 @@ class LabelType(str, Enum):
 
 class LabelColor(BaseModel):
     backgroundColor: GmailBackgroundHex = Field(
-        default="#999999", description="The background color hex string (e.g., #000000)"
+        default=DEFAULT_BACKGROUND_COLOR,
+        description="The background color hex string (e.g., #000000)",
     )
     textColor: GmailTextHex = Field(
-        default="#f3f3f3", description="The text color hex string (e.g., #ffffff)"
+        default=DEFAULT_TEXT_COLOR,
+        description="The text color hex string (e.g., #ffffff)",
     )
 
-    @field_validator("backgroundColor")
+    # mode="before" is load-bearing: an after-validator runs *behind* the Literal
+    # check, so an off-palette colour would raise before it could be clamped.
+    @field_validator("backgroundColor", mode="before")
     @classmethod
-    def check_background_color_palette(cls, v: str) -> Optional[str]:
-        return validate_background_color(v)
+    def check_background_color_palette(cls, v: Any) -> GmailBackgroundHex:
+        return clamp_background_color(v)
 
-    @field_validator("textColor")
+    @field_validator("textColor", mode="before")
     @classmethod
-    def check_text_color_palette(cls, v: str) -> Optional[str]:
-        return validate_text_color(v)
+    def check_text_color_palette(cls, v: Any) -> GmailTextHex:
+        return clamp_text_color(v)
 
 
 class GmailLabel(BaseModel):

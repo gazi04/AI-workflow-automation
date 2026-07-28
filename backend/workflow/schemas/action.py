@@ -1,6 +1,14 @@
-from pydantic import BaseModel, ConfigDict, Field, EmailStr
-from typing import Literal, Union, Annotated
+from pydantic import BaseModel, ConfigDict, Field, EmailStr, field_validator
+from typing import Any, Literal, Union, Annotated
 
+from gmail.schemas.colors import (
+    DEFAULT_BACKGROUND_COLOR,
+    DEFAULT_TEXT_COLOR,
+    GmailBackgroundHex,
+    GmailTextHex,
+    clamp_background_color,
+    clamp_text_color,
+)
 from gmail.schemas.label import GmailLabel, LabelColor
 
 
@@ -21,10 +29,20 @@ class ReplyEmailConfig(BaseModel):
 
 class LabelEmailConfig(BaseModel):
     label_name: str = Field(..., description="The name of the label (e.g., 'OFFERS')")
-    background_color: str = Field(
-        default="#999999", json_schema_extra={"widget": "color"}
-    )
-    text_color: str = Field(default="#f3f3f3", json_schema_extra={"widget": "color"})
+    background_color: GmailBackgroundHex = DEFAULT_BACKGROUND_COLOR
+    text_color: GmailTextHex = DEFAULT_TEXT_COLOR
+
+    # Clamp instead of reject: workflows saved before the palette was enforced must keep
+    # loading and running (they fall back to the default) rather than 422 on read.
+    @field_validator("background_color", mode="before")
+    @classmethod
+    def _clamp_background_color(cls, v: Any) -> GmailBackgroundHex:
+        return clamp_background_color(v)
+
+    @field_validator("text_color", mode="before")
+    @classmethod
+    def _clamp_text_color(cls, v: Any) -> GmailTextHex:
+        return clamp_text_color(v)
 
     @property
     def label_info(self) -> GmailLabel:
@@ -32,8 +50,8 @@ class LabelEmailConfig(BaseModel):
         return GmailLabel(
             name=self.label_name,
             color=LabelColor(
-                backgroundColor=self.background_color,  # type: ignore[arg-type]  # pyright: ignore[reportArgumentType]
-                textColor=self.text_color,  # type: ignore[arg-type]  # pyright: ignore[reportArgumentType]
+                backgroundColor=self.background_color,
+                textColor=self.text_color,
             ),
         )
 
