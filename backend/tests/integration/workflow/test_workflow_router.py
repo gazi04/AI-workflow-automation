@@ -189,6 +189,54 @@ async def test_create_workflow_invalid_schema_returns_422(client, auth_headers):
 
 
 # ---------------------------------------------------------------------------
+# POST /api/workflow/import — requires auth; lands the workflow paused
+# ---------------------------------------------------------------------------
+
+
+async def test_import_workflow_valid_lands_paused(client, auth_headers):
+    """A valid exported schema is created and starts inactive; the deployment
+    is paused so a foreign trigger can't fire before review."""
+    fake_deployment_id = uuid4()
+    with (
+        patch(
+            "workflow.routes.workflow_router.DeploymentService.create_deployment_for_workflow",
+            new=AsyncMock(return_value=fake_deployment_id),
+        ),
+        patch(
+            "workflow.routes.workflow_router.DeploymentService.toggle_workflow",
+            new=AsyncMock(return_value=None),
+        ) as mock_toggle,
+    ):
+        response = await client.post(
+            "/api/workflow/import",
+            json=VALID_WORKFLOW,
+            headers=auth_headers,
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["name"] == "Test Workflow"
+    assert body["is_active"] is False
+    mock_toggle.assert_awaited_once_with(fake_deployment_id, active=False)
+
+
+async def test_import_workflow_requires_auth(client, csrf_headers):
+    response = await client.post(
+        "/api/workflow/import", json=VALID_WORKFLOW, headers=csrf_headers
+    )
+    assert response.status_code == 401
+
+
+async def test_import_workflow_invalid_schema_returns_422(client, auth_headers):
+    response = await client.post(
+        "/api/workflow/import",
+        json=INVALID_WORKFLOW,
+        headers=auth_headers,
+    )
+    assert response.status_code == 422
+
+
+# ---------------------------------------------------------------------------
 # DELETE /api/workflow/delete — requires auth, calls Prefect (mocked)
 # ---------------------------------------------------------------------------
 
@@ -243,7 +291,9 @@ async def _create_workflow(client, headers) -> str:
 
 
 async def test_get_workflow_not_found_returns_404(client, auth_headers):
-    resp = await client.get(f"/api/workflow/get_workflow/{uuid4()}", headers=auth_headers)
+    resp = await client.get(
+        f"/api/workflow/get_workflow/{uuid4()}", headers=auth_headers
+    )
     assert resp.status_code == 404
 
 
@@ -254,7 +304,9 @@ async def test_get_workflow_owner_succeeds(client, auth_headers):
     assert resp.json()["id"] == wid
 
 
-async def test_get_workflow_other_user_gets_404(client, auth_headers, second_auth_headers):
+async def test_get_workflow_other_user_gets_404(
+    client, auth_headers, second_auth_headers
+):
     wid = await _create_workflow(client, auth_headers)
     resp = await client.get(
         f"/api/workflow/get_workflow/{wid}", headers=second_auth_headers
@@ -281,7 +333,9 @@ async def test_toggle_requires_auth(client, csrf_headers):
     assert resp.status_code == 401
 
 
-async def test_update_config_other_user_gets_404(client, auth_headers, second_auth_headers):
+async def test_update_config_other_user_gets_404(
+    client, auth_headers, second_auth_headers
+):
     wid = await _create_workflow(client, auth_headers)
     resp = await client.patch(
         "/api/workflow/update-config",
@@ -349,7 +403,9 @@ async def test_export_workflow_owner_succeeds(client, auth_headers):
     assert body["execution_config"]["nodes"].keys() == {"trigger_1", "action_1"}
 
 
-async def test_export_workflow_other_user_gets_404(client, auth_headers, second_auth_headers):
+async def test_export_workflow_other_user_gets_404(
+    client, auth_headers, second_auth_headers
+):
     wid = await _create_workflow(client, auth_headers)
     resp = await client.get(f"/api/workflow/{wid}/export", headers=second_auth_headers)
     assert resp.status_code == 404
@@ -365,7 +421,9 @@ async def test_run_logs_rejects_non_owner(client, auth_headers):
         "workflow.routes.workflow_router.DeploymentService.user_owns_run",
         new=AsyncMock(return_value=False),
     ):
-        resp = await client.get(f"/api/workflow/runs/{uuid4()}/logs", headers=auth_headers)
+        resp = await client.get(
+            f"/api/workflow/runs/{uuid4()}/logs", headers=auth_headers
+        )
     assert resp.status_code == 404
 
 
@@ -380,7 +438,9 @@ async def test_run_logs_owner_succeeds(client, auth_headers):
             new=AsyncMock(return_value=[]),
         ),
     ):
-        resp = await client.get(f"/api/workflow/runs/{uuid4()}/logs", headers=auth_headers)
+        resp = await client.get(
+            f"/api/workflow/runs/{uuid4()}/logs", headers=auth_headers
+        )
     assert resp.status_code == 200
 
 
@@ -416,11 +476,13 @@ async def test_ws_rejects_mismatched_user(test_user):
     token = create_access_token({"sub": str(test_user.id), "email": test_user.email})
     other_id = uuid4()  # path id different from token sub
     ws_client = TestClient(app)
-    with pytest.raises(WebSocketDisconnect):
-        with ws_client.websocket_connect(
+    with (
+        pytest.raises(WebSocketDisconnect),
+        ws_client.websocket_connect(
             f"/api/workflow/ws/workflows/{other_id}?token={token}"
-        ):
-            pass
+        ),
+    ):
+        pass
 
 
 # ---------------------------------------------------------------------------
