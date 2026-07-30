@@ -7,6 +7,7 @@ from unittest.mock import patch
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def make_pubsub_payload(email: str, history_id: str) -> dict:
     data = base64.b64encode(
         json.dumps({"emailAddress": email, "historyId": history_id}).encode()
@@ -17,6 +18,7 @@ def make_pubsub_payload(email: str, history_id: str) -> dict:
 # ---------------------------------------------------------------------------
 # POST /api/webhooks/gmail — payload parsing (OIDC disabled in test env)
 # ---------------------------------------------------------------------------
+
 
 async def test_valid_payload_returns_success(client):
     with patch("gmail.routes.webhook_router.GmailService.handle_gmail_update"):
@@ -39,7 +41,9 @@ async def test_missing_email_address_ignored(client):
 
 
 async def test_missing_history_id_ignored(client):
-    data = base64.b64encode(json.dumps({"emailAddress": "user@gmail.com"}).encode()).decode()
+    data = base64.b64encode(
+        json.dumps({"emailAddress": "user@gmail.com"}).encode()
+    ).decode()
     response = await client.post(
         "/api/webhooks/gmail",
         json={"message": {"data": data}},
@@ -72,7 +76,9 @@ async def test_handle_update_enqueued_as_background_task(client):
     async def fake_handle(email, history_id):
         call_log.append((email, history_id))
 
-    with patch("gmail.routes.webhook_router.GmailService.handle_gmail_update", fake_handle):
+    with patch(
+        "gmail.routes.webhook_router.GmailService.handle_gmail_update", fake_handle
+    ):
         response = await client.post(
             "/api/webhooks/gmail",
             json=make_pubsub_payload("user@gmail.com", "12345"),
@@ -105,7 +111,10 @@ async def test_missing_bearer_token_returns_401(client):
 async def test_invalid_oidc_token_returns_401(client):
     with (
         patch("gmail.routes.webhook_router.settings") as mock_settings,
-        patch("gmail.routes.webhook_router.google_id_token.verify_oauth2_token", side_effect=ValueError("bad token")),
+        patch(
+            "gmail.routes.webhook_router.google_id_token.verify_oauth2_token",
+            side_effect=ValueError("bad token"),
+        ),
     ):
         mock_settings.google_pubsub_audience = FAKE_AUDIENCE
         response = await client.post(
@@ -119,7 +128,10 @@ async def test_invalid_oidc_token_returns_401(client):
 async def test_valid_oidc_token_allows_request(client):
     with (
         patch("gmail.routes.webhook_router.settings") as mock_settings,
-        patch("gmail.routes.webhook_router.google_id_token.verify_oauth2_token", return_value={"sub": "service-account@project.iam.gserviceaccount.com"}),
+        patch(
+            "gmail.routes.webhook_router.google_id_token.verify_oauth2_token",
+            return_value={"sub": "service-account@project.iam.gserviceaccount.com"},
+        ),
         patch("gmail.routes.webhook_router.GmailService.handle_gmail_update"),
     ):
         mock_settings.google_pubsub_audience = FAKE_AUDIENCE
@@ -136,7 +148,9 @@ async def test_missing_audience_fails_closed_when_required(client):
     """No audience + require_pubsub_oidc on → reject (503), never process."""
     with (
         patch("gmail.routes.webhook_router.settings") as mock_settings,
-        patch("gmail.routes.webhook_router.GmailService.handle_gmail_update") as mock_handle,
+        patch(
+            "gmail.routes.webhook_router.GmailService.handle_gmail_update"
+        ) as mock_handle,
     ):
         mock_settings.google_pubsub_audience = None
         mock_settings.require_pubsub_oidc = True

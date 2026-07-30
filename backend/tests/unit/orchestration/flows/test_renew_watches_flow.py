@@ -38,9 +38,7 @@ async def test_rewatches_every_connected_account_and_advances_history_id():
                 fake_db_session(update_session),
             ],
         ),
-        patch(
-            "orchestration.flows.renew_watches_flow.GmailService"
-        ) as mock_gmail,
+        patch("orchestration.flows.renew_watches_flow.GmailService") as mock_gmail,
         patch(
             "orchestration.flows.renew_watches_flow.AccountService"
         ) as mock_account_service,
@@ -82,9 +80,7 @@ async def test_one_failing_account_does_not_abort_the_rest():
             "orchestration.flows.renew_watches_flow.db_session",
             side_effect=lambda: fake_db_session(session),
         ),
-        patch(
-            "orchestration.flows.renew_watches_flow.GmailService"
-        ) as mock_gmail,
+        patch("orchestration.flows.renew_watches_flow.GmailService") as mock_gmail,
         patch(
             "orchestration.flows.renew_watches_flow.AccountService"
         ) as mock_account_service,

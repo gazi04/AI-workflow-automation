@@ -6,6 +6,7 @@ from utils.resolve_variables import resolve_variables, VariableResolutionError
 # String inputs
 # ---------------------------------------------------------------------------
 
+
 def test_plain_string_unchanged():
     assert resolve_variables("hello world", {}) == "hello world"
 
@@ -70,11 +71,10 @@ def test_object_attribute_access():
 # Default / fallback syntax  {{path | "default"}}
 # ---------------------------------------------------------------------------
 
+
 def test_default_ignored_when_path_resolves():
     ctx = {"node_1": {"subject": "Real Subject"}}
-    assert (
-        resolve_variables('{{node_1.subject | "No Subject"}}', ctx) == "Real Subject"
-    )
+    assert resolve_variables('{{node_1.subject | "No Subject"}}', ctx) == "Real Subject"
 
 
 def test_double_quoted_default_used_when_missing():
@@ -108,6 +108,7 @@ def test_missing_without_default_still_raises():
 # Dict inputs (recursive)
 # ---------------------------------------------------------------------------
 
+
 def test_dict_values_resolved():
     ctx = {"node_1": {"to": "bob@example.com"}}
     result = resolve_variables({"to": "{{node_1.to}}", "body": "Hello"}, ctx)
@@ -129,6 +130,7 @@ def test_dict_with_no_variables_unchanged():
 # List inputs (recursive)
 # ---------------------------------------------------------------------------
 
+
 def test_list_values_resolved():
     ctx = {"n": {"x": "a", "y": "b"}}
     result = resolve_variables(["{{n.x}}", "{{n.y}}"], ctx)
@@ -143,6 +145,7 @@ def test_list_with_no_variables_unchanged():
 # ---------------------------------------------------------------------------
 # Non-string scalars — returned unchanged
 # ---------------------------------------------------------------------------
+
 
 def test_integer_returned_unchanged():
     assert resolve_variables(99, {}) == 99

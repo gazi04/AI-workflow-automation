@@ -20,6 +20,7 @@ from core.config_loader import settings
 # create_access_token
 # ---------------------------------------------------------------------------
 
+
 def test_create_access_token_contains_claims():
     user_id = str(uuid4())
     token = create_access_token({"sub": user_id, "email": "user@test.com"})
@@ -39,7 +40,9 @@ def test_create_access_token_default_expiry_within_settings_window():
     token = create_access_token({"sub": "123"})
     payload = jwt.decode(token, get_secret_key(), algorithms=[settings.algorithm])
     exp = datetime.fromtimestamp(payload["exp"], tz=timezone.utc)
-    upper_bound = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes + 1)
+    upper_bound = datetime.now(timezone.utc) + timedelta(
+        minutes=settings.access_token_expire_minutes + 1
+    )
     assert exp < upper_bound
 
 
@@ -55,6 +58,7 @@ def test_create_access_token_custom_delta():
 # ---------------------------------------------------------------------------
 # decode_access_token
 # ---------------------------------------------------------------------------
+
 
 def test_decode_access_token_valid():
     token = create_access_token({"sub": "abc", "email": "x@y.com"})
@@ -85,6 +89,7 @@ def test_decode_access_token_malformed_raises():
 # create_refresh_token
 # ---------------------------------------------------------------------------
 
+
 def test_create_refresh_token_returns_string_and_datetime():
     token_str, expires_at = create_refresh_token(uuid4())
     assert isinstance(token_str, str)
@@ -106,19 +111,26 @@ def test_create_refresh_token_unique_each_call():
 # verify_password / get_password_hash
 # ---------------------------------------------------------------------------
 
-@pytest.mark.xfail(reason="passlib incompatible with bcrypt >= 4.x — pre-existing bug, not test issue")
+
+@pytest.mark.xfail(
+    reason="passlib incompatible with bcrypt >= 4.x — pre-existing bug, not test issue"
+)
 def test_verify_password_correct():
     hashed = get_password_hash("mysecret")
     assert verify_password("mysecret", hashed) is True
 
 
-@pytest.mark.xfail(reason="passlib incompatible with bcrypt >= 4.x — pre-existing bug, not test issue")
+@pytest.mark.xfail(
+    reason="passlib incompatible with bcrypt >= 4.x — pre-existing bug, not test issue"
+)
 def test_verify_password_wrong():
     hashed = get_password_hash("mysecret")
     assert verify_password("wrong", hashed) is False
 
 
-@pytest.mark.xfail(reason="passlib incompatible with bcrypt >= 4.x — pre-existing bug, not test issue")
+@pytest.mark.xfail(
+    reason="passlib incompatible with bcrypt >= 4.x — pre-existing bug, not test issue"
+)
 def test_get_password_hash_differs_from_plain():
     plain = "plaintext"
     assert get_password_hash(plain) != plain

@@ -18,6 +18,7 @@ from workflow.schemas.condition_nodes import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def make_trigger(node_id: str) -> WorkflowNode:
     return WorkflowNode(
         id=node_id,
@@ -44,7 +45,13 @@ def make_condition(node_id: str) -> WorkflowNode:
         config=IfCondition(
             type="if_condition",
             config=IfConditionConfig(
-                rules=[ConditionRule(variable="{{trigger_1.subject}}", operator=ConditionOperators.CONTAINS, value="invoice")],
+                rules=[
+                    ConditionRule(
+                        variable="{{trigger_1.subject}}",
+                        operator=ConditionOperators.CONTAINS,
+                        value="invoice",
+                    )
+                ],
                 match_type="ALL",
             ),
         ),
@@ -60,6 +67,7 @@ def make_edge(
 # ---------------------------------------------------------------------------
 # Valid workflows
 # ---------------------------------------------------------------------------
+
 
 def test_valid_minimal_workflow():
     config = WorkflowExecutionConfig(
@@ -102,6 +110,7 @@ def test_valid_workflow_no_edges_is_rejected():
 # Cycle detection
 # ---------------------------------------------------------------------------
 
+
 def test_self_loop_raises():
     with pytest.raises(ValueError, match="Circular dependency"):
         WorkflowExecutionConfig(
@@ -118,7 +127,11 @@ def test_two_node_cycle_raises():
     with pytest.raises(ValueError, match="Circular dependency"):
         WorkflowExecutionConfig(
             start_node_ids=["t1"],
-            nodes={"t1": make_trigger("t1"), "a1": make_action("a1"), "a2": make_action("a2")},
+            nodes={
+                "t1": make_trigger("t1"),
+                "a1": make_action("a1"),
+                "a2": make_action("a2"),
+            },
             edges=[
                 make_edge("e1", "t1", "a1"),
                 make_edge("e2", "a1", "a2"),
@@ -149,6 +162,7 @@ def test_three_node_cycle_raises():
 # ---------------------------------------------------------------------------
 # Minimum requirements validation
 # ---------------------------------------------------------------------------
+
 
 def test_trigger_only_workflow_raises():
     with pytest.raises(ValueError, match="at least one action or condition"):

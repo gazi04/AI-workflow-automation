@@ -28,9 +28,7 @@ async def test_workflow(db_session: AsyncSession, test_user: User) -> Workflow:
 
 async def _processed_ids(db: AsyncSession, workflow_id) -> list:
     result = await db.execute(
-        select(ProcessedMessages.id).where(
-            ProcessedMessages.workflow_id == workflow_id
-        )
+        select(ProcessedMessages.id).where(ProcessedMessages.workflow_id == workflow_id)
     )
     return list(result.scalars().all())
 
@@ -40,12 +38,8 @@ async def test_deleting_workflow_cascades_to_processed_messages(
 ):
     """delete_by_id issues a Core DELETE, which bypasses ORM cascades — only the
     DB-level ON DELETE CASCADE cleans these up."""
-    db_session.add(
-        ProcessedMessages(message_id="msg_1", workflow_id=test_workflow.id)
-    )
-    db_session.add(
-        ProcessedMessages(message_id="msg_2", workflow_id=test_workflow.id)
-    )
+    db_session.add(ProcessedMessages(message_id="msg_1", workflow_id=test_workflow.id))
+    db_session.add(ProcessedMessages(message_id="msg_2", workflow_id=test_workflow.id))
     await db_session.flush()
     assert len(await _processed_ids(db_session, test_workflow.id)) == 2
 

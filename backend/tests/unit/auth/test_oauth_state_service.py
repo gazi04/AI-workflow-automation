@@ -20,6 +20,7 @@ def make_mock_db(record=None):
 # OAuthStateService.create
 # ---------------------------------------------------------------------------
 
+
 async def test_create_adds_record_and_commits():
     db = make_mock_db()
     await OAuthStateService.create(db, "test-state-123")
@@ -52,6 +53,7 @@ async def test_create_sets_expiry_approximately_10_minutes_ahead():
 # ---------------------------------------------------------------------------
 # OAuthStateService.consume
 # ---------------------------------------------------------------------------
+
 
 async def test_consume_valid_state_returns_true():
     record = MagicMock()

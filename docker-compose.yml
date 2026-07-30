@@ -36,7 +36,7 @@ services:
     environment:
       - PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/prefect
       - PREFECT_SERVER_API_HOST=0.0.0.0
-      - PREFECT_API_URL=http://127.0.0.1:4200/api 
+      - PREFECT_API_URL=http://127.0.0.1:4200/api
     depends_on:
       postgres:
         condition: service_healthy

@@ -9,6 +9,7 @@ from auth.services.token_service import TokenService
 # Helpers — build a mock session and token record inline
 # ---------------------------------------------------------------------------
 
+
 def make_token_record(user_id=None, is_revoked=False, days_until_expiry=7):
     user_id = user_id or uuid4()
     record = MagicMock()
@@ -43,6 +44,7 @@ def make_db(token_record):
 # Tests
 # ---------------------------------------------------------------------------
 
+
 async def test_valid_token_returns_access_and_refresh():
     record = make_token_record()
     db = make_db(record)
@@ -73,6 +75,7 @@ async def test_valid_token_new_refresh_record_added():
     added = db.add.call_args[0][0]
     # The new RefreshToken must be for the same user
     from auth.models.refresh_token import RefreshToken
+
     assert isinstance(added, RefreshToken)
     assert added.user_id == record.user_id
 

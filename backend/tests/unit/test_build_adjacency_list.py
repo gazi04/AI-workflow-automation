@@ -8,6 +8,7 @@ from workflow.schemas.edges import Edge
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def make_edge(
     id: str, source: str, target: str, source_handle: Optional[str] = None
 ) -> Edge:
@@ -17,6 +18,7 @@ def make_edge(
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 def test_empty_edge_list_returns_empty_dict():
     assert build_adjacency_list([]) == {}

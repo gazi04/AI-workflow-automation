@@ -7,6 +7,7 @@ phase 2 (drain loop): both ``_acquire_account_locked`` and
 ``get_account_by_user_and_provider`` return the same object, so attribute
 mutations are observable across the whole flow.
 """
+
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
 from types import SimpleNamespace
@@ -47,20 +48,30 @@ def patched(account):
     processor_cm.return_value.__aenter__ = AsyncMock(return_value=processor_instance)
     processor_cm.return_value.__aexit__ = AsyncMock(return_value=False)
 
-    with patch(f"{MODULE}.db_session", fake_db_session), patch(
-        f"{MODULE}.UserService.get_by_email", new_callable=AsyncMock, return_value=user
-    ), patch.object(
-        GmailService, "_acquire_account_locked", new_callable=AsyncMock, return_value=account
-    ), patch(
-        f"{MODULE}.AccountService.get_account_by_user_and_provider",
-        new_callable=AsyncMock,
-        return_value=account,
-    ), patch(
-        f"{MODULE}.AuthService.get_google_credentials",
-        new_callable=AsyncMock,
-        return_value=MagicMock(),
-    ), patch(
-        f"{MODULE}.GmailHistoryProcessor", processor_cm
+    with (
+        patch(f"{MODULE}.db_session", fake_db_session),
+        patch(
+            f"{MODULE}.UserService.get_by_email",
+            new_callable=AsyncMock,
+            return_value=user,
+        ),
+        patch.object(
+            GmailService,
+            "_acquire_account_locked",
+            new_callable=AsyncMock,
+            return_value=account,
+        ),
+        patch(
+            f"{MODULE}.AccountService.get_account_by_user_and_provider",
+            new_callable=AsyncMock,
+            return_value=account,
+        ),
+        patch(
+            f"{MODULE}.AuthService.get_google_credentials",
+            new_callable=AsyncMock,
+            return_value=MagicMock(),
+        ),
+        patch(f"{MODULE}.GmailHistoryProcessor", processor_cm),
     ):
         yield SimpleNamespace(account=account, fetch=fetch)
 

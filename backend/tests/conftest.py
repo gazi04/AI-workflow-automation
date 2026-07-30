@@ -4,7 +4,7 @@ import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-import core.models  # noqa: F401, E402 — registers all ORM models with Base
+import core.models  # noqa: F401 — registers all ORM models with Base
 
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4

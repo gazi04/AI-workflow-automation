@@ -8,6 +8,7 @@ from auth.models.connected_account import ConnectedAccount
 # GET /api/connection/status
 # ---------------------------------------------------------------------------
 
+
 async def test_connection_status_requires_auth(client):
     response = await client.get("/api/connection/status")
     assert response.status_code == 401
@@ -21,7 +22,9 @@ async def test_connection_status_no_accounts(client, auth_headers):
     assert all(not i["is_connected"] for i in body["integrations"])
 
 
-async def test_connection_status_with_google_account(client, db_session, test_user, auth_headers, test_connected_account):
+async def test_connection_status_with_google_account(
+    client, db_session, test_user, auth_headers, test_connected_account
+):
     response = await client.get("/api/connection/status", headers=auth_headers)
     assert response.status_code == 200
 
@@ -34,7 +37,9 @@ async def test_connection_status_with_google_account(client, db_session, test_us
     assert google["email"] == test_user.email
 
 
-async def test_connection_status_needs_reconnect_when_no_refresh_token(client, db_session, test_user, auth_headers):
+async def test_connection_status_needs_reconnect_when_no_refresh_token(
+    client, db_session, test_user, auth_headers
+):
     account = ConnectedAccount(
         user_id=test_user.id,
         provider="google",

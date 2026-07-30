@@ -15,11 +15,14 @@ def _make_state() -> str:
 # OAuthStateService.create — real DB round-trips
 # ---------------------------------------------------------------------------
 
+
 async def test_create_persists_row(db_session):
     state = _make_state()
     await OAuthStateService.create(db_session, state)
 
-    result = await db_session.execute(select(OAuthState).where(OAuthState.state == state))
+    result = await db_session.execute(
+        select(OAuthState).where(OAuthState.state == state)
+    )
     row = result.scalar_one_or_none()
     assert row is not None
     assert row.state == state
@@ -29,7 +32,9 @@ async def test_create_row_has_future_expiry(db_session):
     state = _make_state()
     await OAuthStateService.create(db_session, state)
 
-    result = await db_session.execute(select(OAuthState).where(OAuthState.state == state))
+    result = await db_session.execute(
+        select(OAuthState).where(OAuthState.state == state)
+    )
     row = result.scalar_one_or_none()
     assert row.expires_at > datetime.now(timezone.utc)
 
@@ -38,6 +43,7 @@ async def test_create_row_has_future_expiry(db_session):
 # OAuthStateService.consume — real DB round-trips
 # ---------------------------------------------------------------------------
 
+
 async def test_consume_valid_returns_true_and_deletes_row(db_session):
     state = _make_state()
     await OAuthStateService.create(db_session, state)
@@ -45,7 +51,9 @@ async def test_consume_valid_returns_true_and_deletes_row(db_session):
     result = await OAuthStateService.consume(db_session, state)
 
     assert result is True
-    query_result = await db_session.execute(select(OAuthState).where(OAuthState.state == state))
+    query_result = await db_session.execute(
+        select(OAuthState).where(OAuthState.state == state)
+    )
     row = query_result.scalar_one_or_none()
     assert row is None
 
@@ -62,7 +70,9 @@ async def test_consume_expired_returns_false_and_leaves_row(db_session):
     result = await OAuthStateService.consume(db_session, state)
 
     assert result is False
-    query_result = await db_session.execute(select(OAuthState).where(OAuthState.state == state))
+    query_result = await db_session.execute(
+        select(OAuthState).where(OAuthState.state == state)
+    )
     row = query_result.scalar_one_or_none()
     assert row is not None
 

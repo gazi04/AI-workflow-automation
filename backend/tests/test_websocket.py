@@ -24,13 +24,15 @@ def test_websocket_accepts_matching_token():
     user_id = str(uuid4())
     token = create_access_token({"sub": user_id, "email": "ws@example.com"})
 
-    with patch(
-        "workflow.routes.workflow_router.DeploymentService.get_latest_runs_status",
-        new=AsyncMock(return_value=[]),
-    ):
-        with client.websocket_connect(
+    with (
+        patch(
+            "workflow.routes.workflow_router.DeploymentService.get_latest_runs_status",
+            new=AsyncMock(return_value=[]),
+        ),
+        client.websocket_connect(
             f"/api/workflow/ws/workflows/{user_id}?token={token}"
-        ) as websocket:
-            data = websocket.receive_json()
-            assert data["type"] == "workflow_update"
-            assert isinstance(data["data"], list)
+        ) as websocket,
+    ):
+        data = websocket.receive_json()
+        assert data["type"] == "workflow_update"
+        assert isinstance(data["data"], list)

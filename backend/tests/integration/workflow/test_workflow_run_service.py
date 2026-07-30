@@ -130,7 +130,9 @@ async def test_get_by_prefect_run_id_scoped_to_user(
 
 async def test_get_by_prefect_run_id_unknown_returns_none(db_session, test_user):
     assert (
-        await WorkflowRunService.get_by_prefect_run_id(db_session, uuid4(), test_user.id)
+        await WorkflowRunService.get_by_prefect_run_id(
+            db_session, uuid4(), test_user.id
+        )
         is None
     )
 

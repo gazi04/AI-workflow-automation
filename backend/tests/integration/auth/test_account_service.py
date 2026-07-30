@@ -12,19 +12,28 @@ from core.crypto import decrypt_token
 # get_account_by_user_and_provider
 # ---------------------------------------------------------------------------
 
+
 async def test_get_account_found(db_session, test_user, test_connected_account):
-    result = await AccountService.get_account_by_user_and_provider(db_session, test_user.id, "google")
+    result = await AccountService.get_account_by_user_and_provider(
+        db_session, test_user.id, "google"
+    )
     assert result is not None
     assert result.id == test_connected_account.id
 
 
 async def test_get_account_not_found_wrong_user(db_session, test_connected_account):
-    result = await AccountService.get_account_by_user_and_provider(db_session, uuid4(), "google")
+    result = await AccountService.get_account_by_user_and_provider(
+        db_session, uuid4(), "google"
+    )
     assert result is None
 
 
-async def test_get_account_not_found_wrong_provider(db_session, test_user, test_connected_account):
-    result = await AccountService.get_account_by_user_and_provider(db_session, test_user.id, "slack")
+async def test_get_account_not_found_wrong_provider(
+    db_session, test_user, test_connected_account
+):
+    result = await AccountService.get_account_by_user_and_provider(
+        db_session, test_user.id, "slack"
+    )
     assert result is None
 
 
@@ -32,18 +41,23 @@ async def test_get_account_not_found_wrong_provider(db_session, test_user, test_
 # get_all_user_accounts
 # ---------------------------------------------------------------------------
 
+
 async def test_get_all_user_accounts_empty(db_session, test_user):
     result = await AccountService.get_all_user_accounts(db_session, test_user.id)
     assert result == []
 
 
-async def test_get_all_user_accounts_returns_connected_account(db_session, test_user, test_connected_account):
+async def test_get_all_user_accounts_returns_connected_account(
+    db_session, test_user, test_connected_account
+):
     result = await AccountService.get_all_user_accounts(db_session, test_user.id)
     assert len(result) == 1
     assert result[0].id == test_connected_account.id
 
 
-async def test_get_all_user_accounts_excludes_other_users(db_session, test_connected_account):
+async def test_get_all_user_accounts_excludes_other_users(
+    db_session, test_connected_account
+):
     result = await AccountService.get_all_user_accounts(db_session, uuid4())
     assert result == []
 
@@ -52,7 +66,10 @@ async def test_get_all_user_accounts_excludes_other_users(db_session, test_conne
 # refresh_tokens
 # ---------------------------------------------------------------------------
 
-async def test_refresh_tokens_updates_access_token(db_session, test_user, test_connected_account):
+
+async def test_refresh_tokens_updates_access_token(
+    db_session, test_user, test_connected_account
+):
     new_token = "new_access_token_xyz"
     new_expiry = datetime.now(timezone.utc) + timedelta(hours=2)
 
@@ -68,7 +85,9 @@ async def test_refresh_tokens_updates_access_token(db_session, test_user, test_c
     assert updated.token_expires_at == new_expiry
 
 
-async def test_refresh_tokens_updates_refresh_token_when_provided(db_session, test_user, test_connected_account):
+async def test_refresh_tokens_updates_refresh_token_when_provided(
+    db_session, test_user, test_connected_account
+):
     new_refresh = "new_refresh_token_abc"
 
     updated = await AccountService.refresh_tokens(
@@ -82,7 +101,9 @@ async def test_refresh_tokens_updates_refresh_token_when_provided(db_session, te
     assert decrypt_token(updated.refresh_token) == new_refresh
 
 
-async def test_refresh_tokens_preserves_refresh_token_when_not_provided(db_session, test_user, test_connected_account):
+async def test_refresh_tokens_preserves_refresh_token_when_not_provided(
+    db_session, test_user, test_connected_account
+):
     original_refresh = test_connected_account.refresh_token
 
     updated = await AccountService.refresh_tokens(
@@ -99,9 +120,12 @@ async def test_refresh_tokens_preserves_refresh_token_when_not_provided(db_sessi
 # update_history_id
 # ---------------------------------------------------------------------------
 
+
 async def test_update_history_id(db_session, test_user, test_connected_account):
     new_id = "history_777"
-    updated = await AccountService.update_history_id(db_session, test_connected_account, new_id)
+    updated = await AccountService.update_history_id(
+        db_session, test_connected_account, new_id
+    )
 
     assert updated.last_synced_history_id == new_id
 
@@ -115,6 +139,7 @@ async def test_update_history_id(db_session, test_user, test_connected_account):
 # ---------------------------------------------------------------------------
 # set_sync_pending
 # ---------------------------------------------------------------------------
+
 
 async def test_set_sync_pending_toggles(db_session, test_connected_account):
     assert test_connected_account.sync_pending is False
@@ -130,20 +155,37 @@ async def test_set_sync_pending_toggles(db_session, test_connected_account):
 # bump_observed_history_id
 # ---------------------------------------------------------------------------
 
-async def test_bump_observed_history_id_sets_from_none(db_session, test_connected_account):
+
+async def test_bump_observed_history_id_sets_from_none(
+    db_session, test_connected_account
+):
     assert test_connected_account.latest_observed_history_id is None
 
-    await AccountService.bump_observed_history_id(db_session, test_connected_account, "100")
+    await AccountService.bump_observed_history_id(
+        db_session, test_connected_account, "100"
+    )
     assert test_connected_account.latest_observed_history_id == "100"
 
 
-async def test_bump_observed_history_id_advances_on_larger(db_session, test_connected_account):
-    await AccountService.bump_observed_history_id(db_session, test_connected_account, "100")
-    await AccountService.bump_observed_history_id(db_session, test_connected_account, "200")
+async def test_bump_observed_history_id_advances_on_larger(
+    db_session, test_connected_account
+):
+    await AccountService.bump_observed_history_id(
+        db_session, test_connected_account, "100"
+    )
+    await AccountService.bump_observed_history_id(
+        db_session, test_connected_account, "200"
+    )
     assert test_connected_account.latest_observed_history_id == "200"
 
 
-async def test_bump_observed_history_id_noop_on_smaller(db_session, test_connected_account):
-    await AccountService.bump_observed_history_id(db_session, test_connected_account, "100")
-    await AccountService.bump_observed_history_id(db_session, test_connected_account, "50")
+async def test_bump_observed_history_id_noop_on_smaller(
+    db_session, test_connected_account
+):
+    await AccountService.bump_observed_history_id(
+        db_session, test_connected_account, "100"
+    )
+    await AccountService.bump_observed_history_id(
+        db_session, test_connected_account, "50"
+    )
     assert test_connected_account.latest_observed_history_id == "100"

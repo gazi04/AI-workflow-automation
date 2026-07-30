@@ -36,9 +36,7 @@ async def test_registers_daily_cron_deployment():
     deployment_id = uuid4()
     flow_mock.deploy = AsyncMock(return_value=deployment_id)
 
-    with patch(
-        "scripts.register_renewal.renew_gmail_watches"
-    ) as flow_cls:
+    with patch("scripts.register_renewal.renew_gmail_watches") as flow_cls:
         flow_cls.from_source = AsyncMock(return_value=flow_mock)
         result = await register_renewal_deployment()
 
