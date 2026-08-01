@@ -15,6 +15,7 @@ class OAuthState(Base):
     state: Mapped[str] = mapped_column(
         String(255), unique=True, index=True, nullable=False
     )
+    code_verifier: Mapped[str | None] = mapped_column(String(128), nullable=True)
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )

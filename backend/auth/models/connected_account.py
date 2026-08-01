@@ -9,7 +9,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import List, Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from user.models.user import User
@@ -54,7 +54,8 @@ class ConnectedAccount(Base):
         DateTime(timezone=True)
     )
 
-    scope: Mapped[Optional[List[str]]] = mapped_column(Text)
+    # Space-delimited, matching OAuth's own scope parameter convention.
+    scope: Mapped[Optional[str]] = mapped_column(Text)
     metadata_account: Mapped[dict] = mapped_column(JSONB, default=dict)
 
     created_at: Mapped[datetime] = mapped_column(

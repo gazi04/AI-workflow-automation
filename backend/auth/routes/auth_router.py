@@ -122,7 +122,7 @@ async def get_me(user: User = Depends(get_current_user)):
 GOOGLE_TOKEN_URI = "https://oauth2.googleapis.com/token"  # nosec B105
 
 
-def get_google_flow():
+def get_google_flow(code_verifier: str | None = None):
     return Flow.from_client_config(
         {
             "web": {
@@ -142,6 +142,11 @@ def get_google_flow():
             "openid",  # This scope is to get the user's ID
         ],
         redirect_uri=settings.google_oauth_redirect_uri,
+        code_verifier=code_verifier,
+        # Each request builds a fresh Flow, so the auto-generated verifier from
+        # the authorization step never survives to the callback step unless we
+        # persist and restore it ourselves (see OAuthStateService).
+        autogenerate_code_verifier=code_verifier is None,
     )
 
 
@@ -152,7 +157,7 @@ async def connect_google(request: Request, db: AsyncSession = Depends(get_db)):
         access_type="offline", include_granted_scopes="true", prompt="consent"
     )
 
-    await OAuthStateService.create(db, state)
+    await OAuthStateService.create(db, state, code_verifier=flow.code_verifier)
 
     return {"auth_url": auth_url}
 
@@ -168,12 +173,13 @@ async def callback_google(
     saved_account = None
 
     try:
-        if not await OAuthStateService.consume(db, state):
+        oauth_state = await OAuthStateService.consume(db, state)
+        if not oauth_state:
             raise HTTPException(
                 status_code=400, detail="Invalid or expired state parameter"
             )
 
-        flow = get_google_flow()
+        flow = get_google_flow(code_verifier=oauth_state.code_verifier)
 
         # google_auth_oauthlib and google.auth are synchronous: the token
         # exchange and the id_token verification (which fetches Google's signing
@@ -211,7 +217,7 @@ async def callback_google(
                 if credentials.expiry
                 else None
             )
-            existing_account.scope = credentials.scopes
+            existing_account.scope = " ".join(credentials.scopes)
             existing_account.updated_at = datetime.now(timezone.utc)
 
             saved_account = existing_account
@@ -227,7 +233,7 @@ async def callback_google(
                 )
                 if credentials.expiry
                 else None,
-                scope=credentials.scopes,
+                scope=" ".join(credentials.scopes),
                 metadata_account={
                     "email": provider_account_email,
                     "name": user_info.get("name"),
