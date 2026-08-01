@@ -44,13 +44,14 @@ async def test_create_row_has_future_expiry(db_session):
 # ---------------------------------------------------------------------------
 
 
-async def test_consume_valid_returns_true_and_deletes_row(db_session):
+async def test_consume_valid_returns_record_and_deletes_row(db_session):
     state = _make_state()
     await OAuthStateService.create(db_session, state)
 
     result = await OAuthStateService.consume(db_session, state)
 
-    assert result is True
+    assert result is not None
+    assert result.state == state
     query_result = await db_session.execute(
         select(OAuthState).where(OAuthState.state == state)
     )
@@ -58,7 +59,17 @@ async def test_consume_valid_returns_true_and_deletes_row(db_session):
     assert row is None
 
 
-async def test_consume_expired_returns_false_and_leaves_row(db_session):
+async def test_consume_returns_code_verifier(db_session):
+    state = _make_state()
+    await OAuthStateService.create(db_session, state, code_verifier="verifier-xyz")
+
+    result = await OAuthStateService.consume(db_session, state)
+
+    assert result is not None
+    assert result.code_verifier == "verifier-xyz"
+
+
+async def test_consume_expired_returns_none_and_leaves_row(db_session):
     state = _make_state()
     record = OAuthState(
         state=state,
@@ -69,7 +80,7 @@ async def test_consume_expired_returns_false_and_leaves_row(db_session):
 
     result = await OAuthStateService.consume(db_session, state)
 
-    assert result is False
+    assert result is None
     query_result = await db_session.execute(
         select(OAuthState).where(OAuthState.state == state)
     )
@@ -77,9 +88,9 @@ async def test_consume_expired_returns_false_and_leaves_row(db_session):
     assert row is not None
 
 
-async def test_consume_nonexistent_returns_false(db_session):
+async def test_consume_nonexistent_returns_none(db_session):
     result = await OAuthStateService.consume(db_session, "state-does-not-exist")
-    assert result is False
+    assert result is None
 
 
 async def test_consume_is_idempotent(db_session):
@@ -89,5 +100,5 @@ async def test_consume_is_idempotent(db_session):
     first = await OAuthStateService.consume(db_session, state)
     second = await OAuthStateService.consume(db_session, state)
 
-    assert first is True
-    assert second is False
+    assert first is not None
+    assert second is None

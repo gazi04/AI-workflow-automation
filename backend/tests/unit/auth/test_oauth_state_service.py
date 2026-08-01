@@ -40,6 +40,20 @@ async def test_create_sets_state_value():
     assert result.state == "my-state"
 
 
+async def test_create_sets_code_verifier_value():
+    db = make_mock_db()
+    result = await OAuthStateService.create(
+        db, "state-with-verifier", code_verifier="verifier-abc"
+    )
+    assert result.code_verifier == "verifier-abc"
+
+
+async def test_create_defaults_code_verifier_to_none():
+    db = make_mock_db()
+    result = await OAuthStateService.create(db, "state-no-verifier")
+    assert result.code_verifier is None
+
+
 async def test_create_sets_expiry_approximately_10_minutes_ahead():
     db = make_mock_db()
     before = datetime.now(timezone.utc)
@@ -55,35 +69,35 @@ async def test_create_sets_expiry_approximately_10_minutes_ahead():
 # ---------------------------------------------------------------------------
 
 
-async def test_consume_valid_state_returns_true():
+async def test_consume_valid_state_returns_record():
     record = MagicMock()
     record.expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
     db = make_mock_db(record)
 
     result = await OAuthStateService.consume(db, "valid-state")
 
-    assert result is True
+    assert result is record
     db.delete.assert_called_once_with(record)
     db.commit.assert_called_once()
 
 
-async def test_consume_missing_state_returns_false():
+async def test_consume_missing_state_returns_none():
     db = make_mock_db(record=None)
 
     result = await OAuthStateService.consume(db, "unknown-state")
 
-    assert result is False
+    assert result is None
     db.delete.assert_not_called()
     db.commit.assert_not_called()
 
 
-async def test_consume_expired_state_returns_false():
+async def test_consume_expired_state_returns_none():
     record = MagicMock()
     record.expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
     db = make_mock_db(record)
 
     result = await OAuthStateService.consume(db, "expired-state")
 
-    assert result is False
+    assert result is None
     db.delete.assert_not_called()
     db.commit.assert_not_called()
