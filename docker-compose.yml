@@ -103,6 +103,13 @@ services:
       - /app/.vite
     restart: unless-stopped
 
+  dozzle:
+    image: amir20/dozzle:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - 8081:8080
+
 volumes:
   postgres_data:
   pgadmin_data:
