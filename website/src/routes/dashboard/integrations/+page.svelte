@@ -4,18 +4,16 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
-	import {
-		Loader,
-		Mail,
-		MessageSquare,
-		RefreshCw,
-		CircleAlert,
-		CircleCheck,
-		Settings2,
-		Unplug,
-		Info
-	} from 'lucide-svelte';
-	import { toast, Toaster } from 'svelte-sonner';
+	import Loader from '@lucide/svelte/icons/loader';
+	import Mail from '@lucide/svelte/icons/mail';
+	import MessageSquare from '@lucide/svelte/icons/message-square';
+	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
+	import CircleAlert from '@lucide/svelte/icons/circle-alert';
+	import CircleCheck from '@lucide/svelte/icons/circle-check';
+	import Settings2 from '@lucide/svelte/icons/settings-2';
+	import Unplug from '@lucide/svelte/icons/unplug';
+	import Info from '@lucide/svelte/icons/info';
+	import { toast } from 'svelte-sonner';
 	import { formatLabel } from '$lib/utils';
 
 	type IntegrationStatus = {
@@ -40,10 +38,11 @@
 		try {
 			const res = await api.get<ConnectionStatusResponse>('/api/connection/status');
 			integrations = res.integrations;
-		} catch (err: any) {
+		} catch (err) {
 			console.error('Failed to load integrations', err);
-			error = err.detail || 'Failed to load connection statuses.';
-			toast.error(error);
+			const apiErr = err as { detail?: string };
+			error = apiErr.detail || 'Failed to load connection statuses.';
+			toast.error(error ?? 'Failed to load connection statuses.');
 		} finally {
 			isLoading = false;
 		}
@@ -64,10 +63,11 @@
 		try {
 			await api.get('/api/webhooks/listen-to-gmail');
 			toast.success('Gmail webhook synced successfully!');
-		} catch (err: any) {
+		} catch (err) {
 			console.error(`Failed to sync ${provider}`, err);
+			const apiErr = err as { detail?: string };
 			const message =
-				err.detail || `Failed to sync ${formatLabel(provider)}. You may need to reconnect.`;
+				apiErr.detail || `Failed to sync ${formatLabel(provider)}. You may need to reconnect.`;
 			toast.error(message);
 			await fetchIntegrations();
 		} finally {
@@ -120,7 +120,7 @@
 		</div>
 	{:else}
 		<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-			{#each integrations as integration}
+			{#each integrations as integration (integration.provider)}
 				{@const Icon = getProviderIcon(integration.provider)}
 
 				<Card.Root
