@@ -1,11 +1,25 @@
+# backend and prefect-worker run the same code from the same image. Sharing one
+# build definition and one tag keeps a single image on disk and stops the two
+# from drifting onto different dependency sets.
+x-backend-build: &backend-build
+  context: ./backend
+  dockerfile: Dockerfile
+  target: runtime
+
 services:
   postgres:
-    image: postgres:latest
+    # Pinned to a major: `latest` would eventually jump to PG 19 and refuse to
+    # start against a PG 18 data directory.
+    image: postgres:18
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # PG 18+ images store the cluster in a major-version subdirectory
+      # (/var/lib/postgresql/18/docker) and no longer ship the `data -> .`
+      # compat symlink, so the mount belongs one level up. The existing volume
+      # already holds 18/docker, so this preserves the data as-is.
+      - postgres_data:/var/lib/postgresql
       - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
     ports:
       - "5433:5432"
@@ -14,9 +28,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    mem_limit: 512m
+    restart: unless-stopped
 
+  # Opt-in: `docker compose --profile tools up -d pgadmin`. Kept out of the
+  # default set because it idles at ~236 MiB. Postgres is on host port 5433 for
+  # any other client.
   pgadmin:
     image: dpage/pgadmin4:latest
+    profiles: ["tools"]
     environment:
       - PGADMIN_DEFAULT_EMAIL=test@test.com
       - PGADMIN_DEFAULT_PASSWORD=root
@@ -27,6 +47,7 @@ services:
         condition: service_healthy
     volumes:
       - pgadmin_data:/var/lib/pgadmin
+    mem_limit: 384m
 
   prefect-server:
     image: prefecthq/prefect:3.8.0-python3.13
@@ -37,15 +58,28 @@ services:
       - PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/prefect
       - PREFECT_SERVER_API_HOST=0.0.0.0
       - PREFECT_API_URL=http://127.0.0.1:4200/api
+      # Off by default upstream; resource metrics alone poll every 10s.
+      - PREFECT_SERVER_ANALYTICS_ENABLED=false
+      - PREFECT_TELEMETRY_ENABLE_RESOURCE_METRICS=false
+      - PREFECT_CLOUD_ENABLE_ORCHESTRATION_TELEMETRY=false
     depends_on:
       postgres:
         condition: service_healthy
-    entrypoint: ["/bin/bash", "-c", "sleep 5 && prefect server start --host 0.0.0.0"]
+    # The postgres healthcheck above is what startup actually waits on, so the
+    # old `sleep 5` guess is replaced by a real readiness probe consumers gate on.
+    entrypoint: ["prefect", "server", "start", "--host", "0.0.0.0"]
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:4200/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    mem_limit: 512m
 
   prefect-worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    build: *backend-build
+    image: ai-workflow-automation-backend:latest
     restart: always
     entrypoint: ["/bin/bash", "-c"]
     command:
@@ -61,14 +95,18 @@ services:
       - /app/.venv
       - /app/__pycache__
     depends_on:
-      - prefect-server
+      prefect-server:
+        condition: service_healthy
+    mem_limit: 512m
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    build: *backend-build
+    image: ai-workflow-automation-backend:latest
     ports:
       - "8000:8000"
+    # --reload picks up edits through the ./backend bind mount; the image CMD
+    # has no reloader so this is what makes local backend edits live.
+    command: uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     env_file:
       - ./backend/.env
     environment:
@@ -77,11 +115,12 @@ services:
       postgres:
         condition: service_healthy
       prefect-server:
-        condition: service_started
+        condition: service_healthy
     volumes:
       - ./backend:/app
       - /app/.venv
       - /app/__pycache__
+    mem_limit: 768m
     restart: unless-stopped
 
   frontend:
@@ -110,6 +149,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - 8081:8080
+    restart: unless-stopped
 
 volumes:
   postgres_data:

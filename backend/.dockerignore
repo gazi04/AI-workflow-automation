@@ -26,8 +26,12 @@ coverage.xml
 *.swo
 *~
 
-# Virtual environments
+# Secrets — never bake these into an image layer. Both are still available at
+# runtime: .env via env_file, credentials.json via the ./backend bind mount.
 .env
+credentials.json
+
+# Virtual environments
 .venv
 env/
 venv/
