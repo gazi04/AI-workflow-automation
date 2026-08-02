@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { Loader } from 'lucide-svelte';
+	import Loader from '@lucide/svelte/icons/loader';
 	import { BASE_URL } from '$lib/api/client';
 
 	onMount(async () => {
 		const code = page.url.searchParams.get('code');
 		if (!code) {
-			goto('/login?error=token_delivery_failed');
+			goto(resolve('/login?error=token_delivery_failed'));
 			return;
 		}
 		try {
@@ -17,9 +18,9 @@
 				credentials: 'include'
 			});
 			if (!res.ok) throw new Error('exchange failed');
-			goto('/dashboard');
+			goto(resolve('/dashboard'));
 		} catch {
-			goto('/login?error=token_delivery_failed');
+			goto(resolve('/login?error=token_delivery_failed'));
 		}
 	});
 </script>

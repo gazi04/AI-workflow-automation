@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import { Handle, Position } from '@xyflow/svelte';
-	import { Settings2 } from 'lucide-svelte';
+	import Settings2 from '@lucide/svelte/icons/settings-2';
 	import { catalogStore } from '$lib/store/catalogStore.svelte';
 	import { workflowStore } from '$lib/store/workflowStore.svelte';
 	import { ICON_MAP, DEFAULT_ICON } from '$lib/utils/icons';

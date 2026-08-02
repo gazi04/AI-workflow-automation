@@ -1,34 +1,31 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api, BASE_URL } from '$lib/api/client';
-	import type { components } from '$lib/types/schema';
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Switch } from '$lib/components/ui/switch';
-	import {
-		Eye,
-		Loader,
-		Mail,
-		Trash2,
-		Play,
-		Settings2,
-		RefreshCw,
-		Upload,
-		Download
-	} from 'lucide-svelte';
+	import Eye from '@lucide/svelte/icons/eye';
+	import Loader from '@lucide/svelte/icons/loader';
+	import Mail from '@lucide/svelte/icons/mail';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import Play from '@lucide/svelte/icons/play';
+	import Settings2 from '@lucide/svelte/icons/settings-2';
+	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
+	import Upload from '@lucide/svelte/icons/upload';
+	import Download from '@lucide/svelte/icons/download';
 	import { formatLabel } from '$lib/utils';
-	import { toast, Toaster } from 'svelte-sonner';
-
-	type WorkflowDef = components['schemas']['WorkflowSchema-Output'];
+	import { toast } from 'svelte-sonner';
 
 	type Workflow = {
 		id: string;
 		name: string;
 		description: string;
 		is_active: boolean;
+		// Dynamic, catalog-driven workflow JSON (nested execution_config or legacy flat shape); validated server-side.
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		config: any;
-		ui_metadata: any;
+		ui_metadata: unknown;
 		updated_at: string;
 	};
 
@@ -46,7 +43,7 @@
 				// Support both flat column storage and full schema nesting
 				config: wf.config?.execution_config || wf.config
 			}));
-		} catch (err: any) {
+		} catch (err) {
 			toast.error('Failed to load workflows.');
 			console.error('Failed to load workflows', err);
 		} finally {
@@ -106,9 +103,10 @@
 			await api.delete(`/api/workflow/delete?deployment_id=${id}`);
 			await fetchWorkflows();
 			toast.success(`Agent "${name}" deleted.`);
-		} catch (err: any) {
+		} catch (err) {
 			console.error('Delete failed', err);
-			toast.error(err.detail || 'Failed to delete agent. Please try again.');
+			const apiErr = err as { detail?: string };
+			toast.error(apiErr.detail || 'Failed to delete agent. Please try again.');
 		}
 	}
 
@@ -123,9 +121,10 @@
 			await api.post('/api/workflow/import', parsed);
 			await fetchWorkflows();
 			toast.success('Workflow imported. It starts paused — review, then activate.');
-		} catch (err: any) {
+		} catch (err) {
 			console.error('Import failed', err);
-			toast.error(err?.detail || 'Import failed. Check the file is a valid workflow export.');
+			const apiErr = err as { detail?: string };
+			toast.error(apiErr?.detail || 'Import failed. Check the file is a valid workflow export.');
 		} finally {
 			isImporting = false;
 			input.value = ''; // allow re-importing the same file
@@ -177,7 +176,7 @@
 		</Card.Root>
 	{:else}
 		<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-			{#each workflows as wf}
+			{#each workflows as wf (wf.id)}
 				<Card.Root>
 					<Card.Header>
 						<div class="flex items-center justify-between">
@@ -199,6 +198,13 @@
 						{@const triggerNodeId = wf.config?.start_node_ids?.[0]}
 						{@const triggerNode = triggerNodeId ? wf.config?.nodes?.[triggerNodeId] : null}
 						{@const triggerType = triggerNode?.config?.type}
+						{@const actionNodes = (
+							Object.values(wf.config?.nodes || {}) as {
+								id: string;
+								type: string;
+								config: { type: string };
+							}[]
+						).filter((n) => n.type === 'action')}
 
 						{#if triggerType === 'schedule' || triggerType === 'manual'}
 							<button
@@ -230,7 +236,7 @@
 						<div class="space-y-2">
 							<p class="text-[10px] font-bold text-muted-foreground uppercase">Automation Steps</p>
 							<div class="flex flex-wrap gap-2">
-								{#each Object.values(wf.config?.nodes || {}).filter((n) => n.type === 'action') as action}
+								{#each actionNodes as action (action.id)}
 									<Badge variant="outline" class="font-mono text-[10px] uppercase">
 										{formatLabel(action.config.type)}
 									</Badge>

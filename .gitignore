@@ -15,6 +15,9 @@ wheels/
 .coverage.*
 htmlcov/
 
+.mypy_cache
+.import_linter_cache
+
 # Virtual environments
 .venv
 

@@ -4,16 +4,19 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/textarea';
 	import * as Card from '$lib/components/ui/card';
-	import { Pencil, Loader, Sparkles, CircleAlert, ChevronLeft } from 'lucide-svelte';
+	import Pencil from '@lucide/svelte/icons/pencil';
+	import Loader from '@lucide/svelte/icons/loader';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import CircleAlert from '@lucide/svelte/icons/circle-alert';
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 
 	type AIResponse = components['schemas']['AIResponse'];
-	type WorkflowDef = components['schemas']['WorkflowSchema-Output'];
 
 	let prompt = $state('');
 	let isAnalyzing = $state(false);
 	let isDeployed = $state(false);
-	let generatedWorkflow = $state<WorkflowDef | null>(null);
 	let errorMessage = $state('');
 
 	async function interpretCommand() {
@@ -21,19 +24,19 @@
 
 		isAnalyzing = true;
 		errorMessage = '';
-		generatedWorkflow = null;
 
 		try {
 			const result = await api.post<AIResponse>('/api/ai/interpret', { text: prompt });
 
 			if (result.success && result.data) {
 				sessionStorage.setItem('ai_blueprint', JSON.stringify(result.data));
-				goto('/dashboard/edit/new?source=ai');
+				goto(resolve('/dashboard/edit/new?source=ai'));
 			} else {
 				errorMessage = result.error || 'AI could not structure that request.';
 			}
-		} catch (err: any) {
-			errorMessage = err.message || 'Server connection lost. Please try again.';
+		} catch (err) {
+			errorMessage =
+				(err as { message?: string })?.message || 'Server connection lost. Please try again.';
 		} finally {
 			isAnalyzing = false;
 		}
@@ -44,14 +47,19 @@
 	<div class="mx-auto max-w-5xl space-y-6">
 		<div class="flex flex-col gap-4">
 			<div class="flex flex-row justify-between">
-				<Button variant="ghost" size="sm" class="w-fit gap-2" onclick={() => goto('/dashboard')}>
+				<Button
+					variant="ghost"
+					size="sm"
+					class="w-fit gap-2"
+					onclick={() => goto(resolve('/dashboard'))}
+				>
 					<ChevronLeft class="h-4 w-4" /> Back to Fleet
 				</Button>
 				<Button
 					variant="outline"
 					class="w-fit gap-2"
 					disabled={isAnalyzing || isDeployed}
-					onclick={() => goto('/dashboard/edit/new')}
+					onclick={() => goto(resolve('/dashboard/edit/new'))}
 				>
 					<Pencil class="h-4 w-4" /> Design from Scratch
 				</Button>

@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
-	import { Chrome, Loader, CircleAlert } from 'lucide-svelte';
+	import Chromium from '@lucide/svelte/icons/chromium';
+	import Loader from '@lucide/svelte/icons/loader';
+	import CircleAlert from '@lucide/svelte/icons/circle-alert';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { api } from '$lib/api/client';
 
 	let isLoading = $state(false);
@@ -24,7 +27,7 @@
 		} catch (error) {
 			console.error('Login error:', error);
 			// If the initial fetch fails, we set a local error state
-			goto('/login?error=connection_failed');
+			goto(resolve('/login?error=connection_failed'));
 		} finally {
 			isLoading = false;
 		}
@@ -57,7 +60,7 @@
 			{/if}
 
 			<div class="rounded-full bg-primary/10 p-4">
-				<Chrome class="h-8 w-8 text-primary" />
+				<Chromium class="h-8 w-8 text-primary" />
 			</div>
 		</Card.Content>
 
@@ -67,7 +70,7 @@
 					<Loader class="mr-2 h-4 w-4 animate-spin" />
 					Connecting...
 				{:else}
-					<Chrome class="mr-2 h-4 w-4" />
+					<Chromium class="mr-2 h-4 w-4" />
 					Sign in with Google
 				{/if}
 			</Button>

@@ -3,16 +3,16 @@
 	import { api, wsUrl } from '$lib/api/client';
 	import { toast, Toaster } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import {
-		LayoutDashboard,
-		CirclePlus,
-		Plug,
-		LogOut,
-		User,
-		History,
-		Settings
-	} from 'lucide-svelte';
+	import { SvelteMap } from 'svelte/reactivity';
+	import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
+	import CirclePlus from '@lucide/svelte/icons/circle-plus';
+	import Plug from '@lucide/svelte/icons/plug';
+	import LogOut from '@lucide/svelte/icons/log-out';
+	import User from '@lucide/svelte/icons/user';
+	import History from '@lucide/svelte/icons/history';
+	import Settings from '@lucide/svelte/icons/settings';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { workflowStore } from '$lib/store/workflowStore.svelte';
 	import { logout } from '$lib/utils';
@@ -61,7 +61,7 @@
 				label: 'Re-Connect',
 				onClick: () => {
 					toast.dismiss();
-					goto('/dashboard/integrations');
+					goto(resolve('/dashboard/integrations'));
 				}
 			}
 		});
@@ -101,7 +101,7 @@
 		deployment_id?: string;
 	};
 
-	let knownRunStates = new Map<string, string>();
+	let knownRunStates = new SvelteMap<string, string>();
 
 	async function initWorkflowWebSocket() {
 		// The disposed check also covers loadUser() resolving after unmount.
@@ -127,7 +127,7 @@
 								label: 'View Logs',
 								onClick: () => {
 									const targetId = run.deployment_id || '';
-									goto(`/dashboard/agent/${targetId}/history?runId=${run.id}`);
+									goto(resolve(`/dashboard/agent/${targetId}/history?runId=${run.id}`));
 								}
 							}
 						});
@@ -160,7 +160,9 @@
 					action: {
 						label: 'View Logs',
 						onClick: () => {
-							goto(`/dashboard/agent/${message.workflow_id}/history?runId=${message.run_id}`);
+							goto(
+								resolve(`/dashboard/agent/${message.workflow_id}/history?runId=${message.run_id}`)
+							);
 						}
 					}
 				});
@@ -205,7 +207,7 @@
 	>
 		<nav class="flex h-14 items-center gap-6 px-6">
 			<a
-				href="/dashboard"
+				href={resolve('/dashboard')}
 				class="flex items-center gap-2 text-sm font-medium transition-colors {page.url.pathname ===
 				'/dashboard'
 					? 'text-foreground'
@@ -216,7 +218,7 @@
 			</a>
 
 			<a
-				href="/dashboard/new"
+				href={resolve('/dashboard/new')}
 				class="flex items-center gap-2 text-sm font-medium transition-colors {page.url.pathname ===
 				'/dashboard/new'
 					? 'text-foreground'
@@ -227,7 +229,7 @@
 			</a>
 
 			<a
-				href="/dashboard/integrations"
+				href={resolve('/dashboard/integrations')}
 				class="flex items-center gap-2 text-sm font-medium transition-colors {page.url.pathname ===
 				'/dashboard/integrations'
 					? 'text-foreground'
@@ -238,7 +240,7 @@
 			</a>
 
 			<a
-				href="/dashboard/history"
+				href={resolve('/dashboard/history')}
 				class="flex items-center gap-2 text-sm font-medium transition-colors {page.url.pathname ===
 				'/dashboard/history'
 					? 'text-foreground'
@@ -249,7 +251,7 @@
 			</a>
 
 			<a
-				href="/dashboard/settings"
+				href={resolve('/dashboard/settings')}
 				class="flex items-center gap-2 text-sm font-medium transition-colors {page.url.pathname ===
 				'/dashboard/settings'
 					? 'text-foreground'
@@ -300,7 +302,7 @@
 			<p>⚠️ Your Gmail connection requires authorization to continue processing automations.</p>
 			<button
 				class="text-destructive-foreground rounded-md bg-destructive px-3 py-1.5 transition-colors hover:bg-destructive/90"
-				onclick={() => goto('/dashboard/integrations')}
+				onclick={() => goto(resolve('/dashboard/integrations'))}
 			>
 				Fix Connection
 			</button>

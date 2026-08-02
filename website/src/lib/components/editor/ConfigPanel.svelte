@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { catalogStore } from '$lib/store/catalogStore.svelte';
 	import { formatLabel } from '$lib/utils';
-	import { X, Trash2, Copy, Check } from 'lucide-svelte';
+	import X from '@lucide/svelte/icons/x';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import Copy from '@lucide/svelte/icons/copy';
+	import Check from '@lucide/svelte/icons/check';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Textarea } from '$lib/components/ui/textarea';
@@ -16,8 +19,11 @@
 		onClose,
 		onDelete
 	}: {
+		/* eslint-disable @typescript-eslint/no-explicit-any -- node/nodes carry catalog-driven
+		   config JSON whose shape varies per node type and is validated server-side, not modeled here. */
 		node: any;
 		nodes?: any[];
+		/* eslint-enable @typescript-eslint/no-explicit-any */
 		workflowId?: string | null;
 		webhookSecret?: string | null;
 		onClose: () => void;
@@ -118,7 +124,7 @@
 		node.data.type = newType;
 		node.data.label = def.label;
 
-		const newConfig: Record<string, any> = {};
+		const newConfig: Record<string, unknown> = {};
 		def.fields.forEach((f) => {
 			newConfig[f.key] = '';
 		});
@@ -165,7 +171,7 @@
 				value={node.data.type}
 				onchange={(e) => handleTypeChange(e.currentTarget.value)}
 			>
-				{#each availableDefinitions as def}
+				{#each availableDefinitions as def (def.type)}
 					<option value={def.type}>{def.label}</option>
 				{/each}
 			</select>
@@ -174,7 +180,7 @@
 		<hr />
 
 		{#if definition}
-			{#each definition.fields as field}
+			{#each definition.fields as field (field.key)}
 				<div class="space-y-2">
 					<Label>{field.label}</Label>
 
@@ -189,7 +195,7 @@
 							class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
 							bind:value={node.data.config[field.key]}
 						>
-							{#each field.options || [] as option}
+							{#each field.options || [] as option (option)}
 								<option value={option}>{option}</option>
 							{/each}
 						</select>
@@ -213,7 +219,7 @@
 								</button>
 							</div>
 
-							{#each node.data.config[field.key] || [] as rule, i}
+							{#each node.data.config[field.key] || [] as rule, i (i)}
 								<div class="space-y-2 rounded-md border bg-muted/30 p-3">
 									<div class="flex items-center justify-between">
 										<span
@@ -234,7 +240,7 @@
 											bind:value={rule.variable}
 										>
 											<option value="" disabled selected>Select variable...</option>
-											{#each availableVariables as v}
+											{#each availableVariables as v (v.value)}
 												<option value={v.value}>{v.label}</option>
 											{/each}
 										</select>

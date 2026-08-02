@@ -1,9 +1,13 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { Send, Bot, X, Loader2, Sparkles } from 'lucide-svelte';
+	import Send from '@lucide/svelte/icons/send';
+	import Bot from '@lucide/svelte/icons/bot';
+	import X from '@lucide/svelte/icons/x';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import { Button } from '$lib/components/ui/button';
 	import { api } from '$lib/api/client';
-	import { slide, fade } from 'svelte/transition';
+	import { slide } from 'svelte/transition';
 	import type { components } from '$lib/types/schema';
 
 	let { onAIUpdate, getCurrentConfig } = $props();
@@ -52,7 +56,7 @@
 					{ role: 'ai', content: res.error || 'Failed to update workflow.' }
 				];
 			}
-		} catch (error) {
+		} catch {
 			messages = [
 				...messages,
 				{ role: 'ai', content: 'An error occurred while connecting to the AI.' }
@@ -81,7 +85,7 @@
 			</div>
 
 			<div bind:this={chatContainer} class="flex grow flex-col gap-3 overflow-y-auto p-4">
-				{#each messages as msg}
+				{#each messages as msg, i (i)}
 					<div class="flex w-full {msg.role === 'user' ? 'justify-end' : 'justify-start'}">
 						<div
 							class="max-w-[85%] rounded-lg p-2.5 text-sm {msg.role === 'user'
@@ -94,7 +98,7 @@
 				{/each}
 				{#if isLoading}
 					<div class="flex items-center gap-2 text-sm text-muted-foreground">
-						<Loader2 class="animate-spin" size={14} /> Thinking...
+						<LoaderCircle class="animate-spin" size={14} /> Thinking...
 					</div>
 				{/if}
 			</div>

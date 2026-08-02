@@ -4,10 +4,17 @@
 	import '@xyflow/svelte/dist/style.css';
 	import { api } from '$lib/api/client';
 	import { page } from '$app/state';
-	import { Loader, Save, ChevronLeft, Rocket, LayoutDashboard, Undo2, Redo2 } from 'lucide-svelte';
+	import Loader from '@lucide/svelte/icons/loader';
+	import Save from '@lucide/svelte/icons/save';
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+	import Rocket from '@lucide/svelte/icons/rocket';
+	import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
+	import Undo2 from '@lucide/svelte/icons/undo-2';
+	import Redo2 from '@lucide/svelte/icons/redo-2';
 	import { Button } from '$lib/components/ui/button';
 	import { goto } from '$app/navigation';
-	import { toast, Toaster } from 'svelte-sonner';
+	import { resolve } from '$app/paths';
+	import { toast } from 'svelte-sonner';
 	import { getLayoutedElements } from '$lib/utils/layout';
 	import { HistoryManager } from '$lib/utils/history.svelte';
 	import AIAgentChat from '$lib/components/editor/AIAgentChat.svelte';
@@ -30,6 +37,8 @@
 		is_active: boolean;
 		name: string;
 		description: string;
+		// Dynamic, catalog-driven workflow JSON (nested execution_config or legacy flat shape); validated server-side.
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		config: any;
 		ui_metadata?: { nodes: Node[]; edges: Edge[] } | null;
 		webhook_secret?: string | null;
@@ -42,6 +51,7 @@
 	let edges = $state<Edge[]>([]);
 	let selectedNode = $state<Node | null>(null);
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic, catalog-driven workflow JSON; validated server-side.
 	function syncFlowState(config: any, uiMetadata?: any) {
 		if (!config) return;
 
@@ -57,6 +67,7 @@
 
 		if (uiMetadata && uiMetadata.nodes && uiMetadata.nodes.length > 0) {
 			// Restore from UI metadata (positions preserved)
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic, catalog-driven workflow JSON; validated server-side.
 			newNodes = uiMetadata.nodes.map((uiNode: any) => {
 				const backendNode = nodesMap[uiNode.id];
 				return {
@@ -68,13 +79,15 @@
 			newEdges = uiMetadata.edges || [];
 		} else {
 			// Generate from scratch from the backend nodes map
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic, catalog-driven workflow JSON; validated server-side.
 			newNodes = Object.entries(nodesMap).map(([id, node]: [string, any]) => ({
 				id,
-				type: node.type as any,
+				type: node.type,
 				data: node.config,
 				position: { x: 0, y: 0 }
 			}));
 
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic, catalog-driven workflow JSON; validated server-side.
 			newEdges = edgesList.map((edge: any, index: number) => ({
 				id: edge.id || `e-${index}`,
 				source: edge.source,
@@ -163,7 +176,7 @@
 			if (workflow) {
 				syncFlowState(workflow.config, workflow.ui_metadata);
 			}
-		} catch (err: any) {
+		} catch (err) {
 			toast.error('Failed to load workflow.');
 			console.error('Failed to load workflow:', err);
 		} finally {
@@ -178,7 +191,7 @@
 		takeSnapshot();
 	}
 
-	function onNodeClick({ event, node }: { event: MouseEvent | TouchEvent; node: Node }) {
+	function onNodeClick({ node }: { event: MouseEvent | TouchEvent; node: Node }) {
 		selectedNode = node;
 	}
 
@@ -195,7 +208,7 @@
 			nodesDict[node.id] = {
 				id: node.id,
 				type: node.type as 'trigger' | 'action' | 'condition',
-				config: node.data as any
+				config: node.data as unknown as components['schemas']['WorkflowNode-Input']['config']
 			};
 
 			if (node.type === 'trigger') {
@@ -238,14 +251,17 @@
 			isLoading = true;
 
 			if (workflow.id === 'new') {
-				const res = await api.post<any>(`/api/workflow/create`, config);
+				const res = await api.post<{ id: string; webhook_secret?: string | null }>(
+					`/api/workflow/create`,
+					config
+				);
 
 				sessionStorage.removeItem('ai_blueprint');
 
 				workflow.id = res.id;
 				workflow.webhook_secret = res.webhook_secret ?? null;
 				toast.success('Workflow deployed successfully!');
-				goto(`/dashboard/edit/${res.id}`);
+				goto(resolve(`/dashboard/edit/${res.id}`));
 			} else {
 				await api.patch(`/api/workflow/update-config`, {
 					deployment_id: workflow.id,
@@ -253,17 +269,18 @@
 				});
 				toast.success('Workflow saved successfully!');
 			}
-		} catch (e: any) {
+		} catch (e) {
 			let message = 'Failed to save the workflow.';
+			const err = e as { detail?: { msg: string }[]; message?: string };
 
-			if (e.detail && Array.isArray(e.detail) && e.detail.length > 0) {
-				message = e.detail[0].msg;
+			if (err.detail && Array.isArray(err.detail) && err.detail.length > 0) {
+				message = err.detail[0].msg;
 				// Pydantic/FastAPI often prefix ValueError messages with 'Value error, '
 				if (message.startsWith('Value error, ')) {
 					message = message.replace('Value error, ', '');
 				}
-			} else if (e.message) {
-				message = e.message;
+			} else if (err.message) {
+				message = err.message;
 			}
 
 			toast.error(message);
@@ -351,7 +368,7 @@
 		<div class="flex grow flex-col">
 			<header class="flex items-center justify-between border-b bg-card p-4">
 				<div class="flex items-center gap-2">
-					<Button variant="ghost" size="sm" onclick={() => goto('/dashboard')}>
+					<Button variant="ghost" size="sm" onclick={() => goto(resolve('/dashboard'))}>
 						<ChevronLeft class="h-4 w-4" />
 					</Button>
 

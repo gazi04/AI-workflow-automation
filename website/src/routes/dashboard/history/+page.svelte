@@ -5,24 +5,24 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Input } from '$lib/components/ui/input';
 	import * as Card from '$lib/components/ui/card';
-	import {
-		Loader,
-		Search,
-		Calendar,
-		Clock,
-		Activity,
-		History,
-		X,
-		Terminal,
-		ExternalLink
-	} from 'lucide-svelte';
-	import { toast, Toaster } from 'svelte-sonner';
+	import Loader from '@lucide/svelte/icons/loader';
+	import Search from '@lucide/svelte/icons/search';
+	import Calendar from '@lucide/svelte/icons/calendar';
+	import Clock from '@lucide/svelte/icons/clock';
+	import Activity from '@lucide/svelte/icons/activity';
+	import History from '@lucide/svelte/icons/history';
+	import X from '@lucide/svelte/icons/x';
+	import Terminal from '@lucide/svelte/icons/terminal';
+	import ExternalLink from '@lucide/svelte/icons/external-link';
+	import { toast } from 'svelte-sonner';
 	import { fly, fade } from 'svelte/transition';
+	import { SvelteMap } from 'svelte/reactivity';
 	import { workflowStore } from '$lib/store/workflowStore.svelte';
 	import type { components } from '$lib/types/schema';
 
 	type WorkflowRun = components['schemas']['WorkflowRun'];
 	type WorkflowRunDetail = components['schemas']['WorkflowRunDetail'];
+	type LogEntry = { level: string; message: string };
 
 	let allRuns = $state<WorkflowRun[]>([]);
 	let filteredRuns = $state<WorkflowRun[]>([]);
@@ -40,7 +40,7 @@
 		try {
 			allRuns = await api.get<WorkflowRun[]>('/api/workflow/histories');
 			applyFilters();
-		} catch (err: any) {
+		} catch (err) {
 			toast.error('Failed to load global history.');
 			console.error('Failed to load history', err);
 		} finally {
@@ -50,7 +50,7 @@
 
 	function applyFilters() {
 		// Merge allRuns with latest updates from the global store
-		const runMap = new Map(allRuns.map((r) => [r.id, r]));
+		const runMap = new SvelteMap(allRuns.map((r) => [r.id, r]));
 
 		// Update or add runs from the global store
 		for (const run of workflowStore.latestRuns) {
@@ -88,10 +88,10 @@
 			.finally(() => (isLoadingAudit = false));
 
 		try {
-			const logEntries = await api.get<any[]>(`/api/workflow/runs/${run.id}/logs`);
+			const logEntries = await api.get<LogEntry[]>(`/api/workflow/runs/${run.id}/logs`);
 			// Format logs: Prefect logs are usually a list of objects with a 'message' field
 			logs = logEntries.map((l) => `[${l.level}] ${l.message}`).join('\n');
-		} catch (err) {
+		} catch {
 			toast.error('Failed to load logs.');
 			logs = 'Error: Could not retrieve logs for this run.';
 		} finally {
@@ -140,7 +140,7 @@
 		// This will re-run applyFilters whenever allRuns, workflowStore.latestRuns,
 		// searchQuery, or statusFilter changes.
 		// Note: accessing workflowStore.latestRuns makes this effect reactive to it.
-		const _trigger = workflowStore.latestRuns;
+		void workflowStore.latestRuns;
 		applyFilters();
 	});
 
@@ -208,7 +208,7 @@
 						</tr>
 					</thead>
 					<tbody class="divide-y">
-						{#each filteredRuns as run}
+						{#each filteredRuns as run (run.id)}
 							<tr
 								class="group cursor-pointer transition-colors hover:bg-muted/30"
 								onclick={() => openRunDetails(run)}

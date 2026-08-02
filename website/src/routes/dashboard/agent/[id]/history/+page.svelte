@@ -7,22 +7,21 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Card from '$lib/components/ui/card';
 	import { formatDate, formatDuration } from '$lib/utils';
-	import {
-		Loader,
-		ArrowLeft,
-		Calendar,
-		Clock,
-		Activity,
-		History,
-		X,
-		Terminal,
-		ExternalLink
-	} from 'lucide-svelte';
-	import { toast, Toaster } from 'svelte-sonner';
+	import Loader from '@lucide/svelte/icons/loader';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import Calendar from '@lucide/svelte/icons/calendar';
+	import Clock from '@lucide/svelte/icons/clock';
+	import Activity from '@lucide/svelte/icons/activity';
+	import History from '@lucide/svelte/icons/history';
+	import X from '@lucide/svelte/icons/x';
+	import Terminal from '@lucide/svelte/icons/terminal';
+	import ExternalLink from '@lucide/svelte/icons/external-link';
+	import { toast } from 'svelte-sonner';
 	import { fly, fade } from 'svelte/transition';
 
 	type WorkflowRun = components['schemas']['WorkflowRun'];
 	type WorkflowRunDetail = components['schemas']['WorkflowRunDetail'];
+	type LogEntry = { level: string; message: string };
 
 	const id = $derived(page.params.id);
 	const urlRunId = $derived(page.url.searchParams.get('runId'));
@@ -41,15 +40,18 @@
 
 	async function fetchHistory() {
 		try {
-			const wf = await api.get<any>(`/api/workflow/get_workflow/${id}`);
+			const wf = await api.get<{
+				name: string;
+				execution_config?: { nodes?: Record<string, unknown> };
+			}>(`/api/workflow/get_workflow/${id}`);
 			workflowName = wf.name;
 
-			const nodes = wf?.execution_config?.nodes ?? {};
+			const nodes = wf.execution_config?.nodes ?? {};
 			nodeLabels = Object.fromEntries(
-				Object.entries(nodes).map(([nodeId, n]: [string, any]) => [
-					nodeId,
-					n?.config?.type ?? n?.type ?? nodeId
-				])
+				Object.entries(nodes).map(([nodeId, n]) => {
+					const node = n as { config?: { type?: string }; type?: string };
+					return [nodeId, node?.config?.type ?? node?.type ?? nodeId];
+				})
 			);
 
 			runs = await api.get<WorkflowRun[]>(`/api/workflow/${id}/history`);
@@ -60,7 +62,7 @@
 					openRunDetails(runToOpen);
 				}
 			}
-		} catch (err: any) {
+		} catch (err) {
 			toast.error('Failed to load history.');
 			console.error('Failed to load history', err);
 		} finally {
@@ -83,9 +85,9 @@
 			.finally(() => (isLoadingAudit = false));
 
 		try {
-			const logEntries = await api.get<any[]>(`/api/workflow/runs/${run.id}/logs`);
+			const logEntries = await api.get<LogEntry[]>(`/api/workflow/runs/${run.id}/logs`);
 			logs = logEntries.map((l) => `[${l.level}] ${l.message}`).join('\n');
-		} catch (err) {
+		} catch {
 			toast.error('Failed to load logs.');
 			logs = 'Error: Could not retrieve logs for this run.';
 		} finally {
@@ -171,7 +173,7 @@
 						</tr>
 					</thead>
 					<tbody class="divide-y">
-						{#each runs as run}
+						{#each runs as run (run.id)}
 							<tr
 								class="group cursor-pointer transition-colors hover:bg-muted/30"
 								onclick={() => openRunDetails(run)}

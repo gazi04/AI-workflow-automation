@@ -6,7 +6,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Switch } from '$lib/components/ui/switch';
-	import { Loader } from 'lucide-svelte';
+	import Loader from '@lucide/svelte/icons/loader';
 	import { toast, Toaster } from 'svelte-sonner';
 
 	type Settings = {
