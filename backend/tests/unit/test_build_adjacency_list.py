@@ -1,7 +1,7 @@
 from typing import Optional
 
 from utils.build_adjacency_list import build_adjacency_list
-from workflow.schemas.edges import Edge
+from workflow.schemas.edges import Edge, SourceHandle
 
 
 # ---------------------------------------------------------------------------
@@ -10,7 +10,7 @@ from workflow.schemas.edges import Edge
 
 
 def make_edge(
-    id: str, source: str, target: str, source_handle: Optional[str] = None
+    id: str, source: str, target: str, source_handle: Optional[SourceHandle] = None
 ) -> Edge:
     return Edge(id=id, source=source, target=target, sourceHandle=source_handle)
 

@@ -3,7 +3,7 @@ from typing import Optional
 import pytest
 from workflow.schemas.workflow_schema import WorkflowExecutionConfig
 from workflow.schemas.workflow_nodes import WorkflowNode
-from workflow.schemas.edges import Edge
+from workflow.schemas.edges import Edge, SourceHandle
 from workflow.schemas.trigger import ManualTrigger, ManualConfig
 from workflow.schemas.action import SendEmailAction, SendEmailConfig
 from workflow.schemas.condition_nodes import (
@@ -59,7 +59,7 @@ def make_condition(node_id: str) -> WorkflowNode:
 
 
 def make_edge(
-    edge_id: str, source: str, target: str, source_handle: Optional[str] = None
+    edge_id: str, source: str, target: str, source_handle: Optional[SourceHandle] = None
 ) -> Edge:
     return Edge(id=edge_id, source=source, target=target, sourceHandle=source_handle)
 

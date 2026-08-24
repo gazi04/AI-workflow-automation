@@ -603,3 +603,403 @@ def test_invalid_workflow_data_raises():
 
     with pytest.raises(Exception, match="Invalid workflow data"):
         execute_automation_flow.fn(USER_ID, {"bad": "data"}, None)
+
+
+# ---------------------------------------------------------------------------
+# Error paths — a failure with an error_path edge is *handled*: the handler
+# runs, and the flow completes instead of raising.
+# ---------------------------------------------------------------------------
+
+
+def make_error_path_workflow(with_error_edge: bool = True) -> dict:
+    """trigger → action_1 (fails); action_1 --error_path--> handler."""
+    edges = [{"id": "e1", "source": "trigger_1", "target": "action_1"}]
+    if with_error_edge:
+        edges.append(
+            {
+                "id": "e2",
+                "source": "action_1",
+                "target": "handler",
+                "sourceHandle": "error_path",
+            }
+        )
+
+    nodes = {
+        "trigger_1": {
+            "id": "trigger_1",
+            "type": "trigger",
+            "config": {
+                "type": "email_received",
+                "config": {"from": None, "subject_contains": None},
+            },
+        },
+        "action_1": {
+            "id": "action_1",
+            "type": "action",
+            "config": {
+                "type": "smart_draft",
+                "config": {"user_prompt": "draft it"},
+            },
+        },
+    }
+    if with_error_edge:
+        nodes["handler"] = {
+            "id": "handler",
+            "type": "action",
+            "config": {
+                "type": "send_email",
+                "config": {
+                    "to": "ops@example.com",
+                    "subject": "Step failed",
+                    "body": "Reason: {{action_1.error}}",
+                },
+            },
+        }
+
+    return {
+        "name": "Error Path",
+        "description": "Routes a failure to a handler",
+        "execution_config": {
+            "start_node_ids": ["trigger_1"],
+            "nodes": nodes,
+            "edges": edges,
+        },
+    }
+
+
+def test_error_path_runs_handler_and_run_does_not_fail():
+    mock_draft = MagicMock()
+    mock_draft.submit.return_value.result.side_effect = Exception("Azure down")
+    mock_send = mock_task({"id": "alert_1"})
+
+    with (
+        patch("orchestration.flows.master_flow.smart_draft", mock_draft),
+        patch("orchestration.flows.master_flow.send_message", mock_send),
+    ):
+        # No raise: the failure was modelled by the user, so it is not an incident.
+        execute_automation_flow.fn(
+            USER_ID, make_error_path_workflow(), make_trigger_context("trigger_1")
+        )
+
+    mock_send.submit.assert_called_once()
+
+
+def test_error_path_handler_resolves_failed_node_error_variable():
+    mock_draft = MagicMock()
+    mock_draft.submit.return_value.result.side_effect = Exception("Azure down")
+    mock_send = mock_task({"id": "alert_1"})
+
+    with (
+        patch("orchestration.flows.master_flow.smart_draft", mock_draft),
+        patch("orchestration.flows.master_flow.send_message", mock_send),
+    ):
+        execute_automation_flow.fn(
+            USER_ID, make_error_path_workflow(), make_trigger_context("trigger_1")
+        )
+
+    body = mock_send.submit.call_args[0][3]
+    assert body == "Reason: Azure down"
+
+
+def test_without_error_path_failure_still_fails_the_run():
+    import pytest
+
+    mock_draft = MagicMock()
+    mock_draft.submit.return_value.result.side_effect = Exception("Azure down")
+
+    with patch("orchestration.flows.master_flow.smart_draft", mock_draft):
+        with pytest.raises(Exception, match="action_1"):
+            execute_automation_flow.fn(
+                USER_ID,
+                make_error_path_workflow(with_error_edge=False),
+                make_trigger_context("trigger_1"),
+            )
+
+
+def test_error_path_on_condition_takes_neither_true_nor_false():
+    """A condition that crashes routes to its handler, not down either branch."""
+    workflow = make_condition_workflow()
+    workflow["execution_config"]["nodes"]["handler"] = {
+        "id": "handler",
+        "type": "action",
+        "config": {
+            "type": "send_email",
+            "config": {
+                "to": "ops@example.com",
+                "subject": "Condition broke",
+                "body": "{{cond_1.error}}",
+            },
+        },
+    }
+    workflow["execution_config"]["edges"].append(
+        {
+            "id": "e4",
+            "source": "cond_1",
+            "target": "handler",
+            "sourceHandle": "error_path",
+        }
+    )
+
+    mock_send = mock_task({"id": "alert_1"})
+    mock_reply = mock_task({"id": "replied"})
+
+    with (
+        patch("orchestration.flows.master_flow.send_message", mock_send),
+        patch("orchestration.flows.master_flow.reply_email", mock_reply),
+        patch(
+            "orchestration.flows.master_flow.evaluate_condition",
+            side_effect=Exception("bad rule"),
+        ),
+    ):
+        execute_automation_flow.fn(USER_ID, workflow, make_trigger_context("trigger_1"))
+
+    # Handler ran; neither the TRUE nor the FALSE branch did.
+    mock_send.submit.assert_called_once()
+    assert mock_send.submit.call_args[0][1] == "ops@example.com"
+    mock_reply.submit.assert_not_called()
+
+
+def test_failing_error_handler_is_itself_unhandled_and_fails_the_run():
+    import pytest
+
+    mock_draft = MagicMock()
+    mock_draft.submit.return_value.result.side_effect = Exception("Azure down")
+    mock_send = MagicMock()
+    mock_send.submit.return_value.result.side_effect = Exception("Gmail down")
+
+    with (
+        patch("orchestration.flows.master_flow.smart_draft", mock_draft),
+        patch("orchestration.flows.master_flow.send_message", mock_send),
+    ):
+        # The handler has no error path of its own → the run fails on it.
+        with pytest.raises(Exception, match="handler"):
+            execute_automation_flow.fn(
+                USER_ID, make_error_path_workflow(), make_trigger_context("trigger_1")
+            )
+
+
+def test_shared_handler_reached_twice_runs_only_once():
+    """A node reachable both normally and via an error_path executes once.
+
+    (An error edge pointing back at an *ancestor* is a cycle and is already
+    rejected by WorkflowExecutionConfig's DAG validator, so the only way to
+    reach an executed node twice is a diamond like this one.)
+    """
+    workflow = {
+        "name": "Shared handler",
+        "description": "Success branch and error branch converge",
+        "execution_config": {
+            "start_node_ids": ["trigger_1"],
+            "nodes": {
+                "trigger_1": {
+                    "id": "trigger_1",
+                    "type": "trigger",
+                    "config": {
+                        "type": "email_received",
+                        "config": {"from": None, "subject_contains": None},
+                    },
+                },
+                "node_a": {
+                    "id": "node_a",
+                    "type": "action",
+                    "config": {
+                        "type": "label_email",
+                        "config": {"label_name": "Done"},
+                    },
+                },
+                "node_b": {
+                    "id": "node_b",
+                    "type": "action",
+                    "config": {
+                        "type": "smart_draft",
+                        "config": {"user_prompt": "draft it"},
+                    },
+                },
+                "shared": {
+                    "id": "shared",
+                    "type": "action",
+                    "config": {
+                        "type": "send_email",
+                        "config": {
+                            "to": "ops@example.com",
+                            "subject": "Report",
+                            "body": "done",
+                        },
+                    },
+                },
+            },
+            "edges": [
+                {"id": "e1", "source": "trigger_1", "target": "node_a"},
+                {"id": "e2", "source": "trigger_1", "target": "node_b"},
+                {"id": "e3", "source": "node_a", "target": "shared"},
+                {
+                    "id": "e4",
+                    "source": "node_b",
+                    "target": "shared",
+                    "sourceHandle": "error_path",
+                },
+            ],
+        },
+    }
+
+    mock_label = mock_task({"id": "labelled"})
+    mock_send = mock_task({"id": "sent"})
+    mock_draft = MagicMock()
+    mock_draft.submit.return_value.result.side_effect = Exception("Azure down")
+
+    with (
+        patch("orchestration.flows.master_flow.label_mail", mock_label),
+        patch("orchestration.flows.master_flow.send_message", mock_send),
+        patch("orchestration.flows.master_flow.smart_draft", mock_draft),
+    ):
+        execute_automation_flow.fn(USER_ID, workflow, make_trigger_context("trigger_1"))
+
+    assert mock_send.submit.call_count == 1
+
+
+def test_action_output_is_addressable_by_node_id_downstream():
+    """ConfigPanel offers {{<node_id>.<field>}} for action nodes — it must resolve."""
+    workflow = make_send_email_workflow()
+    workflow["execution_config"]["nodes"]["action_2"] = {
+        "id": "action_2",
+        "type": "action",
+        "config": {
+            "type": "reply_email",
+            "config": {"body": "Sent as {{action_1.id}}"},
+        },
+    }
+    workflow["execution_config"]["edges"].append(
+        {"id": "e2", "source": "action_1", "target": "action_2"}
+    )
+
+    mock_send = mock_task({"id": "sent_123"})
+    mock_reply = mock_task({"id": "replied"})
+
+    with (
+        patch("orchestration.flows.master_flow.send_message", mock_send),
+        patch("orchestration.flows.master_flow.reply_email", mock_reply),
+    ):
+        execute_automation_flow.fn(USER_ID, workflow, make_trigger_context("trigger_1"))
+
+    assert mock_reply.submit.call_args[0][1] == "Sent as sent_123"
+
+
+# ---------------------------------------------------------------------------
+# create_document action — needs no email context, so it runs under any trigger
+# ---------------------------------------------------------------------------
+
+
+def make_create_document_workflow(trigger: dict) -> dict:
+    return {
+        "name": "Doc Test",
+        "description": "Creates a Google Doc",
+        "execution_config": {
+            "start_node_ids": ["trigger_1"],
+            "nodes": {
+                "trigger_1": trigger,
+                "action_1": {
+                    "id": "action_1",
+                    "type": "action",
+                    "config": {
+                        "type": "create_document",
+                        "config": {
+                            "title": "Notes on {{trigger_1.subject}}",
+                            "content": "From {{trigger_1.from}}",
+                        },
+                    },
+                },
+            },
+            "edges": [{"id": "e1", "source": "trigger_1", "target": "action_1"}],
+        },
+    }
+
+
+EMAIL_TRIGGER = {
+    "id": "trigger_1",
+    "type": "trigger",
+    "config": {
+        "type": "email_received",
+        "config": {"from": None, "subject_contains": None},
+    },
+}
+
+MANUAL_TRIGGER = {
+    "id": "trigger_1",
+    "type": "trigger",
+    "config": {"type": "manual", "config": {}},
+}
+
+
+def test_create_document_task_called_with_resolved_variables():
+    mock_docs = mock_task({"document_id": "doc_1"})
+
+    with patch("orchestration.flows.master_flow.create_document", mock_docs):
+        execute_automation_flow.fn(
+            USER_ID,
+            make_create_document_workflow(EMAIL_TRIGGER),
+            make_trigger_context("trigger_1"),
+        )
+
+    mock_docs.submit.assert_called_once()
+    args = mock_docs.submit.call_args[0]
+    assert args[0] == USER_ID
+    assert args[1] == "Notes on Invoice October"  # title
+    assert args[2] == "From alice@example.com"  # content
+
+
+def test_create_document_runs_without_email_context():
+    """It is not in email_dependent_actions, so a manual/scheduled trigger works."""
+    mock_docs = mock_task({"document_id": "doc_2"})
+
+    workflow = make_create_document_workflow(MANUAL_TRIGGER)
+    workflow["execution_config"]["nodes"]["action_1"]["config"]["config"] = {
+        "title": "Standalone",
+        "content": "No email needed",
+    }
+
+    with patch("orchestration.flows.master_flow.create_document", mock_docs):
+        execute_automation_flow.fn(USER_ID, workflow, None)
+
+    mock_docs.submit.assert_called_once_with(USER_ID, "Standalone", "No email needed")
+
+
+def test_create_document_output_available_to_downstream_node():
+    """A following node links to the doc with {{action_1.document_url}}."""
+    workflow = make_create_document_workflow(MANUAL_TRIGGER)
+    workflow["execution_config"]["nodes"]["action_1"]["config"]["config"] = {
+        "title": "Report",
+        "content": "Body",
+    }
+    workflow["execution_config"]["nodes"]["action_2"] = {
+        "id": "action_2",
+        "type": "action",
+        "config": {
+            "type": "send_email",
+            "config": {
+                "to": "bob@example.com",
+                "subject": "Your report",
+                "body": "Read it here: {{action_1.document_url}}",
+            },
+        },
+    }
+    workflow["execution_config"]["edges"].append(
+        {"id": "e2", "source": "action_1", "target": "action_2"}
+    )
+
+    mock_docs = mock_task(
+        {
+            "document_id": "doc_3",
+            "title": "Report",
+            "document_url": "https://docs.google.com/document/d/doc_3/edit",
+        }
+    )
+    mock_send = mock_task({"id": "sent_1"})
+
+    with (
+        patch("orchestration.flows.master_flow.create_document", mock_docs),
+        patch("orchestration.flows.master_flow.send_message", mock_send),
+    ):
+        execute_automation_flow.fn(USER_ID, workflow, None)
+
+    body = mock_send.submit.call_args[0][3]
+    assert body == "Read it here: https://docs.google.com/document/d/doc_3/edit"

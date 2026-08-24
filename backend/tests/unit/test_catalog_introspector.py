@@ -1,7 +1,11 @@
 from typing import get_args
 
 from gmail.schemas.colors import GmailBackgroundHex, GmailTextHex
+from core.config_loader import settings
 from utils.catalog_introspector import build_catalog
+from workflow.schemas.action import Action
+from workflow.schemas.condition_nodes import Condition
+from workflow.schemas.trigger import Trigger
 
 
 def test_build_catalog_returns_triggers_and_actions():
@@ -111,9 +115,16 @@ def test_all_trigger_types_present():
         "email_received",
         "manual",
         "schedule",
-        "new_sheet_row",
         "webhook",
     } == types
+
+
+def test_coming_soon_triggers_gated():
+    """new_sheet_row has no executor — nothing polls Sheets — so a workflow built
+    on it deploys and then silently never fires. Gated out of the catalog."""
+    catalog = build_catalog()
+    types = {t.type for t in catalog.triggers}
+    assert "new_sheet_row" not in types
 
 
 def test_webhook_trigger_has_correct_metadata():
@@ -136,6 +147,16 @@ def test_all_action_types_present():
     assert "reply_email" in types
     assert "label_email" in types
     assert "smart_draft" in types
+    assert "create_document" in types
+
+
+def test_create_document_exposes_document_url_output():
+    """Downstream nodes link to the doc with {{node_id.document_url}}."""
+    catalog = build_catalog()
+    create_doc = next(a for a in catalog.actions if a.type == "create_document")
+    assert create_doc.category == "Google"
+    assert create_doc.outputs == ["document_id", "title", "document_url"]
+    assert {f.key for f in create_doc.fields} == {"title", "content"}
 
 
 def test_coming_soon_actions_gated():
@@ -143,7 +164,6 @@ def test_coming_soon_actions_gated():
     catalog = build_catalog()
     types = {a.type for a in catalog.actions}
     assert "send_slack_message" not in types
-    assert "create_document" not in types
 
 
 def test_smart_draft_action_in_catalog():
@@ -168,3 +188,32 @@ def test_reply_email_action_has_body_field():
 def test_conditions_catalog_has_if_condition():
     catalog = build_catalog()
     assert any(c.type == "if_condition" for c in catalog.conditions)
+
+
+# ---------------------------------------------------------------------------
+# The AI generator is a second, non-catalog way to create nodes
+# ---------------------------------------------------------------------------
+
+
+def _coming_soon_types() -> set[str]:
+    """Every node type tagged status='coming_soon', straight from the unions."""
+    gated = set()
+    for union in (Trigger, Action, Condition):
+        members = get_args(get_args(union)[0]) or [get_args(union)[0]]
+        for cls in members:
+            extra = cls.model_config.get("json_schema_extra", {})
+            if extra.get("status") == "coming_soon":
+                gated.add(get_args(cls.model_fields["type"].annotation)[0])
+    return gated
+
+
+def test_ai_prompt_does_not_advertise_gated_nodes():
+    """The catalog gate only closes the editor palette. The AI planner has its own
+    hardcoded allow-list, so a gated type left in the system prompt still reaches
+    NodeConfig — which validates it — and produces a workflow that cannot run."""
+    prompt = settings.system_prompt
+    for node_type in _coming_soon_types():
+        assert node_type not in prompt, (
+            f"'{node_type}' is gated as coming_soon but the AI system prompt "
+            "still advertises it"
+        )

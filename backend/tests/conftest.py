@@ -19,6 +19,7 @@ from core.database import engine, get_db
 from core.rate_limit import limiter
 from main import app
 from auth.models.connected_account import ConnectedAccount
+from auth.scopes import GOOGLE_SCOPES
 from auth.models.refresh_token import RefreshToken
 from auth.utils import create_access_token, create_refresh_token
 from user.models.user import User
@@ -227,7 +228,7 @@ async def test_connected_account(
         access_token="test_access_token",
         refresh_token="test_refresh_token",
         token_expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
-        scope="https://www.googleapis.com/auth/gmail.readonly",
+        scope=" ".join(GOOGLE_SCOPES),
         metadata_account={"email": test_user.email, "name": "Test User"},
         last_synced_history_id="99999",
     )

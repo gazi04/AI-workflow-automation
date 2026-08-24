@@ -1,3 +1,5 @@
+import copy
+from typing import Any
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
@@ -637,3 +639,108 @@ async def test_run_audit_other_user_returns_404(
 async def test_run_audit_requires_auth(client):
     resp = await client.get(f"/api/workflow/runs/{uuid4()}/audit")
     assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# error_path edges — validated on the way in, preserved on export/import
+# ---------------------------------------------------------------------------
+
+
+def _workflow_with_error_path(source: str = "action_1") -> dict:
+    """VALID_WORKFLOW plus a handler wired to `source`'s error_path."""
+    workflow: dict[str, Any] = copy.deepcopy(VALID_WORKFLOW)
+    workflow["execution_config"]["nodes"]["handler_1"] = {
+        "id": "handler_1",
+        "type": "action",
+        "config": {
+            "type": "send_email",
+            "config": {
+                "to": "ops@example.com",
+                "subject": "Step failed",
+                "body": "Reason: {{action_1.error}}",
+            },
+        },
+    }
+    workflow["execution_config"]["edges"].append(
+        {
+            "id": "e2",
+            "source": source,
+            "target": "handler_1",
+            "sourceHandle": "error_path",
+        }
+    )
+    return workflow
+
+
+async def test_create_workflow_with_error_path_edge_succeeds(client, auth_headers):
+    with patch(
+        "workflow.routes.workflow_router.DeploymentService.create_deployment_for_workflow",
+        new=AsyncMock(return_value=uuid4()),
+    ):
+        response = await client.post(
+            "/api/workflow/create",
+            json=_workflow_with_error_path(),
+            headers=auth_headers,
+        )
+
+    assert response.status_code == 200
+
+
+async def test_error_path_edge_from_trigger_node_returns_422(client, auth_headers):
+    """A trigger never executes, so it can never fail — the edge is a mistake."""
+    response = await client.post(
+        "/api/workflow/create",
+        json=_workflow_with_error_path(source="trigger_1"),
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 422
+
+
+async def test_unknown_source_handle_returns_422(client, auth_headers):
+    workflow = copy.deepcopy(VALID_WORKFLOW)
+    workflow["execution_config"]["edges"][0]["sourceHandle"] = "not_a_handle"
+
+    response = await client.post(
+        "/api/workflow/create", json=workflow, headers=auth_headers
+    )
+
+    assert response.status_code == 422
+
+
+async def test_export_import_round_trip_preserves_error_path(client, auth_headers):
+    """The exported JSON must import back with its error routing intact."""
+    with patch(
+        "workflow.routes.workflow_router.DeploymentService.create_deployment_for_workflow",
+        new=AsyncMock(return_value=uuid4()),
+    ):
+        created = await client.post(
+            "/api/workflow/create",
+            json=_workflow_with_error_path(),
+            headers=auth_headers,
+        )
+    assert created.status_code == 200
+    workflow_id = created.json()["id"]
+
+    exported = await client.get(
+        f"/api/workflow/{workflow_id}/export", headers=auth_headers
+    )
+    assert exported.status_code == 200
+    exported_edges = exported.json()["execution_config"]["edges"]
+    assert any(e["sourceHandle"] == "error_path" for e in exported_edges)
+
+    with (
+        patch(
+            "workflow.routes.workflow_router.DeploymentService.create_deployment_for_workflow",
+            new=AsyncMock(return_value=uuid4()),
+        ),
+        patch(
+            "workflow.routes.workflow_router.DeploymentService.toggle_workflow",
+            new=AsyncMock(return_value=None),
+        ),
+    ):
+        imported = await client.post(
+            "/api/workflow/import", json=exported.json(), headers=auth_headers
+        )
+
+    assert imported.status_code == 200
