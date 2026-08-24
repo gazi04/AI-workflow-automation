@@ -22,6 +22,11 @@ from orchestration.services import DeploymentService
 from user.models import User
 from utils.catalog_introspector import build_catalog
 from workflow.schemas.catalog import WorkflowCatalog
+from workflow.schemas.templates import (
+    WorkflowTemplateSummary,
+    get_template,
+    list_templates,
+)
 from workflow.schemas import WorkflowSchema, WorkflowExecutionConfig
 from workflow.schemas.ui_metadata_workflow import UIMetadata
 from workflow.schemas.workflow_run import WorkflowRun, WorkflowRunDetail
@@ -54,6 +59,49 @@ def get_catalog():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate workflow catalog.",
+        ) from e
+
+
+@workflow_router.get("/templates", response_model=List[WorkflowTemplateSummary])
+def get_templates(user: User = Depends(get_current_user)):
+    """
+    Returns the curated starter workflows shown to users with an empty dashboard.
+
+    Summaries only — the full definition never leaves the backend, since the
+    client instantiates by id.
+    """
+    return [template.summary() for template in list_templates()]
+
+
+@workflow_router.post("/templates/{template_id}/instantiate")
+async def instantiate_template(
+    template_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    Create a workflow for the current user from a starter template.
+
+    Shares the import path: the copy lands **paused** so its placeholder values
+    (label names, recipients, cron) are reviewed in the editor before it can fire.
+    """
+    template = get_template(template_id)
+    if template is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Unknown workflow template '{template_id}'.",
+        )
+
+    schema = template.definition.model_copy(deep=True)
+    schema.is_active = False
+
+    try:
+        return await _persist_new_workflow(db, user, schema, is_active=False)
+    except Exception as e:
+        logger.error(f"Error instantiating template {template_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not create the workflow from the template.",
         ) from e
 
 

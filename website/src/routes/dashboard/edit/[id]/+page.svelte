@@ -104,8 +104,10 @@
 		nodes = newNodes;
 		edges = newEdges;
 
-		// If no UI metadata, automatically apply layout
-		if (!uiMetadata && nodes.length > 0) {
+		// If no UI metadata, automatically apply layout. A workflow created from a
+		// template or a position-less import stores `{}`, which is truthy — check
+		// for actual saved nodes, or everything stacks at (0,0).
+		if (!uiMetadata?.nodes?.length && nodes.length > 0) {
 			setTimeout(() => onLayout('LR'), 50);
 		}
 	}

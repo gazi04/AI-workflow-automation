@@ -1,6 +1,8 @@
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
+from workflow.schemas.templates import WORKFLOW_TEMPLATES
+
 
 # ---------------------------------------------------------------------------
 # Minimal valid WorkflowSchema JSON body
@@ -234,6 +236,83 @@ async def test_import_workflow_invalid_schema_returns_422(client, auth_headers):
         headers=auth_headers,
     )
     assert response.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# GET /api/workflow/templates — starter gallery, requires auth
+# ---------------------------------------------------------------------------
+
+
+async def test_list_templates_returns_summaries(client, auth_headers):
+    response = await client.get("/api/workflow/templates", headers=auth_headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == len(WORKFLOW_TEMPLATES)
+
+    first = body[0]
+    assert set(first) == {"id", "name", "description", "category", "icon", "steps"}
+    # The full definition stays server-side; the client instantiates by id.
+    assert "definition" not in first
+
+
+async def test_list_templates_requires_auth(client):
+    response = await client.get("/api/workflow/templates")
+    assert response.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# POST /api/workflow/templates/{id}/instantiate — creates a paused copy
+# ---------------------------------------------------------------------------
+
+
+async def test_instantiate_template_lands_paused(
+    client, auth_headers, test_user, db_session
+):
+    """Picking a template persists a copy owned by the caller, paused so its
+    placeholder values are reviewed before it can fire."""
+    template = next(iter(WORKFLOW_TEMPLATES.values()))
+    fake_deployment_id = uuid4()
+
+    with (
+        patch(
+            "workflow.routes.workflow_router.DeploymentService.create_deployment_for_workflow",
+            new=AsyncMock(return_value=fake_deployment_id),
+        ),
+        patch(
+            "workflow.routes.workflow_router.DeploymentService.toggle_workflow",
+            new=AsyncMock(return_value=None),
+        ) as mock_toggle,
+    ):
+        response = await client.post(
+            f"/api/workflow/templates/{template.id}/instantiate",
+            headers=auth_headers,
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["name"] == template.definition.name
+    assert body["is_active"] is False
+    assert body["user_id"] == str(test_user.id)
+    assert body["config"]["nodes"].keys() == (
+        template.definition.execution_config.nodes.keys()
+    )
+    mock_toggle.assert_awaited_once_with(fake_deployment_id, active=False)
+
+
+async def test_instantiate_unknown_template_returns_404(client, auth_headers):
+    response = await client.post(
+        "/api/workflow/templates/not_a_template/instantiate", headers=auth_headers
+    )
+    assert response.status_code == 404
+
+
+async def test_instantiate_template_requires_auth(client, csrf_headers):
+    template = next(iter(WORKFLOW_TEMPLATES.values()))
+    response = await client.post(
+        f"/api/workflow/templates/{template.id}/instantiate", headers=csrf_headers
+    )
+    assert response.status_code == 401
 
 
 # ---------------------------------------------------------------------------

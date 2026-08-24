@@ -15,6 +15,7 @@
 	import Upload from '@lucide/svelte/icons/upload';
 	import Download from '@lucide/svelte/icons/download';
 	import { formatLabel } from '$lib/utils';
+	import TemplateGallery from '$lib/components/dashboard/TemplateGallery.svelte';
 	import { toast } from 'svelte-sonner';
 
 	type Workflow = {
@@ -165,15 +166,27 @@
 			<Loader class="h-8 w-8 animate-spin text-muted-foreground" />
 		</div>
 	{:else if workflows.length === 0}
-		<Card.Root
-			class="flex flex-col items-center justify-center border-dashed p-12 text-center shadow-none"
-		>
-			<div class="mb-4 rounded-full bg-muted p-4">
-				<Mail class="h-8 w-8 text-muted-foreground" />
+		<div class="space-y-8">
+			<Card.Root
+				class="flex flex-col items-center justify-center border-dashed p-12 text-center shadow-none"
+			>
+				<div class="mb-4 rounded-full bg-muted p-4">
+					<Mail class="h-8 w-8 text-muted-foreground" />
+				</div>
+				<Card.Title class="text-xl font-semibold">No Agents Deployed</Card.Title>
+				<Card.Description>Your AI workforce is currently empty.</Card.Description>
+			</Card.Root>
+
+			<div class="space-y-4">
+				<div>
+					<h2 class="text-xl font-semibold">Start from a template</h2>
+					<p class="text-sm text-muted-foreground">
+						Ready-made agents. Each one lands paused so you can review it before it runs.
+					</p>
+				</div>
+				<TemplateGallery />
 			</div>
-			<Card.Title class="text-xl font-semibold">No Agents Deployed</Card.Title>
-			<Card.Description>Your AI workforce is currently empty.</Card.Description>
-		</Card.Root>
+		</div>
 	{:else}
 		<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
 			{#each workflows as wf (wf.id)}
