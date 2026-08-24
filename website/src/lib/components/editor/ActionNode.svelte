@@ -6,6 +6,7 @@
 	import { workflowStore } from '$lib/store/workflowStore.svelte';
 	import { ICON_MAP, DEFAULT_ICON } from '$lib/utils/icons';
 	import { statusRingClass } from '$lib/utils/nodeStatus';
+	import { ERROR_HANDLE } from '$lib/utils/edges';
 	import { formatLabel } from '$lib/utils';
 
 	let { id, data } = $props();
@@ -20,7 +21,7 @@
 </script>
 
 <div
-	class="w-64 rounded-xl border-2 border-slate-200 bg-white px-4 py-3 shadow-lg ring-primary/20 transition-all hover:ring-4 {statusRingClass(
+	class="relative w-64 rounded-xl border-2 border-slate-200 bg-white px-4 py-3 shadow-lg ring-primary/20 transition-all hover:ring-4 {statusRingClass(
 		runStatus
 	)}"
 >
@@ -46,4 +47,15 @@
 	</div>
 
 	<Handle type="source" position={Position.Right} class="h-3! w-3! bg-slate-400!" />
+
+	<div class="absolute -bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1">
+		<Handle
+			id={ERROR_HANDLE}
+			type="source"
+			position={Position.Bottom}
+			class="h-3! w-3! bg-red-500!"
+			style="left: 0;"
+		/>
+		<span class="pl-4 text-[8px] font-bold text-red-600">ON ERROR</span>
+	</div>
 </div>

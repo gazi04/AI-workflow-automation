@@ -153,6 +153,13 @@
 				} else {
 					toast.error('Workflow failed');
 				}
+			} else if (message.type === 'node_failed' && message.handled) {
+				// The user modelled this failure with an error path — it routed to a
+				// handler and the run continues, so it is a warning, not an incident.
+				workflowStore.setNodeStatus(message.workflow_id, message.node_id, 'failed');
+				toast.warning(`Step Failed (handled): ${message.node_id}`, {
+					description: message.error || 'Routed to the error handler.'
+				});
 			} else if (message.type === 'node_failed') {
 				workflowStore.setNodeStatus(message.workflow_id, message.node_id, 'failed');
 				toast.error(`Step Failed: ${message.node_id}`, {

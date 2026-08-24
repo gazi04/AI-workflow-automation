@@ -16,6 +16,7 @@
 	import { resolve } from '$app/paths';
 	import { toast } from 'svelte-sonner';
 	import { getLayoutedElements } from '$lib/utils/layout';
+	import { decorateEdge, toSourceHandle } from '$lib/utils/edges';
 	import { HistoryManager } from '$lib/utils/history.svelte';
 	import AIAgentChat from '$lib/components/editor/AIAgentChat.svelte';
 	import ConfigPanel from '$lib/components/editor/ConfigPanel.svelte';
@@ -29,7 +30,7 @@
 	// workflow id the backend emits). 'new' never matches, so drafts stay dark.
 	setContext('workflowId', () => page.params.id ?? '');
 
-	type WorkflowDef = components['schemas']['WorkflowSchema-Output'];
+	type WorkflowDef = components['schemas']['WorkflowSchema'];
 
 	type Workflow = {
 		id: string;
@@ -76,7 +77,7 @@
 					data: backendNode ? backendNode.config : uiNode.data
 				};
 			});
-			newEdges = uiMetadata.edges || [];
+			newEdges = (uiMetadata.edges || []).map(decorateEdge);
 		} else {
 			// Generate from scratch from the backend nodes map
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic, catalog-driven workflow JSON; validated server-side.
@@ -88,14 +89,16 @@
 			}));
 
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic, catalog-driven workflow JSON; validated server-side.
-			newEdges = edgesList.map((edge: any, index: number) => ({
-				id: edge.id || `e-${index}`,
-				source: edge.source,
-				target: edge.target,
-				sourceHandle: edge.sourceHandle || null,
-				targetHandle: edge.targetHandle || null,
-				animated: true
-			}));
+			newEdges = edgesList.map((edge: any, index: number) =>
+				decorateEdge({
+					id: edge.id || `e-${index}`,
+					source: edge.source,
+					target: edge.target,
+					sourceHandle: edge.sourceHandle || null,
+					targetHandle: edge.targetHandle || null,
+					animated: true
+				})
+			);
 		}
 
 		nodes = newNodes;
@@ -201,14 +204,14 @@
 		const currentNodes = $state.snapshot(nodes);
 		const currentEdges = $state.snapshot(edges);
 
-		const nodesDict: Record<string, components['schemas']['WorkflowNode-Input']> = {};
+		const nodesDict: Record<string, components['schemas']['WorkflowNode']> = {};
 		const startNodeIds: string[] = [];
 
 		currentNodes.forEach((node) => {
 			nodesDict[node.id] = {
 				id: node.id,
 				type: node.type as 'trigger' | 'action' | 'condition',
-				config: node.data as unknown as components['schemas']['WorkflowNode-Input']['config']
+				config: node.data as unknown as components['schemas']['WorkflowNode']['config']
 			};
 
 			if (node.type === 'trigger') {
@@ -231,7 +234,7 @@
 					id: e.id,
 					source: e.source,
 					target: e.target,
-					sourceHandle: e.sourceHandle,
+					sourceHandle: toSourceHandle(e.sourceHandle),
 					targetHandle: e.targetHandle
 				})),
 				start_node_ids: startNodeIds

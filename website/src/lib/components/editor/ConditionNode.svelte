@@ -5,6 +5,10 @@
 	import { workflowStore } from '$lib/store/workflowStore.svelte';
 	import { ICON_MAP, DEFAULT_ICON } from '$lib/utils/icons';
 	import { statusRingClass } from '$lib/utils/nodeStatus';
+	import { ERROR_HANDLE } from '$lib/utils/edges';
+	import type { components } from '$lib/types/schema';
+
+	type IfConditionConfig = components['schemas']['IfConditionConfig'];
 
 	let { id, data }: NodeProps = $props();
 
@@ -17,10 +21,9 @@
 	);
 
 	// Safely extract rules and match_type using derived state so the node updates instantly
-	let rules = $derived(
-		Array.isArray((data.config as any)?.rules) ? (data.config as any).rules : []
-	);
-	let matchType = $derived((data.config as any)?.match_type || 'ALL');
+	let config = $derived(data.config as Partial<IfConditionConfig> | undefined);
+	let rules = $derived(Array.isArray(config?.rules) ? config.rules : []);
+	let matchType = $derived(config?.match_type ?? 'ALL');
 
 	// Create a dynamic, readable summary to show on the node card
 	let conditionSummary = $derived.by(() => {
@@ -29,7 +32,7 @@
 		const firstRule = rules[0];
 		const varName = firstRule.variable || '[empty]';
 		const opName = firstRule.operator ? firstRule.operator.replace('_', ' ') : 'equals';
-		const valName = firstRule.value || '[empty]';
+		const valName = firstRule.value ? String(firstRule.value) : '[empty]';
 
 		let summary = `${varName} ${opName} ${valName}`;
 
@@ -42,7 +45,7 @@
 </script>
 
 <div
-	class="min-w-45 rounded-lg border-2 border-orange-500 bg-card p-3 shadow-lg transition-all hover:shadow-xl {statusRingClass(
+	class="relative min-w-45 rounded-lg border-2 border-orange-500 bg-card p-3 shadow-lg transition-all hover:shadow-xl {statusRingClass(
 		runStatus
 	)}"
 >
@@ -86,5 +89,16 @@
 			class="h-3! w-3! bg-red-500!"
 			style="top: 0;"
 		/>
+	</div>
+
+	<div class="absolute -bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1">
+		<Handle
+			id={ERROR_HANDLE}
+			type="source"
+			position={Position.Bottom}
+			class="h-3! w-3! bg-red-500!"
+			style="left: 0;"
+		/>
+		<span class="pl-4 text-[8px] font-bold text-red-600">ON ERROR</span>
 	</div>
 </div>

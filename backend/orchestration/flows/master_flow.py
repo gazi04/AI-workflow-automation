@@ -23,6 +23,7 @@ from workflow.schemas.action import (
     SmartDraftConfig,
 )
 from workflow.schemas.condition_nodes import IfCondition
+from workflow.schemas.edges import ERROR_HANDLE
 from workflow.services import WorkflowRunService
 
 # Loading the models ensuring that the SQLAlchemy Base registry is fully populated before any database operation
@@ -97,6 +98,9 @@ def execute_automation_flow(
 
     # node_id → error string. Any entry here marks the whole run as Failed at the end.
     failed_nodes: Dict[str, str] = {}
+    # node_id → error string for failures the user modelled with an error_path
+    # edge. These are *handled*: the run keeps going and does not end in a raise.
+    handled_nodes: Dict[str, str] = {}
 
     # Resolve ids once so the worker can NOTIFY per-node events that the API
     # process forwards to the user's WebSocket (core/events.py, event_listener.py).
@@ -111,7 +115,9 @@ def execute_automation_flow(
     # whole run keeps the shared `engine`'s connection pool valid throughout.
     bridge_loop = asyncio.new_event_loop()
 
-    def emit(event_type, node_id, *, node_type=None, error=None, status=None):
+    def emit(
+        event_type, node_id, *, node_type=None, error=None, status=None, handled=None
+    ):
         bridge_loop.run_until_complete(
             publish_event(
                 {
@@ -123,8 +129,44 @@ def execute_automation_flow(
                     "node_type": node_type,
                     "error": error,
                     "status": status,
+                    "handled": handled,
                 }
             )
+        )
+
+    def store_output(node_id: str, output: Any) -> None:
+        """Record a node's output, and mirror it to the root of run_context.
+
+        ConfigPanel offers variables as ``{{<node_id>.<field>}}`` for every node,
+        so a node id has to be addressable from the context root — not only
+        under ``node_outputs`` — for those hints to actually resolve.
+        """
+        run_context["node_outputs"][node_id] = output
+        run_context[node_id] = output
+
+    def record_failure(node_id: str, node_type: str, error: str) -> None:
+        """Store the error, route it down the node's error_path if one exists,
+        and classify it as handled (run survives) or not (run fails at the end).
+        """
+        store_output(node_id, {"error": error})
+
+        handler_targets = _error_path_targets(node_id, adjacency_list)
+        for target in handler_targets:
+            queue.append(target)
+
+        if handler_targets:
+            handled_nodes[node_id] = error
+        else:
+            # No handler: prune this node's normal downstream children and let
+            # the run fail at the end, as it always has.
+            failed_nodes[node_id] = error
+
+        emit(
+            "node_failed",
+            node_id,
+            node_type=node_type,
+            error=error,
+            handled=bool(handler_targets),
         )
 
     while queue:
@@ -152,23 +194,15 @@ def execute_automation_flow(
                     condition_result = evaluate_condition(
                         cast(IfCondition, node.config), run_context
                     )
-                    run_context["node_outputs"][current_node_id] = {
-                        "result": condition_result
-                    }
+                    store_output(current_node_id, {"result": condition_result})
                     emit("node_completed", current_node_id, node_type="condition")
                 except Exception as e:
                     run_logger.error(
                         f"Condition node '{current_node_id}' failed to evaluate: {e}"
                     )
-                    run_context["node_outputs"][current_node_id] = {"error": str(e)}
-                    failed_nodes[current_node_id] = str(e)
-                    emit(
-                        "node_failed",
-                        current_node_id,
-                        node_type="condition",
-                        error=str(e),
-                    )
-                    # Prune: route neither handle, don't queue downstream.
+                    record_failure(current_node_id, "condition", str(e))
+                    # Neither TRUE nor FALSE is taken; record_failure has already
+                    # queued the error handler if the user connected one.
                     continue
 
                 outgoing_edges = adjacency_list.get(current_node_id, [])
@@ -263,12 +297,7 @@ def execute_automation_flow(
                     run_logger.error(
                         f"Action '{action_type}' on node '{current_node_id}' failed: {e}"
                     )
-                    run_context["node_outputs"][current_node_id] = {"error": str(e)}
-                    failed_nodes[current_node_id] = str(e)
-                    emit(
-                        "node_failed", current_node_id, node_type="action", error=str(e)
-                    )
-                    # Prune: don't queue this node's downstream children.
+                    record_failure(current_node_id, "action", str(e))
                 continue
 
             else:
@@ -289,7 +318,7 @@ def execute_automation_flow(
             action_type = pending["action_type"]
             try:
                 result = pending["future"].result()
-                run_context["node_outputs"][current_node_id] = result
+                store_output(current_node_id, result)
                 emit("node_completed", current_node_id, node_type="action")
 
                 outgoing_edges = adjacency_list.get(current_node_id, [])
@@ -304,10 +333,7 @@ def execute_automation_flow(
                 run_logger.error(
                     f"Action '{action_type}' on node '{current_node_id}' failed: {e}"
                 )
-                run_context["node_outputs"][current_node_id] = {"error": str(e)}
-                failed_nodes[current_node_id] = str(e)
-                emit("node_failed", current_node_id, node_type="action", error=str(e))
-                # Prune: don't queue this node's downstream children.
+                record_failure(current_node_id, "action", str(e))
 
     # Persist a per-node audit record so the failure is durable and the WS poll
     # loop can surface a node_failed event. Wrapped so an audit-write failure
@@ -320,12 +346,24 @@ def execute_automation_flow(
         trigger_data=trigger_payload or None,
         node_outputs=run_context["node_outputs"],
         failed_nodes=failed_nodes,
+        handled_nodes=handled_nodes,
         duration_ms=int((time.monotonic() - started_at) * 1000),
     )
 
-    _, overall_status = build_run_audit(run_context["node_outputs"], failed_nodes)
+    _, overall_status = build_run_audit(
+        run_context["node_outputs"], failed_nodes, handled_nodes
+    )
     emit("flow_finished", None, status=overall_status)
     bridge_loop.close()
+
+    if handled_nodes:
+        handled_summary = "; ".join(
+            f"{nid}: {err}" for nid, err in handled_nodes.items()
+        )
+        run_logger.warning(
+            f"Workflow '{schema.name}' handled {len(handled_nodes)} node failure(s) "
+            f"via error paths: {handled_summary}"
+        )
 
     if failed_nodes:
         # Independent branches have finished; now fail the run so the frontend
@@ -341,6 +379,15 @@ def execute_automation_flow(
     logger.info(f"✅ Workflow '{schema.name}' execution completed.")
 
 
+def _error_path_targets(node_id: str, adjacency_list: Dict[str, Any]) -> list[str]:
+    """Targets of the node's error_path edges — its error handler(s), if any."""
+    return [
+        edge.target
+        for edge in adjacency_list.get(node_id, [])
+        if edge.sourceHandle == ERROR_HANDLE
+    ]
+
+
 def _json_safe(value: Any) -> Any:
     """Best-effort coercion so a node output always lands in JSONB."""
     import json
@@ -353,12 +400,20 @@ def _json_safe(value: Any) -> Any:
 
 
 def build_run_audit(
-    node_outputs: Dict[str, Any], failed_nodes: Dict[str, str]
+    node_outputs: Dict[str, Any],
+    failed_nodes: Dict[str, str],
+    handled_nodes: Optional[Dict[str, str]] = None,
 ) -> tuple[Dict[str, Any], str]:
     """Build the per-node results map and the overall run status.
 
+    A node is ``failed`` when it raised with no error_path edge to catch it,
+    ``handled`` when the user modelled the failure with one, and ``success``
+    otherwise. Only unhandled failures can make the whole run ``failed``.
+
     Pure (no I/O) so it can be unit-tested in isolation.
     """
+    handled_nodes = handled_nodes or {}
+
     node_results: Dict[str, Any] = {}
     for node_id, output in node_outputs.items():
         if node_id in failed_nodes:
@@ -367,6 +422,12 @@ def build_run_audit(
                 "status": "failed",
                 "error": failed_nodes[node_id],
             }
+        elif node_id in handled_nodes:
+            node_results[node_id] = {
+                "output": None,
+                "status": "handled",
+                "error": handled_nodes[node_id],
+            }
         else:
             node_results[node_id] = {
                 "output": _json_safe(output),
@@ -374,12 +435,14 @@ def build_run_audit(
                 "error": None,
             }
 
-    success_count = len(node_outputs) - len(failed_nodes)
-    if not failed_nodes:
+    success_count = len(node_outputs) - len(failed_nodes) - len(handled_nodes)
+    if not failed_nodes and not handled_nodes:
         status = "success"
-    elif success_count <= 0:
+    elif failed_nodes and success_count <= 0:
         status = "failed"
     else:
+        # Either some nodes succeeded alongside the failures, or every failure
+        # was handled — the run did useful work and did not end in a raise.
         status = "partial"
 
     return node_results, status
@@ -404,6 +467,7 @@ def _persist_run(
     node_outputs: Dict[str, Any],
     failed_nodes: Dict[str, str],
     duration_ms: int,
+    handled_nodes: Optional[Dict[str, str]] = None,
 ) -> None:
     # The Workflow DB id equals the Prefect deployment id; fall back to it when
     # the flow runs inside a Prefect deployment (the common path).
@@ -413,7 +477,7 @@ def _persist_run(
         # skip persistence rather than violate the NOT NULL workflow_id.
         return
 
-    node_results, status = build_run_audit(node_outputs, failed_nodes)
+    node_results, status = build_run_audit(node_outputs, failed_nodes, handled_nodes)
 
     async def _persist():
         async with db_session() as db:

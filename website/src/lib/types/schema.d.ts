@@ -377,6 +377,30 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/workflow/import': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/**
+		 * Import Workflow
+		 * @description Create a workflow from an exported definition (the /export JSON).
+		 *
+		 *     Pydantic already validates the DAG (cycles/reachability) on parse; a
+		 *     malformed body returns 422. Imported workflows land **paused** so a foreign
+		 *     schedule/webhook trigger can't fire before the user reviews it.
+		 */
+		post: operations['import_workflow_api_workflow_import_post'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/workflow/update-config': {
 		parameters: {
 			query?: never;
@@ -457,7 +481,7 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
-	'/api/workflow/runs/latest': {
+	'/api/workflow/{workflow_id}/export': {
 		parameters: {
 			query?: never;
 			header?: never;
@@ -465,11 +489,10 @@ export interface paths {
 			cookie?: never;
 		};
 		/**
-		 * Get Latest Runs
-		 * @description Lightweight endpoint for frontend polling.
-		 *     Checks the most recent runs to trigger toast notifications.
+		 * Export Workflow
+		 * @description Export a workflow's full definition as a downloadable JSON file.
 		 */
-		get: operations['get_latest_runs_api_workflow_runs_latest_get'];
+		get: operations['export_workflow_api_workflow__workflow_id__export_get'];
 		put?: never;
 		post?: never;
 		delete?: never;
@@ -522,6 +545,30 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/user/settings': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/**
+		 * Get Settings
+		 * @description Return the current user's settings, creating defaults on first access.
+		 */
+		get: operations['get_settings_api_user_settings_get'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		/**
+		 * Update Settings
+		 * @description Partially update the current user's settings.
+		 */
+		patch: operations['update_settings_api_user_settings_patch'];
+		trace?: never;
+	};
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -530,7 +577,7 @@ export interface components {
 		AIResponse: {
 			/** Success */
 			success: boolean;
-			data?: components['schemas']['WorkflowSchema-Output'] | null;
+			data?: components['schemas']['WorkflowSchema'] | null;
 			/** Error */
 			error?: string | null;
 		};
@@ -581,9 +628,9 @@ export interface components {
 			target: string;
 			/**
 			 * Sourcehandle
-			 * @description Used for Condition Nodes to route logic (e.g., 'true_path', 'false_path')
+			 * @description Named outgoing handle. 'true_path'/'false_path' route a condition node; 'error_path' routes a node's failure to its error handler. None is the default success path.
 			 */
-			sourceHandle?: string | null;
+			sourceHandle?: ('true_path' | 'false_path' | 'error_path') | null;
 			/** Targethandle */
 			targetHandle?: string | null;
 		};
@@ -629,36 +676,16 @@ export interface components {
 			detail?: components['schemas']['ValidationError'][];
 		};
 		/** IfCondition */
-		'IfCondition-Input': {
+		IfCondition: {
 			/**
 			 * @description discriminator enum property added by openapi-typescript
 			 * @enum {string}
 			 */
 			type: 'if_condition';
-			config: components['schemas']['IfConditionConfig-Input'];
-		};
-		/** IfCondition */
-		'IfCondition-Output': {
-			/**
-			 * @description discriminator enum property added by openapi-typescript
-			 * @enum {string}
-			 */
-			type: 'if_condition';
-			config: components['schemas']['IfConditionConfig-Output'];
+			config: components['schemas']['IfConditionConfig'];
 		};
 		/** IfConditionConfig */
-		'IfConditionConfig-Input': {
-			/** Rules */
-			rules: components['schemas']['ConditionRule'][];
-			/**
-			 * Match Type
-			 * @default ALL
-			 * @enum {string}
-			 */
-			match_type: 'ANY' | 'ALL';
-		};
-		/** IfConditionConfig */
-		'IfConditionConfig-Output': {
+		IfConditionConfig: {
 			/** Rules */
 			rules: components['schemas']['ConditionRule'][];
 			/**
@@ -800,7 +827,7 @@ export interface components {
 			output?: unknown;
 			/**
 			 * Status
-			 * @description success | failed
+			 * @description success | handled | failed. 'handled' means the node raised but an error_path edge routed the failure to a handler.
 			 */
 			status: string;
 			/**
@@ -953,7 +980,7 @@ export interface components {
 			 */
 			deployment_id: string;
 			/** @description New configuration/parameters to merge */
-			schema: components['schemas']['WorkflowSchema-Input'];
+			schema: components['schemas']['WorkflowSchema'];
 		};
 		/** UserRequest */
 		UserRequest: {
@@ -964,6 +991,31 @@ export interface components {
 				[key: string]: unknown;
 			} | null;
 		};
+		/** UserSettingsRead */
+		UserSettingsRead: {
+			/** Timezone */
+			timezone: string;
+			/** Default Llm Provider */
+			default_llm_provider: string;
+			/** Notification Preferences */
+			notification_preferences: {
+				[key: string]: boolean;
+			};
+		};
+		/**
+		 * UserSettingsUpdate
+		 * @description Partial update — every field optional; only provided keys are written.
+		 */
+		UserSettingsUpdate: {
+			/** Timezone */
+			timezone?: string | null;
+			/** Default Llm Provider */
+			default_llm_provider?: string | null;
+			/** Notification Preferences */
+			notification_preferences?: {
+				[key: string]: boolean;
+			} | null;
+		};
 		/** ValidationError */
 		ValidationError: {
 			/** Location */
@@ -972,6 +1024,10 @@ export interface components {
 			msg: string;
 			/** Error Type */
 			type: string;
+			/** Input */
+			input?: unknown;
+			/** Context */
+			ctx?: Record<string, never>;
 		};
 		/** WebhookConfig */
 		WebhookConfig: {
@@ -1000,7 +1056,7 @@ export interface components {
 			conditions: components['schemas']['NodeDefinition'][];
 		};
 		/** WorkflowExecutionConfig */
-		'WorkflowExecutionConfig-Input': {
+		WorkflowExecutionConfig: {
 			/**
 			 * Start Node Ids
 			 * @description List of Node IDs that represent triggers capable of starting this graph.
@@ -1011,27 +1067,7 @@ export interface components {
 			 * @description A dictionary mapping node_id to the Node object for O(1) lookups.
 			 */
 			nodes: {
-				[key: string]: components['schemas']['WorkflowNode-Input'];
-			};
-			/**
-			 * Edges
-			 * @description Flat list of edges connecting the nodes.
-			 */
-			edges?: components['schemas']['Edge'][];
-		};
-		/** WorkflowExecutionConfig */
-		'WorkflowExecutionConfig-Output': {
-			/**
-			 * Start Node Ids
-			 * @description List of Node IDs that represent triggers capable of starting this graph.
-			 */
-			start_node_ids: string[];
-			/**
-			 * Nodes
-			 * @description A dictionary mapping node_id to the Node object for O(1) lookups.
-			 */
-			nodes: {
-				[key: string]: components['schemas']['WorkflowNode-Output'];
+				[key: string]: components['schemas']['WorkflowNode'];
 			};
 			/**
 			 * Edges
@@ -1040,7 +1076,7 @@ export interface components {
 			edges?: components['schemas']['Edge'][];
 		};
 		/** WorkflowNode */
-		'WorkflowNode-Input': {
+		WorkflowNode: {
 			/** Id */
 			id: string;
 			/** Name */
@@ -1063,33 +1099,7 @@ export interface components {
 				| components['schemas']['LabelEmailAction']
 				| components['schemas']['SmartDraftAction']
 				| components['schemas']['CreateDocumentAction']
-				| components['schemas']['IfCondition-Input'];
-		};
-		/** WorkflowNode */
-		'WorkflowNode-Output': {
-			/** Id */
-			id: string;
-			/** Name */
-			name?: string | null;
-			/**
-			 * Type
-			 * @enum {string}
-			 */
-			type: 'trigger' | 'action' | 'condition';
-			/** Config */
-			config:
-				| components['schemas']['EmailReceivedTrigger']
-				| components['schemas']['ManualTrigger']
-				| components['schemas']['NewSheetRowTrigger']
-				| components['schemas']['ScheduleTrigger']
-				| components['schemas']['WebhookTrigger']
-				| components['schemas']['SendSlackMessageAction']
-				| components['schemas']['SendEmailAction']
-				| components['schemas']['ReplyEmailAction']
-				| components['schemas']['LabelEmailAction']
-				| components['schemas']['SmartDraftAction']
-				| components['schemas']['CreateDocumentAction']
-				| components['schemas']['IfCondition-Output'];
+				| components['schemas']['IfCondition'];
 		};
 		/** WorkflowRun */
 		WorkflowRun: {
@@ -1175,7 +1185,7 @@ export interface components {
 		 * WorkflowSchema
 		 * @description The full representation used by the API and AI Service.
 		 */
-		'WorkflowSchema-Input': {
+		WorkflowSchema: {
 			/**
 			 * Name
 			 * @description A concise, descriptive name for this workflow
@@ -1191,30 +1201,7 @@ export interface components {
 			 * @default true
 			 */
 			is_active: boolean;
-			execution_config: components['schemas']['WorkflowExecutionConfig-Input'];
-			ui_metadata?: components['schemas']['UIMetadata'] | null;
-		};
-		/**
-		 * WorkflowSchema
-		 * @description The full representation used by the API and AI Service.
-		 */
-		'WorkflowSchema-Output': {
-			/**
-			 * Name
-			 * @description A concise, descriptive name for this workflow
-			 */
-			name: string;
-			/**
-			 * Description
-			 * @description A one-sentence summary of the workflow's purpose
-			 */
-			description: string;
-			/**
-			 * Is Active
-			 * @default true
-			 */
-			is_active: boolean;
-			execution_config: components['schemas']['WorkflowExecutionConfig-Output'];
+			execution_config: components['schemas']['WorkflowExecutionConfig'];
 			ui_metadata?: components['schemas']['UIMetadata'] | null;
 		};
 	};
@@ -1679,7 +1666,40 @@ export interface operations {
 		};
 		requestBody: {
 			content: {
-				'application/json': components['schemas']['WorkflowSchema-Input'];
+				'application/json': components['schemas']['WorkflowSchema'];
+			};
+		};
+		responses: {
+			/** @description Successful Response */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': unknown;
+				};
+			};
+			/** @description Validation Error */
+			422: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['HTTPValidationError'];
+				};
+			};
+		};
+	};
+	import_workflow_api_workflow_import_post: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['WorkflowSchema'];
 			};
 		};
 		responses: {
@@ -1818,11 +1838,13 @@ export interface operations {
 			};
 		};
 	};
-	get_latest_runs_api_workflow_runs_latest_get: {
+	export_workflow_api_workflow__workflow_id__export_get: {
 		parameters: {
 			query?: never;
 			header?: never;
-			path?: never;
+			path: {
+				workflow_id: string;
+			};
 			cookie?: never;
 		};
 		requestBody?: never;
@@ -1833,7 +1855,16 @@ export interface operations {
 					[name: string]: unknown;
 				};
 				content: {
-					'application/json': components['schemas']['WorkflowRun'][];
+					'application/json': unknown;
+				};
+			};
+			/** @description Validation Error */
+			422: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['HTTPValidationError'];
 				};
 			};
 		};
@@ -1887,6 +1918,59 @@ export interface operations {
 				};
 				content: {
 					'application/json': unknown;
+				};
+			};
+			/** @description Validation Error */
+			422: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['HTTPValidationError'];
+				};
+			};
+		};
+	};
+	get_settings_api_user_settings_get: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Successful Response */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['UserSettingsRead'];
+				};
+			};
+		};
+	};
+	update_settings_api_user_settings_patch: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['UserSettingsUpdate'];
+			};
+		};
+		responses: {
+			/** @description Successful Response */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['UserSettingsRead'];
 				};
 			};
 			/** @description Validation Error */

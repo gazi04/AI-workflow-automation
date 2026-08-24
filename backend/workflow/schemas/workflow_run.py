@@ -39,7 +39,13 @@ class NodeResult(BaseModel):
     """Per-node audit entry as persisted in WorkflowRunRecord.node_results."""
 
     output: Any = Field(None, description="The value this node produced.")
-    status: str = Field(..., description="success | failed")
+    status: str = Field(
+        ...,
+        description=(
+            "success | handled | failed. 'handled' means the node raised but "
+            "an error_path edge routed the failure to a handler."
+        ),
+    )
     error: Optional[str] = Field(None, description="Error message if the node failed.")
 
 

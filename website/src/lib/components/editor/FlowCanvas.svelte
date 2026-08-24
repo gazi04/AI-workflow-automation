@@ -12,6 +12,7 @@
 	import ActionNode from './ActionNode.svelte';
 	import TriggerNode from './TriggerNode.svelte';
 	import ConditionNode from './ConditionNode.svelte';
+	import { decorateEdge } from '$lib/utils/edges';
 
 	let { nodes = $bindable(), edges = $bindable(), onNodeClick, takeSnapshot } = $props();
 
@@ -73,7 +74,7 @@
 	}
 
 	function onConnect(connection: Connection) {
-		edges = addEdge({ ...connection, animated: true }, edges);
+		edges = addEdge(decorateEdge({ ...connection, animated: true }), edges);
 		setTimeout(takeSnapshot, 0);
 	}
 

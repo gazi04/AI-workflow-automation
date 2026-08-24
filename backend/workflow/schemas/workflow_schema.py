@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field, model_validator
 from typing import Dict, List, Optional
 
 from utils.build_adjacency_list import build_adjacency_list
-from workflow.schemas.edges import Edge
+from workflow.schemas.edges import ERROR_HANDLE, Edge
 from workflow.schemas.workflow_nodes import WorkflowNode
 from .ui_metadata_workflow import UIMetadata
 
@@ -103,6 +103,33 @@ class WorkflowExecutionConfig(BaseModel):
             raise ValueError(
                 f"Workflow contains unreachable nodes: {', '.join(unreachable_nodes)}. "
                 "All actions and conditions must be connected to a trigger path."
+            )
+
+        return self
+
+    @model_validator(mode="after")
+    def check_error_path_edges(self) -> "WorkflowExecutionConfig":
+        """
+        An 'error_path' edge routes a node's *failure* to its handler, so it can
+        only leave a node that is able to fail: an action or a condition.
+        Trigger nodes never execute, so such an edge is always a mistake.
+        """
+        offenders = sorted(
+            {
+                edge.source
+                for edge in self.edges
+                if edge.sourceHandle == ERROR_HANDLE
+                and (
+                    edge.source not in self.nodes
+                    or self.nodes[edge.source].type not in ("action", "condition")
+                )
+            }
+        )
+
+        if offenders:
+            raise ValueError(
+                f"Error-path edges must start at an action or condition node. "
+                f"Invalid source node(s): {', '.join(offenders)}."
             )
 
         return self
