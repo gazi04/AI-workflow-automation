@@ -59,6 +59,10 @@ class NewSheetRowTrigger(BaseModel):
             "category": "Data",
             "icon": "lucide-file-spreadsheet",
             "outputs": ["spreadsheet_id", "row_data"],
+            # No poller fires this trigger, so a workflow built on it deploys
+            # and then never runs. Gated out of the catalog until the Sheets
+            # executor exists — see docs/features/sheets_trigger_gating.md.
+            "status": "coming_soon",
         }
     )
 

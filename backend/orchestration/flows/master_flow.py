@@ -11,12 +11,19 @@ from typing import Dict, Any, Optional, cast
 from core.setup_logging import setup_logger
 from core.database import db_session
 from core.events import publish_event
-from orchestration.tasks import send_message, reply_email, label_mail, smart_draft
+from orchestration.tasks import (
+    create_document,
+    send_message,
+    reply_email,
+    label_mail,
+    smart_draft,
+)
 from utils.build_adjacency_list import build_adjacency_list
 from utils.evaluate_condition import evaluate_condition
 from utils.resolve_variables import resolve_variables
 from workflow.schemas import WorkflowSchema
 from workflow.schemas.action import (
+    CreateDocumentConfig,
     SendEmailConfig,
     ReplyEmailConfig,
     LabelEmailConfig,
@@ -275,10 +282,15 @@ def execute_automation_flow(
                             user_id, email_context, smart_draft_config.user_prompt
                         )
 
-                    elif (
-                        action_type == "send_slack_message"
-                        or action_type == "create_document"
-                    ):
+                    elif action_type == "create_document":
+                        document_config = cast(CreateDocumentConfig, action_data)
+                        future = create_document.submit(
+                            user_id,
+                            document_config.title,
+                            document_config.content,
+                        )
+
+                    elif action_type == "send_slack_message":
                         raise NotImplementedError()
 
                     else:
