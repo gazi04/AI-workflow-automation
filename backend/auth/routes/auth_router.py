@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.dependencies import get_current_user
 from auth.models import RefreshToken, ConnectedAccount
+from auth.scopes import GOOGLE_SCOPES
 from auth.services import (
     AccountService,
     TokenService,
@@ -132,15 +133,7 @@ def get_google_flow(code_verifier: str | None = None):
                 "token_uri": GOOGLE_TOKEN_URI,
             }
         },
-        scopes=[
-            "https://www.googleapis.com/auth/gmail.readonly",
-            "https://www.googleapis.com/auth/gmail.send",
-            "https://www.googleapis.com/auth/gmail.compose",
-            "https://www.googleapis.com/auth/gmail.modify",
-            "https://www.googleapis.com/auth/userinfo.profile",
-            "https://www.googleapis.com/auth/userinfo.email",
-            "openid",  # This scope is to get the user's ID
-        ],
+        scopes=GOOGLE_SCOPES,
         redirect_uri=settings.google_oauth_redirect_uri,
         code_verifier=code_verifier,
         # Each request builds a fresh Flow, so the auto-generated verifier from
