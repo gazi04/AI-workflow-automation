@@ -139,8 +139,7 @@ class CreateDocumentAction(BaseModel):
         json_schema_extra={
             "category": "Google",
             "icon": "lucide-file-text",
-            "outputs": ["document_id", "title"],
-            "status": "coming_soon",
+            "outputs": ["document_id", "title", "document_url"],
         }
     )
 
