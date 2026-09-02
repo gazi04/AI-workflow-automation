@@ -55,6 +55,52 @@ class AuthService:
         return {"access_token": access_token, "refresh_token": refresh_token_string}
 
     @staticmethod
+    async def mark_account_disconnected(
+        db: AsyncSession, user_id: uuid.UUID, provider: str
+    ) -> None:
+        """Clear a connected account's tokens and flag it for reconnect.
+
+        Called when a provider tells us the grant is dead — Google's
+        `invalid_grant` on refresh, or Slack's `token_revoked` / `invalid_auth`
+        on an API call. `connection_router` then reports `needs_reconnect`.
+        """
+        account = await AccountService.get_account_by_user_and_provider(
+            db, user_id, provider
+        )
+        if account is None:
+            return
+
+        account.is_connected = False
+        account.access_token = None
+        account.refresh_token = None
+        db.add(account)
+        await db.commit()
+
+    @staticmethod
+    async def get_slack_bot_token(db: AsyncSession, user_id: uuid.UUID) -> str:
+        """Return the decrypted Slack bot token for a user.
+
+        Slack bot tokens do not expire and carry no refresh token, so there is
+        no refresh path — a dead token is surfaced by the caller (the
+        `send_slack_message` task) when the API rejects it.
+        """
+        account = await AccountService.get_account_by_user_and_provider(
+            db, user_id, "slack"
+        )
+        if account is None or not account.is_connected:
+            raise HTTPException(
+                status_code=404, detail="No connected Slack account found."
+            )
+
+        token = decrypt_token(account.access_token)
+        if token is None:
+            raise ValueError(
+                "SLACK_AUTH_EXPIRED: Reconnect your Slack workspace from the "
+                "Integrations page."
+            )
+        return token
+
+    @staticmethod
     async def get_google_credentials(
         db: AsyncSession, user_id: uuid.UUID, provider: str, scopes: list
     ) -> Credentials:
@@ -125,11 +171,7 @@ class AuthService:
                         f"Google Creds Revoked for user {user_id}. Marking account as disconnected."
                     )
 
-                    connected_account.is_connected = False
-                    connected_account.access_token = None
-                    connected_account.refresh_token = None
-                    db.add(connected_account)
-                    await db.commit()
+                    await AuthService.mark_account_disconnected(db, user_id, provider)
 
                     raise ValueError(
                         "GOOGLE_AUTH_EXPIRED: User needs to log in again via the dashboard."

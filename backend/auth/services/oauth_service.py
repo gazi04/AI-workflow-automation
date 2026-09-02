@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timezone, timedelta
 
 from sqlalchemy import select
@@ -11,11 +12,19 @@ _STATE_TTL_MINUTES = 10
 class OAuthStateService:
     @staticmethod
     async def create(
-        db: AsyncSession, state: str, code_verifier: str | None = None
+        db: AsyncSession,
+        state: str,
+        code_verifier: str | None = None,
+        user_id: uuid.UUID | None = None,
+        provider: str | None = None,
     ) -> OAuthState:
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=_STATE_TTL_MINUTES)
         record = OAuthState(
-            state=state, expires_at=expires_at, code_verifier=code_verifier
+            state=state,
+            expires_at=expires_at,
+            code_verifier=code_verifier,
+            user_id=user_id,
+            provider=provider,
         )
         db.add(record)
         await db.commit()

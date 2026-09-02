@@ -1,5 +1,9 @@
 import asyncio
+import secrets
 from datetime import datetime, timezone
+from urllib.parse import urlencode
+
+import httpx
 from fastapi import APIRouter, Request, HTTPException, Depends, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from google_auth_oauthlib.flow import Flow
@@ -9,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.dependencies import get_current_user
 from auth.models import RefreshToken, ConnectedAccount
-from auth.scopes import GOOGLE_SCOPES
+from auth.scopes import GOOGLE_SCOPES, SLACK_SCOPES
 from auth.services import (
     AccountService,
     TokenService,
@@ -121,6 +125,10 @@ async def get_me(user: User = Depends(get_current_user)):
 # Google's public OAuth token endpoint, not a credential. Bound to a name here rather
 # than inline so bandit's nosec applies to this line alone instead of the whole dict.
 GOOGLE_TOKEN_URI = "https://oauth2.googleapis.com/token"  # nosec B105
+
+# Slack OAuth v2 endpoints (public, not credentials).
+SLACK_AUTHORIZE_URL = "https://slack.com/oauth/v2/authorize"
+SLACK_TOKEN_URL = "https://slack.com/api/oauth.v2.access"  # nosec B105
 
 
 def get_google_flow(code_verifier: str | None = None):
@@ -269,3 +277,117 @@ async def callback_google(
     except Exception as e:
         logger.error(f"Unhandled error: {e}")
         return RedirectResponse(url=f"{settings.frontend_url}/login?error=auth_failed")
+
+
+# ==================================================
+# Slack OAuth — a *connect* flow (the user is already authenticated), so unlike
+# the Google callback it mints no app tokens, starts no Gmail watch, and never
+# creates a user. Identity rides through the redirect on the OAuthState row.
+# ==================================================
+@auth_router.get("/connect/slack")
+async def connect_slack(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if (
+        settings.slack_oauth_client_id is None
+        or settings.slack_oauth_redirect_uri is None
+    ):
+        raise HTTPException(
+            status_code=503, detail="Slack integration is not configured."
+        )
+
+    state = secrets.token_urlsafe(32)
+    await OAuthStateService.create(db, state, user_id=user.id, provider="slack")
+
+    query = urlencode(
+        {
+            "client_id": settings.slack_oauth_client_id,
+            "scope": ",".join(SLACK_SCOPES),
+            "redirect_uri": settings.slack_oauth_redirect_uri,
+            "state": state,
+        }
+    )
+    return {"auth_url": f"{SLACK_AUTHORIZE_URL}?{query}"}
+
+
+async def _exchange_slack_code(code: str) -> dict:
+    """Trade an OAuth code for a Slack bot token via oauth.v2.access."""
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            SLACK_TOKEN_URL,
+            data={
+                "client_id": settings.slack_oauth_client_id,
+                "client_secret": settings.slack_oauth_client_secret,
+                "code": code,
+                "redirect_uri": settings.slack_oauth_redirect_uri,
+            },
+            timeout=10,
+        )
+    return resp.json()
+
+
+@auth_router.get("/callback/slack")
+async def callback_slack(
+    code: str,
+    state: str,
+    db: AsyncSession = Depends(get_db),
+) -> RedirectResponse:
+    fail = RedirectResponse(
+        url=f"{settings.frontend_url}/dashboard/integrations?error=slack_failed"
+    )
+
+    try:
+        oauth_state = await OAuthStateService.consume(db, state)
+        # Read identity off the row immediately — the record is deleted on
+        # consume; matches how callback_google reads code_verifier.
+        provider = oauth_state.provider if oauth_state else None
+        owner_id = oauth_state.user_id if oauth_state else None
+        if oauth_state is None or provider != "slack" or owner_id is None:
+            logger.error("Slack callback: invalid/expired/mismatched state.")
+            return fail
+
+        data = await _exchange_slack_code(code)
+
+        if not data.get("ok"):
+            logger.error(f"Slack token exchange failed: {data.get('error')}")
+            return fail
+
+        team = data.get("team") or {}
+        authed_user = data.get("authed_user") or {}
+        # Slack returns scopes comma-delimited; the rest of the stack (drift
+        # check, DB convention) is space-delimited.
+        scope = " ".join(s for s in data.get("scope", "").split(",") if s)
+
+        account = await AccountService.get_account_by_user_and_provider(
+            db, owner_id, "slack"
+        )
+        if account is None:
+            account = ConnectedAccount(
+                user_id=owner_id,
+                provider="slack",
+                provider_account_id=team.get("id", ""),
+            )
+            db.add(account)
+
+        account.access_token = encrypt_token(data["access_token"])
+        account.refresh_token = None
+        account.token_expires_at = None
+        account.scope = scope
+        account.provider_account_id = team.get("id", account.provider_account_id)
+        account.is_connected = True
+        account.metadata_account = {
+            "team_id": team.get("id"),
+            "team_name": team.get("name"),
+            "bot_user_id": data.get("bot_user_id"),
+            "authed_user_id": authed_user.get("id"),
+        }
+        account.updated_at = datetime.now(timezone.utc)
+
+        await db.commit()
+
+        return RedirectResponse(url=f"{settings.frontend_url}/dashboard/integrations")
+
+    except Exception as e:
+        logger.error(f"Slack callback unhandled error: {e}")
+        return fail

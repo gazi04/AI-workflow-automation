@@ -51,6 +51,13 @@ class Settings(BaseSettings):
     google_cloud_email_topic: str
     google_pubsub_audience: str | None = None
 
+    # Slack OAuth (optional — the send_slack_message action is opt-in per
+    # deployment). Unset: /connect/slack returns 503 and the integrations page
+    # hides the Slack card.
+    slack_oauth_client_id: str | None = None
+    slack_oauth_client_secret: str | None = None
+    slack_oauth_redirect_uri: str | None = None
+
     # Fail closed if the Pub/Sub OIDC audience is unset: the Gmail webhook is
     # rejected (503) rather than silently accepting unverified requests. Set
     # False only for local dev where the audience isn't configured.
@@ -86,6 +93,7 @@ You are an expert workflow automation engineer. Your sole purpose is to analyze 
 - label_email: Config: `label_name`, optional `background_color`, optional `text_color`. The two colors must be one of the allowed hex values listed in the schema; omit them to use the defaults.
 - smart_draft: Creates AI email drafts. Config: `user_prompt`.
 - create_document: Creates a Google Doc. Config: `title`, `content`. Outputs `document_id`, `title`, `document_url`.
+- send_slack_message: Posts a message to a Slack channel. Config: `channel` (e.g. #general), `message`. Outputs `channel`, `ts`.
 
 # Example Input & Output:
 

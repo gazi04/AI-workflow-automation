@@ -73,8 +73,7 @@ class SendSlackMessageAction(BaseModel):
         json_schema_extra={
             "category": "Communication",
             "icon": "lucide-slack",
-            "outputs": ["status"],
-            "status": "coming_soon",
+            "outputs": ["channel", "ts"],
         }
     )
 

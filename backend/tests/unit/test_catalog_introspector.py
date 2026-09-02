@@ -148,6 +148,7 @@ def test_all_action_types_present():
     assert "label_email" in types
     assert "smart_draft" in types
     assert "create_document" in types
+    assert "send_slack_message" in types
 
 
 def test_create_document_exposes_document_url_output():
@@ -159,11 +160,26 @@ def test_create_document_exposes_document_url_output():
     assert {f.key for f in create_doc.fields} == {"title", "content"}
 
 
-def test_coming_soon_actions_gated():
-    """Stub actions tagged status='coming_soon' must be excluded from the catalog."""
+def test_send_slack_message_action_metadata():
+    """Downstream nodes reference the posted message with {{node_id.ts}}."""
     catalog = build_catalog()
-    types = {a.type for a in catalog.actions}
-    assert "send_slack_message" not in types
+    slack = next(a for a in catalog.actions if a.type == "send_slack_message")
+    assert slack.category == "Communication"
+    assert slack.icon == "lucide-slack"
+    assert slack.outputs == ["channel", "ts"]
+    assert {f.key for f in slack.fields} == {"channel", "message"}
+
+
+def test_no_coming_soon_action_leaks_into_catalog():
+    """Any Action union member tagged status='coming_soon' must stay out of the
+    catalog. Currently there are none — this guards the gate mechanism itself."""
+    catalog = build_catalog()
+    catalog_types = {a.type for a in catalog.actions}
+    for cls in get_args(get_args(Action)[0]):
+        extra = cls.model_config.get("json_schema_extra", {})
+        if extra.get("status") == "coming_soon":
+            node_type = get_args(cls.model_fields["type"].annotation)[0]
+            assert node_type not in catalog_types
 
 
 def test_smart_draft_action_in_catalog():
@@ -217,3 +233,9 @@ def test_ai_prompt_does_not_advertise_gated_nodes():
             f"'{node_type}' is gated as coming_soon but the AI system prompt "
             "still advertises it"
         )
+
+
+def test_ai_prompt_advertises_ungated_send_slack_message():
+    """Ungating an action does not add it to the planner's allow-list — the
+    system prompt is that list. Without this line the AI can never emit it."""
+    assert "send_slack_message" in settings.system_prompt
