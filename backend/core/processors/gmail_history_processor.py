@@ -238,8 +238,10 @@ class GmailHistoryProcessor:
                             db, email_data["message_id"], workflow.id
                         )
                     except IntegrityError:
-                        # Concurrent insert or a re-drain raced us — the message is
-                        # already recorded for this workflow, so treat as handled.
+                        # The duplicate case is handled by ON CONFLICT DO NOTHING
+                        # in the service. This stays as a backstop for the FK
+                        # path — a workflow deleted mid-batch — so one dead
+                        # workflow can't abort the whole drain.
                         await db.rollback()
         except HttpError as e:
             if e.resp.status == 404:

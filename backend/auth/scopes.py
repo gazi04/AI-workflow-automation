@@ -28,3 +28,8 @@ GOOGLE_SCOPES = [
     "https://www.googleapis.com/auth/userinfo.email",
     "openid",  # This scope is to get the user's ID
 ]
+
+# Slack bot token scopes requested at install time. `chat:write` alone covers
+# posting to public channels and any channel the bot has been invited to; a
+# channel picker / name-resolution would additionally need `channels:read`.
+SLACK_SCOPES = ["chat:write"]

@@ -1003,3 +1003,81 @@ def test_create_document_output_available_to_downstream_node():
 
     body = mock_send.submit.call_args[0][3]
     assert body == "Read it here: https://docs.google.com/document/d/doc_3/edit"
+
+
+# ---------------------------------------------------------------------------
+# send_slack_message action — also not email-dependent
+# ---------------------------------------------------------------------------
+
+
+def make_slack_workflow(trigger: dict, message: str = "Deploy finished") -> dict:
+    return {
+        "name": "Slack Test",
+        "description": "Posts to Slack",
+        "execution_config": {
+            "start_node_ids": ["trigger_1"],
+            "nodes": {
+                "trigger_1": trigger,
+                "action_1": {
+                    "id": "action_1",
+                    "type": "action",
+                    "config": {
+                        "type": "send_slack_message",
+                        "config": {"channel": "#alerts", "message": message},
+                    },
+                },
+            },
+            "edges": [{"id": "e1", "source": "trigger_1", "target": "action_1"}],
+        },
+    }
+
+
+def test_send_slack_message_runs_without_email_context():
+    mock_slack = mock_task({"status": "sent", "channel": "C1", "ts": "1.2"})
+
+    with patch("orchestration.flows.master_flow.send_slack_message", mock_slack):
+        execute_automation_flow.fn(USER_ID, make_slack_workflow(MANUAL_TRIGGER), None)
+
+    mock_slack.submit.assert_called_once_with(USER_ID, "#alerts", "Deploy finished")
+
+
+def test_send_slack_message_resolves_variables_before_submit():
+    mock_slack = mock_task({"status": "sent", "channel": "C1", "ts": "1.2"})
+    workflow = make_slack_workflow(
+        EMAIL_TRIGGER, message="New mail: {{trigger_1.subject}}"
+    )
+
+    with patch("orchestration.flows.master_flow.send_slack_message", mock_slack):
+        execute_automation_flow.fn(USER_ID, workflow, make_trigger_context("trigger_1"))
+
+    assert mock_slack.submit.call_args[0][2] == "New mail: Invoice October"
+
+
+def test_send_slack_message_output_available_to_downstream_node():
+    workflow = make_slack_workflow(MANUAL_TRIGGER)
+    workflow["execution_config"]["nodes"]["action_2"] = {
+        "id": "action_2",
+        "type": "action",
+        "config": {
+            "type": "send_email",
+            "config": {
+                "to": "bob@example.com",
+                "subject": "Posted",
+                "body": "ts={{action_1.ts}}",
+            },
+        },
+    }
+    workflow["execution_config"]["edges"].append(
+        {"id": "e2", "source": "action_1", "target": "action_2"}
+    )
+
+    mock_slack = mock_task({"status": "sent", "channel": "C1", "ts": "1700.42"})
+    mock_send = mock_task({"id": "sent_1"})
+
+    with (
+        patch("orchestration.flows.master_flow.send_slack_message", mock_slack),
+        patch("orchestration.flows.master_flow.send_message", mock_send),
+    ):
+        execute_automation_flow.fn(USER_ID, workflow, None)
+
+    assert mock_send.submit.call_args[0][3] == "ts=1700.42"

@@ -17,6 +17,7 @@ from orchestration.tasks import (
     reply_email,
     label_mail,
     smart_draft,
+    send_slack_message,
 )
 from utils.build_adjacency_list import build_adjacency_list
 from utils.evaluate_condition import evaluate_condition
@@ -28,6 +29,7 @@ from workflow.schemas.action import (
     ReplyEmailConfig,
     LabelEmailConfig,
     SmartDraftConfig,
+    SendSlackMessageConfig,
 )
 from workflow.schemas.condition_nodes import IfCondition
 from workflow.schemas.edges import ERROR_HANDLE
@@ -291,7 +293,10 @@ def execute_automation_flow(
                         )
 
                     elif action_type == "send_slack_message":
-                        raise NotImplementedError()
+                        slack_config = cast(SendSlackMessageConfig, action_data)
+                        future = send_slack_message.submit(
+                            user_id, slack_config.channel, slack_config.message
+                        )
 
                     else:
                         raise NotImplementedError(

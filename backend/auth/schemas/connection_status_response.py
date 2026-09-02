@@ -21,4 +21,4 @@ class ConnectionStatusResponse(BaseModel):
     integrations: List[IntegrationStatus]
 
 
-SUPPORTED_PROVIDERS = ["google"]
+SUPPORTED_PROVIDERS = ["google", "slack"]

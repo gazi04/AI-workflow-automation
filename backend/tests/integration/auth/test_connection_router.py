@@ -1,8 +1,11 @@
 from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 
+import pytest
+
 from auth.models.connected_account import ConnectedAccount
 from auth.scopes import DRIVE_FILE_SCOPE, GOOGLE_SCOPES
+from core.config_loader import settings
 
 
 # ---------------------------------------------------------------------------
@@ -128,3 +131,101 @@ async def test_connection_status_null_scope_does_not_nag(
 
     assert response.status_code == 200
     assert _google(response)["needs_reconnect"] is False
+
+
+# ---------------------------------------------------------------------------
+# Slack — a second provider whose bot token has no refresh token and no expiry,
+# and which is hidden entirely on deployments that haven't configured it.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def slack_configured(monkeypatch):
+    monkeypatch.setattr(settings, "slack_oauth_client_id", "test-slack-client")
+    monkeypatch.setattr(settings, "slack_oauth_client_secret", "test-slack-secret")
+    monkeypatch.setattr(
+        settings,
+        "slack_oauth_redirect_uri",
+        "http://testserver/api/auth/callback/slack",
+    )
+
+
+async def _make_slack_account(db_session, test_user, **overrides) -> ConnectedAccount:
+    fields = {
+        "user_id": test_user.id,
+        "provider": "slack",
+        "provider_account_id": f"T{uuid4().hex[:8]}",
+        "is_connected": True,
+        "access_token": "enc-xoxb",
+        "refresh_token": None,
+        "token_expires_at": None,
+        "scope": "chat:write",
+        "metadata_account": {"team_name": "Acme Workspace"},
+    }
+    fields.update(overrides)
+    account = ConnectedAccount(**fields)
+    db_session.add(account)
+    await db_session.flush()
+    return account
+
+
+def _slack(response):
+    return next(
+        (i for i in response.json()["integrations"] if i["provider"] == "slack"), None
+    )
+
+
+async def test_slack_hidden_when_not_configured(client, auth_headers):
+    """Default deployment has no Slack env — the card must not render at all."""
+    response = await client.get("/api/connection/status", headers=auth_headers)
+    assert response.status_code == 200
+    assert _slack(response) is None
+
+
+async def test_slack_shown_when_configured_without_account(
+    client, auth_headers, slack_configured
+):
+    response = await client.get("/api/connection/status", headers=auth_headers)
+    assert response.status_code == 200
+    slack = _slack(response)
+    assert slack is not None
+    assert slack["is_connected"] is False
+    assert slack["needs_reconnect"] is False
+
+
+async def test_slack_healthy_without_refresh_token(
+    client, db_session, test_user, auth_headers, slack_configured
+):
+    """A bot token legitimately has no refresh token — that must not read as broken."""
+    await _make_slack_account(db_session, test_user)
+
+    response = await client.get("/api/connection/status", headers=auth_headers)
+
+    assert response.status_code == 200
+    slack = _slack(response)
+    assert slack["is_connected"] is True
+    assert slack["needs_reconnect"] is False
+    assert slack["email"] == "Acme Workspace"
+
+
+async def test_slack_needs_reconnect_when_access_token_cleared(
+    client, db_session, test_user, auth_headers, slack_configured
+):
+    """The task nulls access_token on token_revoked — that is the reconnect signal."""
+    await _make_slack_account(db_session, test_user, access_token=None)
+
+    response = await client.get("/api/connection/status", headers=auth_headers)
+
+    assert response.status_code == 200
+    assert _slack(response)["needs_reconnect"] is True
+
+
+async def test_slack_needs_reconnect_when_scope_missing(
+    client, db_session, test_user, auth_headers, slack_configured
+):
+    await _make_slack_account(db_session, test_user, scope="im:write")
+
+    response = await client.get("/api/connection/status", headers=auth_headers)
+
+    assert response.status_code == 200
+    assert _slack(response)["needs_reconnect"] is True

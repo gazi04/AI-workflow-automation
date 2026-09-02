@@ -7,8 +7,9 @@ from auth.schemas.connection_status_response import (
     ConnectionStatusResponse,
     IntegrationStatus,
 )
-from auth.scopes import GOOGLE_SCOPES
+from auth.scopes import GOOGLE_SCOPES, SLACK_SCOPES
 from auth.services.account_service import AccountService
+from core.config_loader import settings
 from core.database import get_db
 from core.setup_logging import setup_logger
 from user.models import User
@@ -21,7 +22,12 @@ logger = setup_logger("Connection Router")
 # with 403 ACCESS_TOKEN_SCOPE_INSUFFICIENT — an HttpError the credential layer
 # never sees. Comparing what was granted against what we now need is the only
 # way to surface it.
-REQUIRED_SCOPES = {"google": set(GOOGLE_SCOPES)}
+REQUIRED_SCOPES = {"google": set(GOOGLE_SCOPES), "slack": set(SLACK_SCOPES)}
+
+# Providers whose token has no refresh token by design (Slack bot tokens are
+# long-lived). For these, a missing refresh token is normal, not a breakage —
+# reconnect is driven by the access token being cleared instead.
+PROVIDERS_WITHOUT_REFRESH_TOKEN = {"slack"}
 
 
 def _is_missing_scopes(provider: str, granted: str | None) -> bool:
@@ -52,16 +58,28 @@ async def get_connection_status(
     integrations = []
 
     for provider in SUPPORTED_PROVIDERS:
+        # Hide a provider the deployment hasn't configured rather than render a
+        # dead "Connect" button.
+        if provider == "slack" and settings.slack_oauth_client_id is None:
+            continue
+
         account = account_map.get(provider)
 
         if account:
-            needs_reconnect = account.refresh_token is None or _is_missing_scopes(
-                provider, account.scope
-            )
+            if provider in PROVIDERS_WITHOUT_REFRESH_TOKEN:
+                needs_reconnect = account.access_token is None or _is_missing_scopes(
+                    provider, account.scope
+                )
+            else:
+                needs_reconnect = account.refresh_token is None or _is_missing_scopes(
+                    provider, account.scope
+                )
 
             email = None
             if account.metadata_account and isinstance(account.metadata_account, dict):
-                email = account.metadata_account.get("email")
+                email = account.metadata_account.get(
+                    "email"
+                ) or account.metadata_account.get("team_name")
 
             integrations.append(
                 IntegrationStatus(

@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from processed_messages.models.processed_messages import ProcessedMessages
+from processed_messages.services import ProcessedMessageService
 from user.models.user import User
 from workflow.models.workflow import Workflow
 from workflow.services import WorkflowService
@@ -55,3 +56,19 @@ async def test_processed_message_for_unknown_workflow_is_rejected(db_session):
 
     with pytest.raises(IntegrityError):
         await db_session.flush()
+
+
+async def test_create_is_idempotent(db_session, test_workflow):
+    """A second create for the same (message, workflow) pair is a no-op, not a
+    unique violation that aborts the transaction."""
+    first = await ProcessedMessageService.create(
+        db_session, "msg_dup", test_workflow.id
+    )
+    assert first is not None
+
+    second = await ProcessedMessageService.create(
+        db_session, "msg_dup", test_workflow.id
+    )
+    assert second is None
+
+    assert len(await _processed_ids(db_session, test_workflow.id)) == 1

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { api, BASE_URL } from '$lib/api/client';
+	import { api } from '$lib/api/client';
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
@@ -11,6 +11,7 @@
 	import CircleAlert from '@lucide/svelte/icons/circle-alert';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import Settings2 from '@lucide/svelte/icons/settings-2';
+	import Slack from '@lucide/svelte/icons/slack';
 	import Unplug from '@lucide/svelte/icons/unplug';
 	import Info from '@lucide/svelte/icons/info';
 	import { toast } from 'svelte-sonner';
@@ -75,14 +76,27 @@
 		}
 	}
 
-	function handleConnect(provider: string) {
-		window.location.href = `${BASE_URL}/api/auth/connect/${provider}`;
+	async function handleConnect(provider: string) {
+		try {
+			const { auth_url } = await api.get<{ auth_url: string }>(`/api/auth/connect/${provider}`);
+			window.location.href = auth_url;
+		} catch (err) {
+			console.error(`Failed to start ${provider} connect`, err);
+			const apiErr = err as { status?: number; detail?: string };
+			const message =
+				apiErr.status === 503
+					? `${formatLabel(provider)} is not configured on this server.`
+					: apiErr.detail || `Could not start the ${formatLabel(provider)} connection.`;
+			toast.error(message);
+		}
 	}
 
 	function getProviderIcon(provider: string) {
 		switch (provider.toLowerCase()) {
 			case 'google':
 				return Mail;
+			case 'slack':
+				return Slack;
 			case 'discord':
 				return MessageSquare;
 			default:
