@@ -6,6 +6,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -19,6 +20,11 @@ import uuid
 
 class ConnectedAccount(Base):
     __tablename__ = "connected_accounts"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "provider", name="uq_connected_accounts_user_provider"
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
