@@ -8,24 +8,21 @@ from fastapi import APIRouter, Request, HTTPException, Depends, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from google_auth_oauthlib.flow import Flow
 from google.oauth2 import id_token
+from google.oauth2.credentials import Credentials
 from google.auth.transport import requests
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.dependencies import get_current_user
-from auth.models import RefreshToken, ConnectedAccount
+from auth.models import ConnectedAccount
 from auth.scopes import GOOGLE_SCOPES, SLACK_SCOPES
 from auth.services import (
     AccountService,
+    AuthService,
     TokenService,
     OAuthStateService,
     AuthCodeService,
 )
-from auth.utils import (
-    create_access_token,
-    create_refresh_token,
-    decode_access_token,
-    hash_refresh_token,
-)
+from auth.utils import decode_access_token
 from core.config_loader import settings
 from core.rate_limit import limiter
 from core.cookies import (
@@ -163,15 +160,42 @@ async def connect_google(request: Request, db: AsyncSession = Depends(get_db)):
     return {"auth_url": auth_url}
 
 
-# must apply the same update (returning both access_token and refresh_token)
-# 🔴 todo: need to refactor this bold endpoint IT'S TO BIGG
+async def _exchange_google_code(code: str, code_verifier: str | None) -> Credentials:
+    """Trade an OAuth code + PKCE verifier for Google credentials.
+
+    google_auth_oauthlib is synchronous — the token exchange is a blocking
+    HTTPS round-trip, so it runs in a worker thread.
+    """
+    flow = get_google_flow(code_verifier=code_verifier)
+    await asyncio.to_thread(flow.fetch_token, code=code)
+    return flow.credentials
+
+
+async def _verify_google_id_token(credentials: Credentials) -> dict:
+    """Verify the Google ID token and return its claims (sub, email, name, ...).
+
+    google.oauth2.id_token is synchronous — verification fetches Google's
+    signing certs over HTTPS, so it also runs in a worker thread.
+    """
+    try:
+        return await asyncio.to_thread(
+            id_token.verify_oauth2_token,
+            credentials.id_token,  # pyright: ignore[reportAttributeAccessIssue]
+            requests.Request(),
+            settings.google_oauth_client_id,
+        )
+    except ValueError as e:
+        logger.error(f"ValueError: Invalid ID token: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid ID token: {e}") from e
+
+
 @auth_router.get("/callback/google")
 async def callback_google(
     code: str,
     state: str,
     db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
-    saved_account = None
+    fail = RedirectResponse(url=f"{settings.frontend_url}/login?error=auth_failed")
 
     try:
         oauth_state = await OAuthStateService.consume(db, state)
@@ -179,104 +203,55 @@ async def callback_google(
             raise HTTPException(
                 status_code=400, detail="Invalid or expired state parameter"
             )
+        code_verifier = oauth_state.code_verifier
 
-        flow = get_google_flow(code_verifier=oauth_state.code_verifier)
-
-        # google_auth_oauthlib and google.auth are synchronous: the token
-        # exchange and the id_token verification (which fetches Google's signing
-        # certs) both block the event loop for the whole process.
-        await asyncio.to_thread(flow.fetch_token, code=code)
-        credentials = flow.credentials
-
-        try:
-            user_info = await asyncio.to_thread(
-                id_token.verify_oauth2_token,
-                credentials.id_token,  # pyright: ignore[reportAttributeAccessIssue]
-                requests.Request(),
-                settings.google_oauth_client_id,
-            )
-            provider_account_id = user_info["sub"]
-            provider_account_email = user_info["email"]
-        except ValueError as e:
-            logger.error(f"ValueError: Invalid ID token: {e}")
-            raise HTTPException(status_code=400, detail=f"Invalid ID token: {e}") from e
+        credentials = await _exchange_google_code(code, code_verifier)
+        user_info = await _verify_google_id_token(credentials)
+        provider_account_id = user_info["sub"]
+        provider_account_email = user_info["email"]
 
         user = await UserService.get_or_create(db, provider_account_email)
 
-        existing_account = await AccountService.get_account_by_user_and_provider(
-            db, user.id, "google"
+        expiry = (
+            datetime.fromtimestamp(credentials.expiry.timestamp(), tz=timezone.utc)
+            if credentials.expiry
+            else None
         )
-
-        if existing_account:
-            existing_account.access_token = encrypt_token(credentials.token)
-            existing_account.refresh_token = (
-                encrypt_token(credentials.refresh_token)
-                or existing_account.refresh_token
-            )
-            existing_account.token_expires_at = (
-                datetime.fromtimestamp(credentials.expiry.timestamp(), tz=timezone.utc)
-                if credentials.expiry
-                else None
-            )
-            existing_account.scope = " ".join(credentials.scopes)
-            existing_account.updated_at = datetime.now(timezone.utc)
-
-            saved_account = existing_account
-        else:
-            connected_account = ConnectedAccount(
-                user_id=user.id,
-                provider="google",
-                provider_account_id=provider_account_id,
-                access_token=encrypt_token(credentials.token),
-                refresh_token=encrypt_token(credentials.refresh_token),
-                token_expires_at=datetime.fromtimestamp(
-                    credentials.expiry.timestamp(), tz=timezone.utc
-                )
-                if credentials.expiry
-                else None,
-                scope=" ".join(credentials.scopes),
-                metadata_account={
-                    "email": provider_account_email,
-                    "name": user_info.get("name"),
-                },
-            )
-            db.add(connected_account)
-
-            saved_account = connected_account
-
-        await db.commit()
-
-        access_token = create_access_token(
-            data={"sub": str(user.id), "email": user.email}
-        )
-        refresh_token_string, expires_at = create_refresh_token(user.id)
-
-        new_refresh_token = RefreshToken(
+        saved_account = await AccountService.upsert_from_oauth(
+            db,
             user_id=user.id,
-            token=hash_refresh_token(refresh_token_string),
-            expires_at=expires_at,
+            provider="google",
+            provider_account_id=provider_account_id,
+            access_token=credentials.token,
+            refresh_token=credentials.refresh_token,
+            token_expires_at=expiry,
+            scope=" ".join(credentials.scopes),
+            metadata_account={
+                "email": provider_account_email,
+                "name": user_info.get("name"),
+            },
+            mark_connected=True,
         )
-        db.add(new_refresh_token)
-        await db.commit()
+
+        tokens = await AuthService.create_token_pair(db, user)
 
         # After a successfull login with google enable gmail listener for push notifications
-        watch_response = await GmailService.watch_mailbox_for_updates(
-            user_id=user.id,
-        )
-
+        watch_response = await GmailService.watch_mailbox_for_updates(user_id=user.id)
         if watch_response and watch_response.get("historyId"):
             await AccountService.update_history_id(
                 db, saved_account, watch_response["historyId"]
             )
 
-        code = await AuthCodeService.create(db, access_token, refresh_token_string)
-        frontend_url = f"{settings.frontend_url}/auth/success?code={code}"
-
-        return RedirectResponse(url=frontend_url)
+        exchange_code = await AuthCodeService.create(
+            db, tokens["access_token"], tokens["refresh_token"]
+        )
+        return RedirectResponse(
+            url=f"{settings.frontend_url}/auth/success?code={exchange_code}"
+        )
 
     except Exception as e:
         logger.error(f"Unhandled error: {e}")
-        return RedirectResponse(url=f"{settings.frontend_url}/login?error=auth_failed")
+        return fail
 
 
 # ==================================================

@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Any, List, Optional
 from uuid import UUID
 
@@ -63,6 +64,60 @@ class AccountService:
 
         if refresh_token is not None:
             account.refresh_token = encrypt_token(refresh_token)
+
+        await db.commit()
+        await db.refresh(account)
+        return account
+
+    @staticmethod
+    async def upsert_from_oauth(
+        db: AsyncSession,
+        user_id: UUID,
+        provider: str,
+        provider_account_id: str,
+        access_token: str,
+        refresh_token: str | None,
+        token_expires_at: datetime | None,
+        scope: str | None,
+        metadata_account: dict | None = None,
+        mark_connected: bool = False,
+        update_metadata_on_existing: bool = False,
+    ) -> ConnectedAccount:
+        """Create or update a ConnectedAccount after a fresh OAuth callback.
+
+        Tokens are encrypted here via core.crypto.encrypt_token, matching
+        refresh_tokens()'s convention. A falsy refresh_token on update leaves
+        the existing encrypted refresh_token untouched (providers may omit it
+        on repeat consent).
+        """
+        account = await AccountService.get_account_by_user_and_provider(
+            db, user_id, provider
+        )
+
+        if account is None:
+            account = ConnectedAccount(
+                user_id=user_id,
+                provider=provider,
+                provider_account_id=provider_account_id,
+                metadata_account=metadata_account or {},
+            )
+            db.add(account)
+        elif update_metadata_on_existing:
+            account.provider_account_id = (
+                provider_account_id or account.provider_account_id
+            )
+            if metadata_account is not None:
+                account.metadata_account = metadata_account
+
+        account.access_token = encrypt_token(access_token)
+        if refresh_token:
+            account.refresh_token = encrypt_token(refresh_token)
+        account.token_expires_at = token_expires_at
+        account.scope = scope
+        account.updated_at = datetime.now(timezone.utc)
+
+        if mark_connected:
+            account.is_connected = True
 
         await db.commit()
         await db.refresh(account)
