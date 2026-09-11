@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta, timezone
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
 import pytest
+from fastapi import HTTPException
 from sqlalchemy import select
 
 from auth.models.connected_account import ConnectedAccount
@@ -13,6 +14,7 @@ from auth.utils import create_access_token
 from core.config_loader import settings
 from core.cookies import ACCESS_COOKIE, REFRESH_COOKIE
 from core.crypto import decrypt_token
+from user.models.user import User
 
 
 # ---------------------------------------------------------------------------
@@ -317,3 +319,234 @@ async def test_callback_slack_exchange_failure_redirects_with_error(
         .all()
     )
     assert accounts == []
+
+
+# ---------------------------------------------------------------------------
+# GET /api/auth/callback/google
+# ---------------------------------------------------------------------------
+
+
+async def _start_google_connect(client) -> str:
+    """Hit /connect/google and return the freshly created state token."""
+    response = await client.get("/api/auth/connect/google")
+    assert response.status_code == 200
+    auth_url = response.json()["auth_url"]
+    return parse_qs(urlparse(auth_url).query)["state"][0]
+
+
+def _fake_google_credentials(
+    token="access-tok", refresh_token="refresh-tok", scopes=None
+):
+    creds = MagicMock()
+    creds.token = token
+    creds.refresh_token = refresh_token
+    creds.expiry = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=1)
+    creds.scopes = scopes or [
+        "openid",
+        "email",
+        "https://www.googleapis.com/auth/gmail.readonly",
+    ]
+    return creds
+
+
+def _google_claims(sub="google-sub-1", email="new.user@example.com", name="Test User"):
+    return {"sub": sub, "email": email, "name": name}
+
+
+async def test_callback_google_happy_path_new_user_creates_user_and_account(
+    client, db_session
+):
+    state = await _start_google_connect(client)
+
+    with (
+        patch(
+            "auth.routes.auth_router._exchange_google_code",
+            return_value=_fake_google_credentials(),
+        ),
+        patch(
+            "auth.routes.auth_router._verify_google_id_token",
+            return_value=_google_claims(email="new.user@example.com"),
+        ),
+        patch(
+            "auth.routes.auth_router.GmailService.watch_mailbox_for_updates",
+            return_value={"historyId": "123"},
+        ),
+    ):
+        response = await client.get(
+            f"/api/auth/callback/google?code=abc123&state={state}"
+        )
+
+    assert response.status_code in (302, 307)
+    assert response.headers["location"].startswith(
+        f"{settings.frontend_url}/auth/success?code="
+    )
+
+    user = (
+        await db_session.execute(
+            select(User).where(User.email == "new.user@example.com")
+        )
+    ).scalar_one()
+
+    account = (
+        await db_session.execute(
+            select(ConnectedAccount).where(
+                ConnectedAccount.user_id == user.id,
+                ConnectedAccount.provider == "google",
+            )
+        )
+    ).scalar_one()
+    assert account.provider_account_id == "google-sub-1"
+    assert account.is_connected is True
+    assert decrypt_token(account.access_token) == "access-tok"
+    assert account.last_synced_history_id == "123"
+
+
+async def test_callback_google_happy_path_existing_user_updates_account(
+    client, db_session, test_user, test_connected_account
+):
+    state = await _start_google_connect(client)
+    original_provider_account_id = test_connected_account.provider_account_id
+
+    with (
+        patch(
+            "auth.routes.auth_router._exchange_google_code",
+            return_value=_fake_google_credentials(refresh_token=None),
+        ),
+        patch(
+            "auth.routes.auth_router._verify_google_id_token",
+            return_value=_google_claims(sub="a-different-sub", email=test_user.email),
+        ),
+        patch(
+            "auth.routes.auth_router.GmailService.watch_mailbox_for_updates",
+            return_value=None,
+        ),
+    ):
+        response = await client.get(
+            f"/api/auth/callback/google?code=abc123&state={state}"
+        )
+
+    assert response.status_code in (302, 307)
+    assert response.headers["location"].startswith(
+        f"{settings.frontend_url}/auth/success?code="
+    )
+
+    await db_session.refresh(test_connected_account)
+    assert decrypt_token(test_connected_account.access_token) == "access-tok"
+    # A falsy refresh_token from the provider must not clobber the stored one.
+    assert test_connected_account.refresh_token == "test_refresh_token"
+    # update_metadata_on_existing defaults to False — provider_account_id
+    # is left as first-seen even though the claims carried a new sub.
+    assert test_connected_account.provider_account_id == original_provider_account_id
+
+    users = (
+        (await db_session.execute(select(User).where(User.email == test_user.email)))
+        .scalars()
+        .all()
+    )
+    assert len(users) == 1
+
+
+async def test_callback_google_invalid_state_redirects_with_error(client, db_session):
+    with patch("auth.routes.auth_router._exchange_google_code") as exchange:
+        response = await client.get(
+            "/api/auth/callback/google?code=abc&state=not-a-real-state"
+        )
+
+    assert response.status_code in (302, 307)
+    assert (
+        response.headers["location"]
+        == f"{settings.frontend_url}/login?error=auth_failed"
+    )
+    exchange.assert_not_called()
+
+    accounts = (
+        (
+            await db_session.execute(
+                select(ConnectedAccount).where(ConnectedAccount.provider == "google")
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert accounts == []
+
+
+async def test_callback_google_invalid_id_token_redirects_with_error(
+    client, db_session
+):
+    state = await _start_google_connect(client)
+
+    with (
+        patch(
+            "auth.routes.auth_router._exchange_google_code",
+            return_value=_fake_google_credentials(),
+        ),
+        patch(
+            "auth.routes.auth_router._verify_google_id_token",
+            side_effect=HTTPException(status_code=400, detail="Invalid ID token: bad"),
+        ),
+    ):
+        response = await client.get(
+            f"/api/auth/callback/google?code=abc123&state={state}"
+        )
+
+    assert response.status_code in (302, 307)
+    assert (
+        response.headers["location"]
+        == f"{settings.frontend_url}/login?error=auth_failed"
+    )
+
+    accounts = (
+        (
+            await db_session.execute(
+                select(ConnectedAccount).where(ConnectedAccount.provider == "google")
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert accounts == []
+
+
+async def test_callback_google_watch_mailbox_failure_does_not_block_login(
+    client, db_session
+):
+    state = await _start_google_connect(client)
+
+    with (
+        patch(
+            "auth.routes.auth_router._exchange_google_code",
+            return_value=_fake_google_credentials(),
+        ),
+        patch(
+            "auth.routes.auth_router._verify_google_id_token",
+            return_value=_google_claims(email="watch-fail@example.com"),
+        ),
+        patch(
+            "auth.routes.auth_router.GmailService.watch_mailbox_for_updates",
+            return_value=None,
+        ),
+    ):
+        response = await client.get(
+            f"/api/auth/callback/google?code=abc123&state={state}"
+        )
+
+    assert response.status_code in (302, 307)
+    assert response.headers["location"].startswith(
+        f"{settings.frontend_url}/auth/success?code="
+    )
+
+    user = (
+        await db_session.execute(
+            select(User).where(User.email == "watch-fail@example.com")
+        )
+    ).scalar_one()
+    account = (
+        await db_session.execute(
+            select(ConnectedAccount).where(
+                ConnectedAccount.user_id == user.id,
+                ConnectedAccount.provider == "google",
+            )
+        )
+    ).scalar_one()
+    assert account.last_synced_history_id is None
