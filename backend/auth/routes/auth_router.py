@@ -249,8 +249,11 @@ async def callback_google(
             url=f"{settings.frontend_url}/auth/success?code={exchange_code}"
         )
 
+    except HTTPException as e:
+        logger.warning(f"Google OAuth callback rejected: {e.detail}")
+        return fail
     except Exception as e:
-        logger.error(f"Unhandled error: {e}")
+        logger.exception(f"Unhandled error in Google OAuth callback: {e}")
         return fail
 
 
@@ -363,6 +366,9 @@ async def callback_slack(
 
         return RedirectResponse(url=f"{settings.frontend_url}/dashboard/integrations")
 
+    except HTTPException as e:
+        logger.warning(f"Slack OAuth callback rejected: {e.detail}")
+        return fail
     except Exception as e:
-        logger.error(f"Slack callback unhandled error: {e}")
+        logger.exception(f"Slack callback unhandled error: {e}")
         return fail

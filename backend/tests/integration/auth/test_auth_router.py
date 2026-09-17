@@ -550,3 +550,54 @@ async def test_callback_google_watch_mailbox_failure_does_not_block_login(
         )
     ).scalar_one()
     assert account.last_synced_history_id is None
+
+
+async def test_callback_google_invalid_state_logs_warning_not_error(
+    client, db_session, caplog
+):
+    """A deliberate HTTPException (bad/expired state) is expected control flow,
+    not a bug — it must be logged at WARNING, never at ERROR."""
+    with caplog.at_level("WARNING", logger="Auth Router"):
+        response = await client.get(
+            "/api/auth/callback/google?code=abc&state=not-a-real-state"
+        )
+
+    assert response.status_code in (302, 307)
+    assert (
+        response.headers["location"]
+        == f"{settings.frontend_url}/login?error=auth_failed"
+    )
+
+    warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+    errors = [r for r in caplog.records if r.levelname == "ERROR"]
+    assert any("rejected" in r.message for r in warnings)
+    assert errors == []
+
+
+async def test_callback_google_unexpected_exception_logs_error(
+    client, db_session, caplog
+):
+    """A genuine bug (not a raised HTTPException) must still be logged at
+    ERROR with a traceback, so it's distinguishable from expected rejections."""
+    state = await _start_google_connect(client)
+
+    with (
+        patch(
+            "auth.routes.auth_router._exchange_google_code",
+            side_effect=RuntimeError("boom"),
+        ),
+        caplog.at_level("WARNING", logger="Auth Router"),
+    ):
+        response = await client.get(
+            f"/api/auth/callback/google?code=abc123&state={state}"
+        )
+
+    assert response.status_code in (302, 307)
+    assert (
+        response.headers["location"]
+        == f"{settings.frontend_url}/login?error=auth_failed"
+    )
+
+    errors = [r for r in caplog.records if r.levelname == "ERROR"]
+    assert len(errors) == 1
+    assert errors[0].exc_info is not None
